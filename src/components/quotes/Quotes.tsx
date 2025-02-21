@@ -1,0 +1,254 @@
+import React, { useState } from 'react';
+import { Search, Filter, Plus, FileText, Mail, ArrowRight, LinkIcon } from "lucide-react";
+import NewQuoteModal from './NewQuoteModal';
+import { generateQuotePDF } from './pdf/QuotePDF';
+
+const mockQuotes = [
+ {
+   id: "Q2024-001",
+   title: "Conveyor System Installation",
+   customer: "Acme Manufacturing Ltd",
+   status: "PENDING",
+   value: 24500.00,
+   date: "2024-01-30",
+   validUntil: "2024-02-28",
+   jobId: "J2024-001",
+   items: [
+     {
+       description: "Belt Conveyor System 10m",
+       quantity: 1,
+       unitPrice: 15000.00,
+       total: 15000.00
+     },
+     {
+       description: "Installation Service",
+       quantity: 1,
+       unitPrice: 8000.00,
+       total: 8000.00
+     },
+     {
+       description: "Control System",
+       quantity: 1,
+       unitPrice: 1500.00,
+       total: 1500.00
+     }
+   ],
+   notes: "Includes installation and commissioning",
+   terms: "50% deposit required",
+   contactPerson: "John Smith",
+   contactEmail: "john.smith@acme.com"
+ },
+ {
+   id: "Q2024-002",
+   title: "Steel Supply Agreement",
+   customer: "BuildCo Ltd",
+   status: "APPROVED",
+   value: 18750.00,
+   date: "2024-01-28",
+   validUntil: "2024-02-27",
+   jobId: null,
+   items: [
+     {
+       description: "Steel Plates 10mm",
+       quantity: 50,
+       unitPrice: 250.00,
+       total: 12500.00
+     },
+     {
+       description: "Steel Beams IPE 200",
+       quantity: 25,
+       unitPrice: 250.00,
+       total: 6250.00
+     }
+   ],
+   notes: "Bulk order discount applied",
+   terms: "Net 30",
+   contactPerson: "Sarah Jones",
+   contactEmail: "sarah.jones@buildco.com"
+ }
+];
+
+const statusColors = {
+ DRAFT: "bg-gray-100 text-gray-800",
+ PENDING: "bg-yellow-100 text-yellow-800",
+ APPROVED: "bg-green-100 text-green-800",
+ DECLINED: "bg-red-100 text-red-800"
+};
+
+export default function Quotes() {
+ const [searchTerm, setSearchTerm] = useState('');
+ const [filterOpen, setFilterOpen] = useState(false);
+ const [selectedStatus, setSelectedStatus] = useState('all');
+ const [isNewQuoteModalOpen, setIsNewQuoteModalOpen] = useState(false);
+
+ const filteredQuotes = mockQuotes.filter(quote =>
+   (quote.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    quote.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    quote.id.toLowerCase().includes(searchTerm.toLowerCase())) &&
+   (selectedStatus === 'all' || quote.status === selectedStatus)
+ );
+
+ const handleGeneratePDF = (quoteId) => {
+   const quote = mockQuotes.find(q => q.id === quoteId);
+   if (quote) {
+     const pdfDoc = generateQuotePDF(quote);
+     pdfDoc.download(`Quote-${quote.id}.pdf`);
+   }
+ };
+
+ const handleCreateQuote = (quoteData) => {
+   console.log('Creating new quote:', quoteData);
+   const newQuote = {
+     ...quoteData,
+     id: `Q${new Date().getFullYear()}-${String(mockQuotes.length + 1).padStart(3, '0')}`,
+     status: 'PENDING'
+   };
+   // In real app, this would be an API call
+   mockQuotes.push(newQuote);
+   setIsNewQuoteModalOpen(false);
+ };
+
+ const handleSendEmail = (quoteId) => {
+   console.log('Preparing to send quote:', quoteId);
+   // Email sending logic will go here
+ };
+
+ const handleConvertToOrder = (quoteId) => {
+   console.log('Converting quote to order:', quoteId);
+   // Order conversion logic will go here
+ };
+
+ return (
+   <div className="p-8 max-w-7xl mx-auto">
+     {/* Header */}
+     <div className="flex justify-between items-center mb-8">
+       <h2 className="text-3xl font-bold">Quotes Management</h2>
+       <button 
+         onClick={() => setIsNewQuoteModalOpen(true)}
+         className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+       >
+         <Plus className="h-4 w-4" />
+         <span>New Quote</span>
+       </button>
+     </div>
+
+     {/* Controls */}
+     <div className="flex justify-between items-center mb-6">
+       <div className="flex space-x-4">
+         <div className="relative">
+           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+           <input
+             type="text"
+             placeholder="Search quotes..."
+             value={searchTerm}
+             onChange={(e) => setSearchTerm(e.target.value)}
+             className="pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+           />
+         </div>
+
+         <select
+           value={selectedStatus}
+           onChange={(e) => setSelectedStatus(e.target.value)}
+           className="border rounded-lg px-4 py-2"
+         >
+           <option value="all">All Status</option>
+           <option value="DRAFT">Draft</option>
+           <option value="PENDING">Pending</option>
+           <option value="APPROVED">Approved</option>
+           <option value="DECLINED">Declined</option>
+         </select>
+       </div>
+
+       <button 
+         onClick={() => setFilterOpen(!filterOpen)}
+         className="flex items-center space-x-2 px-4 py-2 border rounded-lg hover:bg-gray-50"
+       >
+         <Filter className="h-4 w-4" />
+         <span>Advanced Filter</span>
+       </button>
+     </div>
+
+     {/* Quotes List */}
+     <div className="space-y-4">
+       {filteredQuotes.map((quote) => (
+         <div key={quote.id} className="bg-white rounded-lg shadow hover:shadow-md transition-shadow">
+           <div className="p-6">
+             <div className="flex justify-between items-start">
+               <div>
+                 <div className="flex items-center space-x-3">
+                   <h3 className="text-lg font-medium text-gray-900">{quote.title}</h3>
+                   {quote.jobId && (
+                     <div className="flex items-center text-sm text-blue-600">
+                       <LinkIcon className="h-4 w-4 mr-1" />
+                       Job: {quote.jobId}
+                     </div>
+                   )}
+                 </div>
+                 <div className="mt-1 text-sm text-gray-500">
+                   {quote.id} - {quote.customer}
+                 </div>
+               </div>
+               <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColors[quote.status]}`}>
+                 {quote.status}
+               </span>
+             </div>
+
+             <div className="mt-4 grid grid-cols-3 gap-4">
+               <div>
+                 <div className="text-sm font-medium text-gray-500">Value</div>
+                 <div className="mt-1 text-sm text-gray-900">${quote.value.toLocaleString()}</div>
+               </div>
+               <div>
+                 <div className="text-sm font-medium text-gray-500">Date Created</div>
+                 <div className="mt-1 text-sm text-gray-900">{quote.date}</div>
+               </div>
+               <div>
+                 <div className="text-sm font-medium text-gray-500">Valid Until</div>
+                 <div className="mt-1 text-sm text-gray-900">{quote.validUntil}</div>
+               </div>
+             </div>
+
+             <div className="mt-4 flex items-center justify-between">
+               <div className="text-sm text-gray-500">
+                 Contact: {quote.contactPerson} ({quote.contactEmail})
+               </div>
+               <div className="flex space-x-2">
+                 <button
+                   onClick={() => handleGeneratePDF(quote.id)}
+                   className="flex items-center space-x-1 px-3 py-1 text-sm border rounded hover:bg-gray-50"
+                 >
+                   <FileText className="h-4 w-4" />
+                   <span>PDF</span>
+                 </button>
+                 <button
+                   onClick={() => handleSendEmail(quote.id)}
+                   className="flex items-center space-x-1 px-3 py-1 text-sm border rounded hover:bg-gray-50"
+                 >
+                   <Mail className="h-4 w-4" />
+                   <span>Email</span>
+                 </button>
+                 {quote.status === 'APPROVED' && (
+                   <button
+                     onClick={() => handleConvertToOrder(quote.id)}
+                     className="flex items-center space-x-1 px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700"
+                   >
+                     <ArrowRight className="h-4 w-4" />
+                     <span>Convert to Order</span>
+                   </button>
+                 )}
+               </div>
+             </div>
+           </div>
+         </div>
+       ))}
+     </div>
+
+     {/* New Quote Modal */}
+     <NewQuoteModal 
+       isOpen={isNewQuoteModalOpen}
+       onClose={() => setIsNewQuoteModalOpen(false)}
+       onSubmit={handleCreateQuote}
+     />
+   </div>
+ );
+}
