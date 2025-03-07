@@ -152,7 +152,13 @@ export default function Customers() {
           
           <button 
             onClick={() => setIsModalOpen(true)}
-            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            className="flex items-center space-x-2 
+                       px-3 py-1.5 
+                       bg-blue-600 text-white 
+                       rounded-md 
+                       text-sm 
+                       hover:bg-blue-700 
+                       transition-colors"
           >
             <Plus className="h-4 w-4" />
             <span>Add Customer</span>

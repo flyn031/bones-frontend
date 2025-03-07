@@ -3,6 +3,7 @@ import axios from 'axios';
 import { Search, Plus, Grid, List, ChevronLeft, ChevronRight, Filter } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import CreateItemModal, { MaterialCategory } from './CreateItemModal';
+import MaterialDetailModal from './MaterialDetailModal';
 
 interface InventoryItem {
   id: string;
@@ -19,9 +20,15 @@ interface InventoryItem {
   };
 }
 
+interface Supplier {
+  id: string;
+  name: string;
+}
+
 export default function Inventory() {
   const navigate = useNavigate();
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]); // New suppliers state
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [viewType, setViewType] = useState('grid');
@@ -32,10 +39,32 @@ export default function Inventory() {
   const [total, setTotal] = useState(0);
   const [pageSize] = useState(20);
 
+  const [selectedMaterialId, setSelectedMaterialId] = useState<string | null>(null);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+
   const [filterOpen, setFilterOpen] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [minStockFilter, setMinStockFilter] = useState('');
   const [maxPriceFilter, setMaxPriceFilter] = useState('');
+
+  // New effect to fetch suppliers
+  useEffect(() => {
+    const fetchSuppliers = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await axios.get('http://localhost:4000/api/suppliers', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        setSuppliers(response.data);
+      } catch (error) {
+        console.error('Error fetching suppliers:', error);
+      }
+    };
+
+    fetchSuppliers();
+  }, []);
 
   const fetchInventory = async () => {
     setIsLoading(true);
@@ -107,7 +136,13 @@ export default function Inventory() {
   }, [page, searchTerm, categoryFilter, minStockFilter, maxPriceFilter]);
 
   const handleViewDetails = (itemId: string) => {
-    navigate(`/inventory/${itemId}`);
+    setSelectedMaterialId(itemId);
+    setIsDetailModalOpen(true);
+  };
+
+  const handleCloseDetailModal = () => {
+    setIsDetailModalOpen(false);
+    setSelectedMaterialId(null);
   };
 
   const handleAddItem = async (data: any) => {
@@ -349,12 +384,23 @@ export default function Inventory() {
         </button>
       </div>
 
+      {/* Add Item Modal - Updated to pass suppliers */}
       <CreateItemModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSubmit={handleAddItem}
         categories={Object.values(MaterialCategory)}
+        suppliers={suppliers} // Added suppliers prop
       />
+
+      {/* Material Detail Modal */}
+      {isDetailModalOpen && (
+        <MaterialDetailModal
+          materialId={selectedMaterialId}
+          onClose={handleCloseDetailModal}
+          onUpdate={fetchInventory}
+        />
+      )}
     </div>
   );
 }

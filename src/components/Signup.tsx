@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { Button, Input, Alert } from '../components/ui';
+import { Mail, Lock, User, Building2 } from 'lucide-react';
 
 export default function Signup() {
   const navigate = useNavigate();
@@ -35,68 +37,82 @@ export default function Signup() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-100">
-      <div className="bg-white p-8 rounded-lg shadow-md w-96">
-        <h2 className="text-2xl font-bold text-center mb-6">Sign Up</h2>
-        {error && <div className="mb-4 text-red-600 text-sm">{error}</div>}
+    <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
+      <div className="w-full max-w-md bg-white rounded-xl shadow-medium p-8">
+        <h2 className="text-3xl font-bold text-center mb-6 text-neutral-900">
+          Create Your Account
+        </h2>
 
-        <form onSubmit={handleSubmit}>
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700">Full Name</label>
-            <input
-              type="text"
-              name="name"
-              value={formData.name}
-              onChange={handleChange}
-              required
-              className="mt-1 block w-full p-2 border rounded-lg"
-            />
-          </div>
+        {error && (
+          <Alert 
+            type="error" 
+            message={error} 
+            className="mb-4" 
+          />
+        )}
 
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700">Company Name</label>
-            <input
-              type="text"
-              name="companyName"
-              value={formData.companyName}
-              onChange={handleChange}
-              required
-              className="mt-1 block w-full p-2 border rounded-lg"
-            />
-          </div>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <Input
+            label="Full Name"
+            type="text"
+            name="name"
+            value={formData.name}
+            onChange={handleChange}
+            placeholder="Enter your full name"
+            leftIcon={User}
+            required
+          />
 
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700">Email</label>
-            <input
-              type="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              required
-              className="mt-1 block w-full p-2 border rounded-lg"
-            />
-          </div>
+          <Input
+            label="Company Name"
+            type="text"
+            name="companyName"
+            value={formData.companyName}
+            onChange={handleChange}
+            placeholder="Your company name"
+            leftIcon={Building2}
+            required
+          />
 
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700">Password</label>
-            <input
-              type="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              required
-              className="mt-1 block w-full p-2 border rounded-lg"
-            />
-          </div>
+          <Input
+            label="Email Address"
+            type="email"
+            name="email"
+            value={formData.email}
+            onChange={handleChange}
+            placeholder="you@example.com"
+            leftIcon={Mail}
+            required
+          />
 
-          <button type="submit" className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700">
+          <Input
+            label="Password"
+            type="password"
+            name="password"
+            value={formData.password}
+            onChange={handleChange}
+            placeholder="Create a strong password"
+            leftIcon={Lock}
+            required
+          />
+
+          <Button 
+            type="submit" 
+            fullWidth 
+            className="mt-6"
+          >
             Sign Up
-          </button>
+          </Button>
         </form>
 
-        <p className="mt-4 text-center text-sm text-gray-600">
-          Already have an account? <a href="/login" className="text-blue-600">Log in</a>
-        </p>
+        <div className="mt-4 text-center">
+          <Button 
+            variant="ghost"
+            onClick={() => navigate('/login')}
+          >
+            Already have an account? Log in
+          </Button>
+        </div>
       </div>
     </div>
   );

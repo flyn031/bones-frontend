@@ -14,14 +14,26 @@ export enum MaterialCategory {
   OTHER = 'OTHER'
 }
 
+interface Supplier {
+  id: string;
+  name: string;
+}
+
 interface CreateItemModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (itemData: any) => void;
   categories: Record<string, string[]>;
+  suppliers: Supplier[]; // Added suppliers prop
 }
 
-export default function CreateItemModal({ isOpen, onClose, onSubmit, categories }: CreateItemModalProps) {
+export default function CreateItemModal({ 
+  isOpen, 
+  onClose, 
+  onSubmit, 
+  categories, 
+  suppliers 
+}: CreateItemModalProps) {
   const [formData, setFormData] = useState({
     name: '',
     code: '',
@@ -32,7 +44,8 @@ export default function CreateItemModal({ isOpen, onClose, onSubmit, categories 
     unit: '',
     unitPrice: 0,
     reorderPoint: 0,
-    leadTimeInDays: 0
+    leadTimeInDays: 0,
+    supplierId: '', // Added supplierId
   });
 
   if (!isOpen) return null;
@@ -47,6 +60,7 @@ export default function CreateItemModal({ isOpen, onClose, onSubmit, categories 
       minStockLevel: Number(formData.minStockLevel),
       unitPrice: Number(formData.unitPrice),
       reorderPoint: Number(formData.minStockLevel),
+      supplierId: formData.supplierId || undefined, // Handle optional supplierId
     };
 
     console.log('Form data being submitted:', JSON.stringify(submitData, null, 2));
@@ -64,7 +78,8 @@ export default function CreateItemModal({ isOpen, onClose, onSubmit, categories 
       unit: '',
       unitPrice: 0,
       reorderPoint: 0,
-      leadTimeInDays: 0
+      leadTimeInDays: 0,
+      supplierId: '', // Reset supplierId
     });
   };
 
@@ -228,6 +243,27 @@ export default function CreateItemModal({ isOpen, onClose, onSubmit, categories 
                 className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                 placeholder="e.g., 7"
               />
+            </div>
+          </div>
+
+          {/* Supplier Selection */}
+          <div className="grid grid-cols-1 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Supplier (Optional)
+              </label>
+              <select
+                value={formData.supplierId}
+                onChange={(e) => setFormData({ ...formData, supplierId: e.target.value })}
+                className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Select a Supplier (Optional)</option>
+                {suppliers.map((supplier) => (
+                  <option key={supplier.id} value={supplier.id}>
+                    {supplier.name}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 

@@ -10,7 +10,8 @@ const statusColors = {
   IN_PRODUCTION: "bg-blue-100 text-blue-800",
   ON_HOLD: "bg-orange-100 text-orange-800",
   COMPLETED: "bg-green-100 text-green-800",
-  CANCELLED: "bg-red-100 text-red-800"
+  CANCELLED: "bg-red-100 text-red-800",
+  APPROVED: "bg-green-100 text-green-800" // Added for converted quotes
 };
 
 const priorityIcons = {
@@ -20,33 +21,31 @@ const priorityIcons = {
 };
 
 export default function Orders() {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterOpen, setFilterOpen] = useState(false);
-  const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
-  const [editingOrder, setEditingOrder] = useState(null);
   const [orders, setOrders] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterOpen, setFilterOpen] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [selectedPriority, setSelectedPriority] = useState('all');
-  const [dateRange, setDateRange] = useState('');
   const [minValue, setMinValue] = useState('');
+  const [sortField, setSortField] = useState('createdAt');
+  const [sortDirection, setSortDirection] = useState('desc');
+  const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
+  const [editingOrder, setEditingOrder] = useState(null);
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
   const [selectedOrderForStatusUpdate, setSelectedOrderForStatusUpdate] = useState(null);
+  const [viewMode, setViewMode] = useState('grid');
+  const [currentPage, setCurrentPage] = useState(1);
 
   const ITEMS_PER_PAGE = 10;
-
+  
   const availableStatuses = [
-    'DRAFT', 
-    'PENDING_APPROVAL', 
-    'APPROVED', 
-    'IN_PRODUCTION', 
-    'ON_HOLD', 
-    'READY_FOR_DELIVERY', 
-    'DELIVERED', 
-    'COMPLETED', 
+    'DRAFT',
+    'PENDING_APPROVAL',
+    'IN_PRODUCTION',
+    'ON_HOLD',
+    'COMPLETED',
     'CANCELLED'
   ];
 
@@ -57,6 +56,8 @@ export default function Orders() {
       const response = await axios.get('http://localhost:4000/api/orders', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
+      
+      // Simply set the orders as they are received, without any sorting
       console.log('Fetched orders:', response.data);
       setOrders(response.data);
       setError(null);
@@ -71,7 +72,6 @@ export default function Orders() {
   useEffect(() => {
     fetchOrders();
   }, []);
-
 
   const handleCreateOrder = async (orderData) => {
     try {
@@ -100,6 +100,7 @@ export default function Orders() {
       );
     }
   };
+  
   const handleUpdateOrder = async (orderData) => {
     try {
       console.log('Updating order:', orderData);
@@ -145,7 +146,7 @@ export default function Orders() {
     setIsOrderModalOpen(true);
   };
 
-  const handlePageChange = (newPage: number) => {
+  const handlePageChange = (newPage) => {
     setCurrentPage(newPage);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };

@@ -27,12 +27,12 @@ export default function OrderModal({ isOpen, onClose, onSubmit, editOrder }: Ord
     contactPhone: '',
     contactEmail: '',
     projectValue: 0,
-    marginPercent: 20, // Default margin
-    leadTimeWeeks: 1,  // Default lead time
+    marginPercent: 20,
+    leadTimeWeeks: 1,
     status: 'DRAFT',
     items: [],
     currency: 'GBP',
-    vatRate: 20, // Default VAT rate
+    vatRate: 20,
     paymentTerms: 'THIRTY_DAYS',
     notes: ''
   });
@@ -66,10 +66,14 @@ export default function OrderModal({ isOpen, onClose, onSubmit, editOrder }: Ord
       const response = await axios.get('http://localhost:4000/api/customers', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      setCustomers(response.data);
+      console.log('Customers fetched:', response.data);
+      const customersArray = Array.isArray(response.data) ? response.data : 
+                            (response.data.customers && Array.isArray(response.data.customers) ? response.data.customers : []);
+      setCustomers(customersArray);
     } catch (err) {
       setError('Failed to load customers');
       console.error('Error loading customers:', err);
+      setCustomers([]);
     } finally {
       setIsLoading(false);
     }
@@ -80,14 +84,13 @@ export default function OrderModal({ isOpen, onClose, onSubmit, editOrder }: Ord
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Format data for API
     const submitData = {
       ...formData,
       projectValue: Number(formData.projectValue),
       marginPercent: Number(formData.marginPercent),
       leadTimeWeeks: Number(formData.leadTimeWeeks),
       vatRate: Number(formData.vatRate),
-      items: formData.items.length ? formData.items : [{}] // Ensure items is not empty
+      items: formData.items.length ? formData.items : [{}]
     };
 
     console.log('Submitting order data:', submitData);
@@ -113,7 +116,6 @@ export default function OrderModal({ isOpen, onClose, onSubmit, editOrder }: Ord
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Project Details */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -142,7 +144,6 @@ export default function OrderModal({ isOpen, onClose, onSubmit, editOrder }: Ord
             </div>
           </div>
 
-          {/* Customer Details */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -164,11 +165,17 @@ export default function OrderModal({ isOpen, onClose, onSubmit, editOrder }: Ord
                 className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Select Customer</option>
-                {customers.map(customer => (
-                  <option key={customer.id} value={customer.name}>
-                    {customer.name}
+                {customers.length > 0 ? (
+                  customers.map(customer => (
+                    <option key={customer.id} value={customer.name}>
+                      {customer.name}
+                    </option>
+                  ))
+                ) : (
+                  <option value="" disabled>
+                    {isLoading ? 'Loading customers...' : 'No customers available'}
                   </option>
-                ))}
+                )}
               </select>
             </div>
             <div>
@@ -185,7 +192,6 @@ export default function OrderModal({ isOpen, onClose, onSubmit, editOrder }: Ord
             </div>
           </div>
 
-          {/* Contact Details */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -213,7 +219,6 @@ export default function OrderModal({ isOpen, onClose, onSubmit, editOrder }: Ord
             </div>
           </div>
 
-          {/* Financial Details */}
           <div className="grid grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -258,7 +263,6 @@ export default function OrderModal({ isOpen, onClose, onSubmit, editOrder }: Ord
             </div>
           </div>
 
-          {/* Order Status */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Status
@@ -276,7 +280,6 @@ export default function OrderModal({ isOpen, onClose, onSubmit, editOrder }: Ord
             </select>
           </div>
 
-          {/* Notes */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Notes
@@ -289,7 +292,6 @@ export default function OrderModal({ isOpen, onClose, onSubmit, editOrder }: Ord
             />
           </div>
 
-          {/* Submit Buttons */}
           <div className="flex justify-end space-x-4 pt-4">
             <button
               type="button"

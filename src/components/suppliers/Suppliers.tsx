@@ -1,7 +1,10 @@
+// Suppliers.tsx
+
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Star, Package, TrendingUp, Filter, Grid, List } from "lucide-react";
+import { Search, Plus, Star, Package, TrendingUp, Grid, List } from "lucide-react";
 import AddSupplierModal from './AddSupplierModal';
-import axios from 'axios';
+import SupplierDetailModal from './SupplierDetailModal';
+import { supplierApi } from "../../utils/api";
 import { useNavigate } from 'react-router-dom';
 
 interface Supplier {
@@ -20,16 +23,17 @@ interface Supplier {
 export default function Suppliers() {
   const navigate = useNavigate();
   const [viewType, setViewType] = useState('grid');
-  const [filterOpen, setFilterOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState('all');
 
   useEffect(() => {
     fetchSuppliers();
-  }, []);
+  }, [searchTerm, statusFilter]);
 
   const fetchSuppliers = async () => {
     const token = localStorage.getItem('token');
@@ -40,10 +44,13 @@ export default function Suppliers() {
 
     try {
       setIsLoading(true);
-      const response = await axios.get('http://localhost:4000/api/suppliers', {
-        headers: { 'Authorization': `Bearer ${token}` }
+      const response = await supplierApi.getSuppliers({
+        search: searchTerm,
+        status: statusFilter !== 'all' ? statusFilter : undefined
       });
+      console.log('Suppliers Response:', response.data);
       setSuppliers(response.data);
+      console.log('Updated Suppliers State:', response.data);
     } catch (error) {
       console.error('Error fetching suppliers:', error);
       setError('Failed to fetch suppliers');
@@ -51,11 +58,6 @@ export default function Suppliers() {
       setIsLoading(false);
     }
   };
-
-  const filteredSuppliers = suppliers.filter(supplier => 
-    supplier.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    supplier.email.toLowerCase().includes(searchTerm.toLowerCase())
-  );
 
   const handleAddSupplier = async (data: any) => {
     const token = localStorage.getItem('token');
@@ -65,15 +67,38 @@ export default function Suppliers() {
     }
 
     try {
-      await axios.post('http://localhost:4000/api/suppliers', data, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      await supplierApi.createSupplier(data);
+      
       fetchSuppliers(); // Refresh the list
       setIsModalOpen(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error adding supplier:', error);
-      // Handle error (you might want to show an error message to the user)
+
+      // Handle specific error scenarios
+      if (error.response) {
+        switch (error.response.status) {
+          case 409: // Conflict - Supplier with email already exists
+            alert(`A supplier with the email ${data.email} already exists. 
+              Existing supplier name: ${error.response.data.supplierName}`);
+            break;
+          case 400: // Bad Request
+            alert(error.response.data.error || 'Invalid supplier data');
+            break;
+          default:
+            alert('Failed to add supplier. Please try again.');
+        }
+      } else if (error.request) {
+        alert('No response from server. Please check your connection.');
+      } else {
+        alert('Error setting up the request. Please try again.');
+      }
     }
+  };
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchTerm(value);
+    console.log('Search term:', value);
   };
 
   if (isLoading) {
@@ -98,7 +123,7 @@ export default function Suppliers() {
               type="text"
               placeholder="Search suppliers..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={handleSearchChange}
               className="pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
@@ -111,6 +136,18 @@ export default function Suppliers() {
             <Plus className="h-4 w-4" />
             <span>Add Supplier</span>
           </button>
+          
+          {/* Status Filter */}
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="px-4 py-2 border rounded-lg"
+          >
+            <option value="all">All Statuses</option>
+            <option value="ACTIVE">Active</option>
+            <option value="INACTIVE">Inactive</option>
+            <option value="SUSPENDED">Suspended</option>
+          </select>
           
           {/* View Toggle */}
           <div className="flex border rounded-lg">
@@ -132,7 +169,7 @@ export default function Suppliers() {
 
       {/* Grid View */}
       <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 ${viewType === 'list' ? 'hidden' : ''}`}>
-        {filteredSuppliers.map((supplier) => (
+        {suppliers.map((supplier) => (
           <div key={supplier.id} className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow">
             <div className="p-6">
               <div className="flex justify-between items-start">
@@ -144,7 +181,9 @@ export default function Suppliers() {
                   </div>
                 </div>
                 <span className={`px-2 py-1 rounded-full text-xs 
-                  ${supplier.status === 'ACTIVE' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+                  ${supplier.status === 'ACTIVE' ? 'bg-green-100 text-green-800' : 
+                  supplier.status === 'INACTIVE' ? 'bg-gray-100 text-gray-800' : 
+                  'bg-red-100 text-red-800'}`}>
                   {supplier.status}
                 </span>
               </div>
@@ -170,7 +209,10 @@ export default function Suppliers() {
               </div>
 
               <div className="mt-4 pt-4 border-t flex justify-end space-x-2">
-                <button className="px-3 py-1 text-sm border rounded hover:bg-gray-50">
+                <button 
+                  onClick={() => setSelectedSupplierId(supplier.id)}
+                  className="px-3 py-1 text-sm border rounded hover:bg-gray-50"
+                >
                   View Details
                 </button>
                 <button className="px-3 py-1 text-sm border rounded hover:bg-gray-50">
@@ -209,7 +251,7 @@ export default function Suppliers() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredSuppliers.map((supplier) => (
+              {suppliers.map((supplier) => (
                 <tr key={supplier.id}>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm font-medium text-gray-900">{supplier.name}</div>
@@ -223,7 +265,9 @@ export default function Suppliers() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`px-2 py-1 rounded-full text-xs 
-                      ${supplier.status === 'ACTIVE' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+                      ${supplier.status === 'ACTIVE' ? 'bg-green-100 text-green-800' : 
+                      supplier.status === 'INACTIVE' ? 'bg-gray-100 text-gray-800' : 
+                      'bg-red-100 text-red-800'}`}>
                       {supplier.status}
                     </span>
                   </td>
@@ -236,7 +280,12 @@ export default function Suppliers() {
                       : 0}%
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <button className="text-blue-600 hover:text-blue-900 mr-3">View</button>
+                    <button 
+                      onClick={() => setSelectedSupplierId(supplier.id)}
+                      className="text-blue-600 hover:text-blue-900 mr-3"
+                    >
+                      View
+                    </button>
                     <button className="text-blue-600 hover:text-blue-900">Contact</button>
                   </td>
                 </tr>
@@ -252,6 +301,15 @@ export default function Suppliers() {
         onClose={() => setIsModalOpen(false)}
         onSubmit={handleAddSupplier}
       />
+
+      {/* Supplier Detail Modal */}
+      {selectedSupplierId && (
+        <SupplierDetailModal
+          supplierId={selectedSupplierId}
+          onClose={() => setSelectedSupplierId(null)}
+          onUpdate={fetchSuppliers}
+        />
+      )}
     </div>
   );
 }
