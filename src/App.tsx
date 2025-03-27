@@ -10,6 +10,7 @@ import CustomerDetails from './components/CustomerDetails';
 import Login from './components/Login';
 import Jobs from './components/jobs/Jobs';
 import { FinancialPage } from './components/dashboard/FinancialPage';
+import UserProfile from './components/user/UserProfile'; // Add this import
 import { useAuth } from './context/AuthContext';
 
 function Navigation() {
@@ -55,12 +56,8 @@ function Navigation() {
             </div>
           </div>
           <div className="flex items-center">
-            <button
-              onClick={logout}
-              className="text-gray-500 hover:text-gray-900 inline-flex items-center px-1 pt-1"
-            >
-              Logout
-            </button>
+            {/* Replace the logout button with UserProfile component */}
+            <UserProfile />
           </div>
         </div>
       </div>

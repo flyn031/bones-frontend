@@ -22,6 +22,7 @@ export interface Job {
   startDate?: Date;
   expectedEndDate?: Date;
   actualEndDate?: Date;
+  totalCosts?: number;
 }
 
 export interface JobPerformanceMetrics {
@@ -48,6 +49,37 @@ export interface AtRiskJob {
   projectTitle: string;
 }
 
+export interface JobStats {
+  draft: number;
+  pending: number;
+  inProgress: number;
+  completed: number;
+  cancelled: number;
+}
+
+// Fetch job statistics for dashboard
+export const fetchJobStats = async (): Promise<JobStats> => {
+  try {
+    console.log("Calling job stats API endpoint...");
+    const token = localStorage.getItem('token');
+    if (!token) {
+      throw new Error('Authentication token not found');
+    }
+
+    const response = await axios.get(`${API_URL}/jobs/stats`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    
+    console.log("Job stats response data:", response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching job stats:', error);
+    throw error;
+  }
+};
+
 // Define the Job API methods
 export const jobApi = {
   // Get all jobs with optional filter
@@ -72,6 +104,23 @@ export const jobApi = {
     }
   },
 
+  // Get job statistics for dashboard
+  getJobStats: async () => {
+    try {
+      const response = await axios.get(`${API_URL}/jobs/stats`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      return {
+        data: response.data
+      };
+    } catch (error) {
+      console.error('Error fetching job stats:', error);
+      throw error;
+    }
+  },
+
   // Get at-risk jobs
   getAtRiskJobs: async (daysThreshold: number = 7) => {
     try {
@@ -91,7 +140,7 @@ export const jobApi = {
   },
 
   // Get job by ID
-  getJob: async (id: string) => {
+  getJobById: async (id: string) => {
     try {
       const response = await axios.get(`${API_URL}/jobs/${id}`, {
         headers: {
@@ -108,7 +157,16 @@ export const jobApi = {
   },
 
   // Create new job
-  createJob: async (jobData: Partial<Job>) => {
+  createJob: async (jobData: {
+    title: string;
+    description?: string;
+    customerId: string;
+    orderId?: string;
+    status?: 'DRAFT' | 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+    startDate?: string;
+    expectedEndDate?: string;
+    assignedUserIds?: string[];
+  }) => {
     try {
       const response = await axios.post(`${API_URL}/jobs`, jobData, {
         headers: {
@@ -126,7 +184,13 @@ export const jobApi = {
   },
 
   // Update job
-  updateJob: async (id: string, jobData: Partial<Job>) => {
+  updateJob: async (id: string, jobData: {
+    title?: string;
+    description?: string;
+    status?: 'DRAFT' | 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+    startDate?: string;
+    expectedEndDate?: string;
+  }) => {
     try {
       const response = await axios.patch(`${API_URL}/jobs/${id}`, jobData, {
         headers: {
@@ -225,5 +289,81 @@ export const jobApi = {
       console.error(`Error adding note to job ${jobId}:`, error);
       throw error;
     }
+  },
+
+  // Generate comprehensive job progress report
+  getJobProgressReport: async (jobId: string) => {
+    try {
+      const response = await axios.get(`${API_URL}/jobs/${jobId}/progress-report`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      return {
+        data: response.data
+      };
+    } catch (error) {
+      console.error(`Error fetching progress report for job ${jobId}:`, error);
+      throw error;
+    }
+  },
+
+  // Get resource allocation recommendations for a specific job
+  getResourceRecommendations: async (jobId: string) => {
+    try {
+      const response = await axios.get(`${API_URL}/jobs/${jobId}/resource-recommendations`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      return {
+        data: response.data
+      };
+    } catch (error) {
+      console.error(`Error fetching resource recommendations for job ${jobId}:`, error);
+      throw error;
+    }
+  },
+
+  // Add job material
+  addJobMaterial: async (jobId: string, materialData: {
+    materialId: string;
+    quantity: number;
+    estimatedCost?: number;
+  }) => {
+    try {
+      const response = await axios.post(`${API_URL}/jobs/${jobId}/materials`, materialData, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      return {
+        data: response.data
+      };
+    } catch (error) {
+      console.error(`Error adding material to job ${jobId}:`, error);
+      throw error;
+    }
+  },
+
+  // Track job status changes
+  updateJobStatus: async (jobId: string, status: 'DRAFT' | 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED') => {
+    try {
+      const response = await axios.patch(`${API_URL}/jobs/${jobId}`, { status }, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      return {
+        data: response.data
+      };
+    } catch (error) {
+      console.error(`Error updating status for job ${jobId}:`, error);
+      throw error;
+    }
   }
 };
+
+export default jobApi;

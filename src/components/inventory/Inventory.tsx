@@ -147,23 +147,43 @@ export default function Inventory() {
 
   const handleAddItem = async (data: any) => {
     try {
+      console.log('Creating inventory item with data:', data);
       const token = localStorage.getItem('token');
-      await axios.post('http://localhost:4000/api/materials', data, {
+      const response = await axios.post('http://localhost:4000/api/materials', data, {
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
       });
+      console.log('Successfully created inventory item:', response.data);
       setIsModalOpen(false);
       setPage(1);
       fetchInventory();
     } catch (error) {
       console.error('Error adding item:', error);
       
+      // Enhanced error debugging
       if (axios.isAxiosError(error)) {
-        const errorMsg = error.response?.data?.message || 
-                         error.response?.data?.error || 
-                         'Failed to add item';
-        setError(errorMsg);
+        console.error("Error status:", error.response?.status);
+        console.error("Error details:", error.response?.data);
+        
+        // If it's a validation error, log which fields failed
+        if (error.response?.status === 400 && error.response?.data?.errors) {
+          console.error("Validation errors:", error.response.data.errors);
+          
+          // Show validation errors to user
+          const errorFields = Object.keys(error.response.data.errors).join(', ');
+          alert(`Validation failed for fields: ${errorFields}`);
+        } else {
+          // Show more specific error message to the user
+          const errorMsg = error.response?.data?.message || 
+                          error.response?.data?.error || 
+                          'Failed to add item';
+          alert(`Error: ${errorMsg}`);
+        }
+      } else if (error instanceof Error) {
+        // Handle other types of errors
+        alert(`Error: ${error.message}`);
       } else {
         setError('Failed to add item');
       }

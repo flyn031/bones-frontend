@@ -25,6 +25,72 @@ apiClient.interceptors.request.use(
   }
 );
 
+// Customer-related API methods
+export const customerApi = {
+  // Fetch all customers
+  getCustomers: (params?: { search?: string, status?: string }) => {
+    return apiClient.get('/customers', { params });
+  },
+
+  // Fetch a single customer by ID
+  getCustomerById: (id: string) => {
+    return apiClient.get(`/customers/${id}`);
+  },
+
+  // Create a new customer
+  createCustomer: (customerData: any) => {
+    return apiClient.post('/customers', customerData);
+  },
+
+  // Update an existing customer
+  updateCustomer: (id: string, customerData: any) => {
+    return apiClient.put(`/customers/${id}`, customerData);
+  },
+
+  // Delete a customer
+  deleteCustomer: (id: string) => {
+    return apiClient.delete(`/customers/${id}`);
+  }
+};
+
+// Material-related API methods
+export const materialApi = {
+  // Fetch all materials
+  getMaterials: (params?: { search?: string, category?: string }) => {
+    return apiClient.get('/materials', { params });
+  },
+
+  // Fetch a single material by ID
+  getMaterialById: (id: string) => {
+    return apiClient.get(`/materials/${id}`);
+  },
+
+  // Create a new material
+  createMaterial: (materialData: any) => {
+    return apiClient.post('/materials', materialData);
+  },
+
+  // Update an existing material
+  updateMaterial: (id: string, materialData: any) => {
+    return apiClient.put(`/materials/${id}`, materialData);
+  },
+
+  // Update material stock
+  updateStock: (id: string, stockData: { quantity: number }) => {
+    return apiClient.put(`/materials/${id}/stock`, stockData);
+  },
+
+  // Delete a material
+  deleteMaterial: (id: string) => {
+    return apiClient.delete(`/materials/${id}`);
+  },
+
+  // Get material categories
+  getMaterialCategories: () => {
+    return apiClient.get('/materials/categories');
+  }
+};
+
 // Supplier-related API methods
 export const supplierApi = {
   // Fetch all suppliers
@@ -50,6 +116,16 @@ export const supplierApi = {
   // Delete a supplier
   deleteSupplier: (id: string) => {
     return apiClient.delete(`/suppliers/${id}`);
+  },
+
+  // Get supplier performance report
+  getSupplierPerformanceReport: (id: string) => {
+    return apiClient.get(`/suppliers/${id}/performance`);
+  },
+
+  // Get all suppliers performance
+  getAllSuppliersPerformance: () => {
+    return apiClient.get('/suppliers/performance');
   }
 };
 
@@ -153,7 +229,10 @@ export const jobApi = {
   createJob: (jobData: {
     title: string;
     description?: string;
-    orderId: string;
+    orderId?: string;
+    customerId?: string;
+    status?: string;
+    startDate?: string;
     assignedUserIds?: string[];
   }) => {
     return apiClient.post('/jobs', jobData);

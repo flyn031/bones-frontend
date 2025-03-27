@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { ArrowLeft, Phone, Mail, Calendar, DollarSign, Package, Clock } from 'lucide-react';
+import { ArrowLeft, Phone, Mail, Calendar, DollarSign, Package, Clock, AlertCircle } from 'lucide-react';
 import dayjs from 'dayjs';
 
 interface CustomerDetails {
@@ -39,26 +39,54 @@ export default function CustomerDetails() {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [orderError, setOrderError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchCustomerData = async () => {
       setIsLoading(true);
+      setError(null);
+      setOrderError(null);
+      
       try {
-        const [customerResponse, ordersResponse] = await Promise.all([
-          axios.get(`http://localhost:4000/api/customers/${id}`, {
-            headers: {
-              'Authorization': `Bearer ${localStorage.getItem('token')}`
-            }
-          }),
-          axios.get(`http://localhost:4000/api/customers/${id}/orders`, {
-            headers: {
-              'Authorization': `Bearer ${localStorage.getItem('token')}`
-            }
-          })
-        ]);
+        // First fetch the customer details
+        const customerResponse = await axios.get(`http://localhost:4000/api/customers/${id}`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
         
         setCustomer(customerResponse.data);
-        setRecentOrders(ordersResponse.data);
+        
+        // Then fetch orders separately with better error handling
+        try {
+          const ordersResponse = await axios.get(`http://localhost:4000/api/customers/${id}/orders`, {
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+          });
+          
+          // Check if the response has data and is an array
+          if (Array.isArray(ordersResponse.data)) {
+            // Format order data as needed
+            const formattedOrders = ordersResponse.data.map((order: any) => ({
+              id: order.id,
+              orderNumber: order.orderNumber || order.quoteRef || order.id.substring(0, 8),
+              date: order.date || order.createdAt,
+              total: order.total || order.totalAmount || order.projectValue || 0,
+              status: order.status || 'UNKNOWN'
+            }));
+            
+            setRecentOrders(formattedOrders);
+            console.log('Formatted orders:', formattedOrders);
+          } else {
+            console.warn('Orders response is not an array:', ordersResponse.data);
+            setRecentOrders([]);
+          }
+        } catch (orderError) {
+          console.error('Error fetching customer orders:', orderError);
+          setOrderError('Could not load customer orders');
+          setRecentOrders([]);
+        }
         
         // Mock activities data (replace with real API call when available)
         setActivities([
@@ -89,15 +117,17 @@ export default function CustomerDetails() {
   }, [id]);
 
   const getStatusColor = (status: string) => {
-    switch (status.toUpperCase()) {
-      case 'COMPLETED':
-        return 'bg-green-100 text-green-800';
-      case 'PENDING':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'CANCELLED':
-        return 'bg-red-100 text-red-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
+    const statusUpper = status.toUpperCase();
+    if (statusUpper.includes('COMPLETE') || statusUpper === 'COMPLETED') {
+      return 'bg-green-100 text-green-800';
+    } else if (statusUpper.includes('PENDING') || statusUpper === 'DRAFT') {
+      return 'bg-yellow-100 text-yellow-800';
+    } else if (statusUpper.includes('CANCEL') || statusUpper === 'CANCELLED') {
+      return 'bg-red-100 text-red-800';
+    } else if (statusUpper.includes('PRODUCTION') || statusUpper.includes('PROGRESS')) {
+      return 'bg-blue-100 text-blue-800';
+    } else {
+      return 'bg-gray-100 text-gray-800';
     }
   };
 
@@ -149,13 +179,13 @@ export default function CustomerDetails() {
             <div className="flex items-center text-gray-600">
               <Mail className="h-5 w-5 mr-2" />
               <a href={`mailto:${customer.email}`} className="hover:text-blue-600">
-                {customer.email}
+                {customer.email || 'No email provided'}
               </a>
             </div>
             <div className="flex items-center text-gray-600">
               <Phone className="h-5 w-5 mr-2" />
               <a href={`tel:${customer.phone}`} className="hover:text-blue-600">
-                {customer.phone}
+                {customer.phone || 'No phone provided'}
               </a>
             </div>
           </div>
@@ -169,14 +199,14 @@ export default function CustomerDetails() {
               <div className="text-sm text-gray-500">Total Orders</div>
               <div className="text-xl font-semibold flex items-center">
                 <Package className="h-5 w-5 mr-2 text-blue-500" />
-                {customer.totalOrders}
+                {recentOrders.length || customer.totalOrders || 0}
               </div>
             </div>
             <div>
               <div className="text-sm text-gray-500">Total Spent</div>
               <div className="text-xl font-semibold flex items-center">
                 <DollarSign className="h-5 w-5 mr-2 text-green-500" />
-                ${customer.totalSpent?.toLocaleString()}
+                ${customer.totalSpent?.toLocaleString() || '0'}
               </div>
             </div>
             <div>
@@ -221,7 +251,14 @@ export default function CustomerDetails() {
             </button>
           </div>
 
-          {recentOrders.length > 0 ? (
+          {orderError && (
+            <div className="flex items-center p-4 mb-4 bg-red-50 border border-red-200 rounded-md">
+              <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
+              <span className="text-red-700">{orderError}</span>
+            </div>
+          )}
+
+          {!orderError && recentOrders.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead>
@@ -247,13 +284,13 @@ export default function CustomerDetails() {
                   {recentOrders.map((order) => (
                     <tr key={order.id}>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {order.orderNumber}
+                        {order.orderNumber || order.id.substring(0, 8)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {dayjs(order.date).format('MMM D, YYYY')}
+                        {order.date ? dayjs(order.date).format('MMM D, YYYY') : 'Unknown date'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        ${order.total.toLocaleString()}
+                        ${typeof order.total === 'number' ? order.total.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '0.00'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(order.status)}`}>
@@ -261,7 +298,10 @@ export default function CustomerDetails() {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <button className="text-blue-600 hover:text-blue-900">
+                        <button 
+                          onClick={() => navigate(`/orders/${order.id}`)}
+                          className="text-blue-600 hover:text-blue-900"
+                        >
                           View Order
                         </button>
                       </td>

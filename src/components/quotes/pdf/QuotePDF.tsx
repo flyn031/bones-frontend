@@ -28,64 +28,138 @@ interface QuoteData {
   terms: string;
   notes?: string;
   customerId?: string;
+  // New fields for quote references
+  quoteNumber?: string;
+  customerReference?: string;
 }
 
-// Company details - in a real app, this would be fetched from config or settings
-const companyDetails = {
-  name: "Bones CRM Ltd",
-  address: "123 Business Park, London, SW1 1AB",
-  phone: "020 1234 5678",
-  email: "sales@bonescrm.co.uk",
-  website: "www.bonescrm.co.uk",
-  vatNumber: "GB123456789"
-};
+interface UserProfile {
+  companyName?: string;
+  companyAddress?: string;
+  companyPhone?: string;
+  companyEmail?: string;
+  companyWebsite?: string;
+  companyVatNumber?: string;
+  companyLogo?: string;
+  useCompanyDetailsOnQuotes: boolean;
+}
 
 // Generate the PDF
-export const generateQuotePDF = (quote: QuoteData) => {
-  // Format dates
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-GB', { 
-      day: '2-digit', 
-      month: 'long', 
-      year: 'numeric' 
-    });
+export const generateQuotePDF = (quote: QuoteData, userProfile?: UserProfile) => {
+  // Determine which company details to use
+  const useCompanyDetails = userProfile?.useCompanyDetailsOnQuotes || false;
+  
+  // Company details - only use if enabled
+  const companyDetails = useCompanyDetails && userProfile ? {
+    name: userProfile.companyName || '',
+    address: userProfile.companyAddress || '',
+    phone: userProfile.companyPhone || '',
+    email: userProfile.companyEmail || '',
+    website: userProfile.companyWebsite || '',
+    vatNumber: userProfile.companyVatNumber || '',
+    logo: userProfile.companyLogo || ''
+  } : {
+    name: '',
+    address: '',
+    phone: '',
+    email: '',
+    website: '',
+    vatNumber: '',
+    logo: ''
   };
 
-  // Calculate subtotal, VAT and total
-  const subtotal = quote.value;
+  // Format dates
+  const formatDate = (dateString: string) => {
+    if (!dateString) return 'N/A';
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-GB', { 
+        day: '2-digit', 
+        month: 'long', 
+        year: 'numeric' 
+      });
+    } catch (e) {
+      return 'N/A';
+    }
+  };
+
+  // Calculate subtotal from line items
+  const subtotal = quote.items.reduce((sum, item) => {
+    const quantity = parseFloat(item.quantity?.toString() || '0');
+    const unitPrice = parseFloat(item.unitPrice?.toString() || '0');
+    const itemTotal = item.total || (quantity * unitPrice);
+    return sum + itemTotal;
+  }, 0);
   const vat = subtotal * 0.2;
   const total = subtotal + vat;
+
+  // Create header with just the logo (or company name if no logo)
+  let headerLogo = null;
+  let headerText = null;
+  
+  if (useCompanyDetails) {
+    try {
+      if (companyDetails.logo) {
+        console.log('PDF: Attempting to include logo');
+        
+        // Make sure the logo is a valid data URL for images
+        if (typeof companyDetails.logo === 'string' && 
+            (companyDetails.logo.startsWith('data:image/jpeg;base64,') || 
+             companyDetails.logo.startsWith('data:image/png;base64,') || 
+             companyDetails.logo.startsWith('data:image/gif;base64,') ||
+             companyDetails.logo.startsWith('data:image/'))) {
+          
+          console.log('PDF: Logo appears to be a valid data URL');
+          
+          // Just the logo in the header
+          headerLogo = {
+            image: companyDetails.logo,
+            fit: [120, 60],
+            alignment: 'left'
+          };
+        } else {
+          console.log('PDF: Logo is present but not in a valid format for pdfMake');
+          // Fallback to text if logo format is invalid
+          headerText = { text: companyDetails.name, style: 'header' };
+        }
+      } else {
+        // Without logo, just use company name text
+        console.log('PDF: No logo provided, using text-only header');
+        headerText = { text: companyDetails.name, style: 'header' };
+      }
+    } catch (logoError) {
+      console.error('PDF: Error including logo in PDF:', logoError);
+      // Fallback to text-only version if any error occurs with the logo
+      headerText = { text: companyDetails.name, style: 'header' };
+    }
+  }
 
   // Create document definition for pdfMake
   const documentDefinition = {
     pageSize: 'A4',
     pageMargins: [40, 60, 40, 60],
     info: {
-      title: `Quote-${quote.id}`,
-      author: companyDetails.name,
+      title: `Quote-${quote.quoteNumber || quote.id}`,
+      author: useCompanyDetails ? companyDetails.name : 'Quote',
       subject: quote.title,
       keywords: 'quote, conveyor systems',
     },
     content: [
+      // Header: Logo on left, quote details on right
       {
         columns: [
           {
             width: '*',
             stack: [
-              { text: companyDetails.name, style: 'header' },
-              { text: companyDetails.address, style: 'companyInfo' },
-              { text: `Tel: ${companyDetails.phone}`, style: 'companyInfo' },
-              { text: `Email: ${companyDetails.email}`, style: 'companyInfo' },
-              { text: `Web: ${companyDetails.website}`, style: 'companyInfo' },
-              { text: `VAT No: ${companyDetails.vatNumber}`, style: 'companyInfo' }
+              headerLogo || headerText || { text: '' }
             ]
           },
           {
             width: '*',
             stack: [
               { text: 'QUOTATION', style: 'documentTitle', alignment: 'right' },
-              { text: `Quote #: ${quote.id}`, style: 'documentInfo', alignment: 'right' },
+              { text: `Quote #: ${quote.quoteNumber || quote.id}`, style: 'documentInfo', alignment: 'right' },
+              quote.customerReference ? { text: `Customer Ref: ${quote.customerReference}`, style: 'documentInfo', alignment: 'right' } : {},
               { text: `Date: ${formatDate(quote.date)}`, style: 'documentInfo', alignment: 'right' },
               { text: `Valid Until: ${formatDate(quote.validUntil)}`, style: 'documentInfo', alignment: 'right' }
             ]
@@ -108,8 +182,8 @@ export const generateQuotePDF = (quote: QuoteData) => {
           {
             width: '*',
             stack: [
-              { text: 'Project:', style: 'subheader' },
-              { text: quote.title, style: 'customerInfo' }
+              { text: 'Project:', style: 'subheader', alignment: 'right' },
+              { text: quote.title, style: 'customerInfo', alignment: 'right' }
             ]
           }
         ]
@@ -130,11 +204,11 @@ export const generateQuotePDF = (quote: QuoteData) => {
               { text: 'Total', style: 'tableHeader', alignment: 'right' }
             ],
             ...quote.items.map(item => [
-              { text: item.description, style: 'tableCell' },
-              { text: item.quantity.toString(), style: 'tableCell', alignment: 'center' },
+              { text: item.description || 'No description', style: 'tableCell' },
+              { text: (item.quantity || 0).toString(), style: 'tableCell', alignment: 'center' },
               { text: 'Unit', style: 'tableCell', alignment: 'center' },
-              { text: `£${item.unitPrice.toLocaleString('en-GB', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`, style: 'tableCell', alignment: 'right' },
-              { text: `£${item.total.toLocaleString('en-GB', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`, style: 'tableCell', alignment: 'right' }
+              { text: `£${(item.unitPrice || 0).toLocaleString('en-GB', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`, style: 'tableCell', alignment: 'right' },
+              { text: `£${((item.total !== undefined ? item.total : item.quantity * item.unitPrice) || 0).toLocaleString('en-GB', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`, style: 'tableCell', alignment: 'right' }
             ])
           ]
         },
@@ -167,15 +241,15 @@ export const generateQuotePDF = (quote: QuoteData) => {
               body: [
                 [
                   { text: 'Subtotal:', style: 'summaryLabel', alignment: 'right' },
-                  { text: `£${subtotal.toLocaleString('en-GB', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`, style: 'summaryValue', alignment: 'right' }
+                  { text: `£${(subtotal || 0).toLocaleString('en-GB', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`, style: 'summaryValue', alignment: 'right' }
                 ],
                 [
                   { text: 'VAT (20%):', style: 'summaryLabel', alignment: 'right' },
-                  { text: `£${vat.toLocaleString('en-GB', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`, style: 'summaryValue', alignment: 'right' }
+                  { text: `£${(vat || 0).toLocaleString('en-GB', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`, style: 'summaryValue', alignment: 'right' }
                 ],
                 [
                   { text: 'TOTAL:', style: 'summaryLabelBold', alignment: 'right' },
-                  { text: `£${total.toLocaleString('en-GB', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`, style: 'summaryValueBold', alignment: 'right' }
+                  { text: `£${(total || 0).toLocaleString('en-GB', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`, style: 'summaryValueBold', alignment: 'right' }
                 ]
               ]
             },
@@ -194,7 +268,7 @@ export const generateQuotePDF = (quote: QuoteData) => {
       { text: 'Terms and Conditions', style: 'subheader' },
       {
         ul: [
-          { text: `Payment terms: ${quote.terms}` },
+          { text: `Payment terms: ${quote.terms || 'Standard terms apply'}` },
           { text: 'Prices are valid for the period indicated above' },
           { text: 'Delivery: Ex works unless otherwise stated' }
         ],
@@ -208,8 +282,8 @@ export const generateQuotePDF = (quote: QuoteData) => {
       { text: 'We look forward to working with you.', margin: [0, 0, 0, 10] },
       { text: '\n' },
       { text: 'Yours sincerely,', margin: [0, 0, 0, 5] },
-      { text: 'Bones CRM Sales Team', margin: [0, 0, 0, 5] },
-      { text: companyDetails.email }
+      useCompanyDetails ? { text: `${companyDetails.name} Sales Team`, margin: [0, 0, 0, 5] } : {},
+      useCompanyDetails ? { text: companyDetails.email } : {}
     ],
     styles: {
       header: {
@@ -279,6 +353,10 @@ export const generateQuotePDF = (quote: QuoteData) => {
         fontSize: 10,
         italics: true,
         lineHeight: 1.3
+      },
+      footerText: {
+        fontSize: 8,
+        color: '#9ca3af'
       }
     },
     defaultStyle: {
@@ -286,21 +364,84 @@ export const generateQuotePDF = (quote: QuoteData) => {
       color: '#1f2937'
     },
     footer: function(currentPage, pageCount) {
+      if (!useCompanyDetails) return null;
+      
+      // Enhanced footer with company details
       return {
         columns: [
-          { 
-            text: companyDetails.name + ' • ' + companyDetails.address + ' • VAT No: ' + companyDetails.vatNumber,
-            alignment: 'center',
-            fontSize: 8,
-            color: '#9ca3af',
-            margin: [40, 0, 40, 0]
+          {
+            width: '*',
+            table: {
+              widths: ['*'],
+              body: [
+                [
+                  {
+                    border: [false, true, false, false],
+                    stack: [
+                      {
+                        columns: [
+                          {
+                            width: '*',
+                            stack: [
+                              { text: companyDetails.name, style: 'footerText', bold: true },
+                              { text: companyDetails.address, style: 'footerText' },
+                              { text: `Tel: ${companyDetails.phone}`, style: 'footerText' }
+                            ]
+                          },
+                          {
+                            width: '*',
+                            stack: [
+                              { text: `Email: ${companyDetails.email}`, style: 'footerText' },
+                              { text: `Web: ${companyDetails.website}`, style: 'footerText' },
+                              { text: `VAT No: ${companyDetails.vatNumber}`, style: 'footerText' }
+                            ]
+                          },
+                          {
+                            width: 'auto',
+                            stack: [
+                              { text: `Page ${currentPage} of ${pageCount}`, style: 'footerText', alignment: 'right' }
+                            ]
+                          }
+                        ],
+                        margin: [0, 5, 0, 0]
+                      }
+                    ]
+                  }
+                ]
+              ]
+            },
+            layout: {
+              hLineWidth: function(i, node) {
+                return (i === 0) ? 0.5 : 0;
+              },
+              vLineWidth: function() {
+                return 0;
+              },
+              hLineColor: function() {
+                return '#dddddd';
+              }
+            }
           }
         ],
-        margin: [40, 0]
+        margin: [40, 20, 40, 0]
       };
     }
   };
 
   // Create and return the PDF
-  return pdfMake.createPdf(documentDefinition);
+  try {
+    return pdfMake.createPdf(documentDefinition);
+  } catch (error) {
+    console.error("PDF: Error creating PDF document:", error);
+    // Try to create a simpler version without the logo if there's an error
+    if (useCompanyDetails && companyDetails.logo) {
+      console.log("PDF: Attempting to create PDF without logo as fallback");
+      // Create a new version without the logo
+      documentDefinition.content[0].columns[0].stack = [
+        { text: companyDetails.name, style: 'header' }
+      ];
+      return pdfMake.createPdf(documentDefinition);
+    }
+    throw error; // Re-throw the error if we can't fix it
+  }
 };

@@ -1,14 +1,21 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { 
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  BarChart, Bar, PieChart, Pie, Cell, Legend 
+} from 'recharts';
 import { 
   Activity, Box, Users, AlertTriangle, TrendingUp, RefreshCcw, 
-  UserCircle, FileText, ShoppingCart, Briefcase, ExternalLink 
+  UserCircle, FileText, ShoppingCart, Briefcase, ExternalLink,
+  DollarSign, Settings, Info
 } from "lucide-react";
 import { Button, Alert } from '@/components/ui';
 import { CustomerHealthDashboard } from "./CustomerHealthDashboard";
 import RecentActivitySection from './RecentActivitySection';
+import JobStatusOverview from './JobStatusOverview';
+import { fetchInventoryAlerts } from '../../utils/inventoryApi';
+import { fetchFinancialMetrics } from '../../utils/financialApi';
 
 interface DashboardStats {
   activeOrders: number;
@@ -21,6 +28,14 @@ interface DashboardStats {
 interface OrderTrend {
   month: string;
   value: number;
+}
+
+interface JobStats {
+  draft: number;
+  pending: number;
+  inProgress: number;
+  completed: number;
+  cancelled: number;
 }
 
 interface RecentActivity {
@@ -36,6 +51,38 @@ interface RecentActivity {
   projectTitle?: string;
 }
 
+interface InventoryAlert {
+  id: string;
+  materialName: string;
+  currentStock: number;
+  minStockLevel: number;
+  status: 'Low' | 'Critical' | 'Backorder';
+}
+
+interface CustomerHealth {
+  healthScores: Array<{
+    customerId: string;
+    name: string;
+    overallScore: number;
+    churnRisk: 'Low' | 'Medium' | 'High';
+    potentialUpsell: boolean;
+    insights: string[];
+  }>;
+  totalCustomers: number;
+  churnRiskBreakdown: {
+    low: number;
+    medium: number;
+    high: number;
+  };
+}
+
+interface FinancialData {
+  period: string;
+  revenue: number;
+  costs: number;
+  profit: number;
+}
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const [stats, setStats] = useState<DashboardStats>({
@@ -45,11 +92,28 @@ export default function Dashboard() {
     monthlyRevenue: 0,
     totalCustomers: 0
   });
+  const [jobStats, setJobStats] = useState<JobStats>({
+    draft: 0,
+    pending: 0,
+    inProgress: 0,
+    completed: 0,
+    cancelled: 0
+  });
   const [orderTrends, setOrderTrends] = useState<OrderTrend[]>([]);
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
+  const [inventoryAlerts, setInventoryAlerts] = useState<InventoryAlert[]>([]);
+  const [customerHealth, setCustomerHealth] = useState<CustomerHealth | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Replace mock financial data with state
+  const [financialData, setFinancialData] = useState<FinancialData[]>([
+    { period: 'Jan', revenue: 95000, costs: 65000, profit: 30000 },
+    { period: 'Feb', revenue: 105000, costs: 70000, profit: 35000 },
+    { period: 'Mar', revenue: 115000, costs: 75000, profit: 40000 },
+    { period: 'Apr', revenue: 125000, costs: 80000, profit: 45000 }
+  ]);
 
   const fetchDashboardData = async () => {
     const token = localStorage.getItem('token');
@@ -68,7 +132,7 @@ export default function Dashboard() {
       console.log('Initiating parallel data fetch...');
 
       // Fetch all dashboard data in parallel
-      const [statsRes, trendsRes, activityRes] = await Promise.all([
+      const [statsRes, trendsRes, activityRes, jobStatsRes] = await Promise.all([
         axios.get('http://localhost:4000/api/dashboard/stats', {
           headers: { 'Authorization': `Bearer ${token}` }
         }),
@@ -77,6 +141,9 @@ export default function Dashboard() {
         }),
         axios.get('http://localhost:4000/api/dashboard/activity', {
           headers: { 'Authorization': `Bearer ${token}` }
+        }),
+        axios.get('http://localhost:4000/api/jobs/stats', {
+          headers: { 'Authorization': `Bearer ${token}` }
         })
       ]);
 
@@ -84,6 +151,7 @@ export default function Dashboard() {
       console.log('Stats Response:', statsRes.data);
       console.log('Trends Response:', trendsRes.data);
       console.log('Activity Response:', activityRes.data);
+      console.log('Job Stats Response:', jobStatsRes.data);
 
       // Validate and set data with additional checks
       if (statsRes.data) {
@@ -102,8 +170,87 @@ export default function Dashboard() {
         setOrderTrends([]);
       }
 
+      if (jobStatsRes.data) {
+        setJobStats(jobStatsRes.data);
+      } else {
+        console.warn('No job stats data received');
+      }
+
       const activityData = Array.isArray(activityRes.data) ? activityRes.data : [];
       setRecentActivity(activityData);
+
+      // Fetch real inventory alerts from the API
+      try {
+        // Get inventory alerts
+        const alertsData = await fetchInventoryAlerts();
+        console.log('Inventory Alerts Response:', alertsData);
+        
+        if (Array.isArray(alertsData) && alertsData.length > 0) {
+          // Format and limit to 5 most critical alerts for the dashboard display
+          const formattedAlerts = alertsData
+            .slice(0, 5)
+            .map(alert => ({
+              id: alert.id,
+              materialName: alert.materialName,
+              currentStock: alert.currentStock,
+              minStockLevel: alert.minStockLevel,
+              status: alert.status
+            }));
+          
+          setInventoryAlerts(formattedAlerts);
+          
+          // Update the lowStock count in dashboard stats
+          setStats(prevStats => ({
+            ...prevStats,
+            lowStock: alertsData.length
+          }));
+        } else {
+          console.warn('No inventory alerts data or unexpected format');
+          setInventoryAlerts([]);
+        }
+      } catch (alertError) {
+        console.error('Error fetching inventory alerts:', alertError);
+        // Fallback to empty alerts if there's an error
+        setInventoryAlerts([]);
+      }
+
+      // Fetch real financial metrics data
+      try {
+        // Get financial metrics
+        const financialMetricsData = await fetchFinancialMetrics();
+        console.log('Financial Metrics Response:', financialMetricsData);
+        
+        // Transform the monthly trends into the format expected by the chart
+        if (financialMetricsData && financialMetricsData.monthlyTrends) {
+          const formattedData = financialMetricsData.monthlyTrends.map(item => ({
+            period: item.month,
+            revenue: item.revenue,
+            costs: item.costs,
+            profit: item.profit
+          }));
+          setFinancialData(formattedData);
+        }
+      } catch (financialError) {
+        console.error('Error fetching financial metrics:', financialError);
+        // Keep using mock data if API fails - already set as initial state
+      }
+
+      // Mock customer health data - would be replaced with actual API call
+      setCustomerHealth({
+        healthScores: [
+          { customerId: 'C1', name: 'Acme Corp', overallScore: 92, churnRisk: 'Low', potentialUpsell: true, insights: ['Regular monthly orders', 'Consistent payment history'] },
+          { customerId: 'C2', name: 'Smith Family', overallScore: 78, churnRisk: 'Medium', potentialUpsell: true, insights: ['Recently requested quote for additional work'] },
+          { customerId: 'C3', name: 'Johnson Residence', overallScore: 85, churnRisk: 'Low', potentialUpsell: false, insights: ['Completed three jobs in past year'] },
+          { customerId: 'C4', name: 'City Services', overallScore: 65, churnRisk: 'High', potentialUpsell: false, insights: ['Payment delays', 'Decreased order frequency'] },
+          { customerId: 'C5', name: 'Tech Solutions Inc', overallScore: 88, churnRisk: 'Low', potentialUpsell: true, insights: ['Expanding office space', 'Consistent growth'] }
+        ],
+        totalCustomers: stats.totalCustomers || 32,
+        churnRiskBreakdown: {
+          low: 20,
+          medium: 8,
+          high: 4
+        }
+      });
 
     } catch (error: any) {
       console.error('Full error details:', error);
@@ -234,6 +381,14 @@ export default function Dashboard() {
     });
   };
 
+  // Calculate totals for job stats
+  const totalJobs = 
+    jobStats.draft + 
+    jobStats.pending + 
+    jobStats.inProgress + 
+    jobStats.completed + 
+    jobStats.cancelled;
+
   // Render loading state if initial load
   if (isLoading && !isRefreshing) {
     return <LoadingState />;
@@ -321,35 +476,214 @@ export default function Dashboard() {
         />
       </div>
 
-      {/* Charts Section */}
-      <div className="grid grid-cols-1 gap-6 mb-8">
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-medium mb-4">Order Trends</h3>
-          <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={orderTrends}>
-                <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.1} />
-                <XAxis 
-                  dataKey="month" 
-                  stroke="#6B7280"
-                  fontSize={12}
-                />
-                <YAxis 
-                  stroke="#6B7280"
-                  fontSize={12}
-                />
-                <Tooltip />
-                <Line 
-                  type="monotone" 
-                  dataKey="value" 
-                  stroke="#2563eb" 
-                  strokeWidth={2}
-                  dot={{ r: 4 }}
-                  activeDot={{ r: 8 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
+      {/* Main Dashboard Content - Grid Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        {/* First Column */}
+        <div className="space-y-6">
+          {/* Job Status Overview */}
+          <JobStatusOverview jobStats={jobStats} />
+          
+          {/* Inventory Alerts */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-lg font-semibold mb-4 flex items-center">
+              <AlertTriangle className="h-5 w-5 mr-2 text-amber-500" />
+              Inventory Alerts
+            </h2>
+            
+            {inventoryAlerts.length > 0 ? (
+              <div className="space-y-3">
+                {inventoryAlerts.map(alert => (
+                  <div key={alert.id} className={`p-3 rounded-md ${
+                    alert.status === 'Critical' ? 'bg-red-50 border-l-4 border-red-500' :
+                    alert.status === 'Low' ? 'bg-amber-50 border-l-4 border-amber-500' :
+                    'bg-orange-50 border-l-4 border-orange-500'
+                  }`}>
+                    <div className="flex justify-between">
+                      <span className="font-medium">{alert.materialName}</span>
+                      <span className={`text-sm px-2 py-1 rounded-full ${
+                        alert.status === 'Critical' ? 'bg-red-100 text-red-800' :
+                        alert.status === 'Low' ? 'bg-amber-100 text-amber-800' :
+                        'bg-orange-100 text-orange-800'
+                      }`}>
+                        {alert.status}
+                      </span>
+                    </div>
+                    <div className="text-sm text-gray-600 mt-1">
+                      Current: {alert.currentStock} | Minimum: {alert.minStockLevel}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-500">No inventory alerts at this time.</p>
+            )}
+            
+            <div className="mt-4">
+              <Button 
+                variant="ghost" 
+                onClick={() => navigate('/inventory')}
+                className="text-sm text-blue-600 hover:text-blue-800 p-0"
+              >
+                View inventory →
+              </Button>
+            </div>
           </div>
+        </div>
+        
+        {/* Second Column */}
+        <div className="space-y-6">
+          {/* Order Trends Chart */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <h3 className="text-lg font-semibold mb-4 flex items-center">
+              <TrendingUp className="h-5 w-5 mr-2 text-blue-500" />
+              Order Trends
+            </h3>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={orderTrends}>
+                  <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.1} />
+                  <XAxis 
+                    dataKey="month" 
+                    stroke="#6B7280"
+                    fontSize={12}
+                  />
+                  <YAxis 
+                    stroke="#6B7280"
+                    fontSize={12}
+                  />
+                  <Tooltip />
+                  <Line 
+                    type="monotone" 
+                    dataKey="value" 
+                    stroke="#2563eb" 
+                    strokeWidth={2}
+                    dot={{ r: 4 }}
+                    activeDot={{ r: 8 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+          
+          {/* Customer Health Mini-View */}
+          {customerHealth && (
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-lg font-semibold mb-4 flex items-center">
+                <Users className="h-5 w-5 mr-2 text-green-500" />
+                Customer Health
+              </h2>
+              
+              {/* Donut Chart for Churn Risk */}
+              <div className="h-48">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={[
+                        { name: 'Low Risk', value: customerHealth.churnRiskBreakdown.low },
+                        { name: 'Medium Risk', value: customerHealth.churnRiskBreakdown.medium },
+                        { name: 'High Risk', value: customerHealth.churnRiskBreakdown.high }
+                      ]}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={40}
+                      outerRadius={60}
+                      fill="#8884d8"
+                      dataKey="value"
+                      label={({name, percent}) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                    >
+                      <Cell fill="#4ade80" /> {/* Low - green */}
+                      <Cell fill="#fbbf24" /> {/* Medium - amber */}
+                      <Cell fill="#f87171" /> {/* High - red */}
+                    </Pie>
+                    <Tooltip formatter={(value) => [`${value} customers`, '']} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              
+              <div className="mt-4">
+                <Button 
+                  variant="ghost" 
+                  onClick={() => navigate('/customers')}
+                  className="text-sm text-blue-600 hover:text-blue-800 p-0"
+                >
+                  View all customers →
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+        
+        {/* Third Column */}
+        <div className="space-y-6">
+          {/* Financial Overview */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-lg font-semibold mb-4 flex items-center">
+              <DollarSign className="h-5 w-5 mr-2 text-emerald-500" />
+              Financial Overview
+            </h2>
+            
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={financialData}
+                  margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="period" />
+                  <YAxis />
+                  <Tooltip formatter={(value) => [`£${value.toLocaleString()}`, '']} />
+                  <Legend />
+                  <Bar dataKey="revenue" fill="#3b82f6" name="Revenue" />
+                  <Bar dataKey="costs" fill="#9ca3af" name="Costs" />
+                  <Bar dataKey="profit" fill="#10b981" name="Profit" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            
+            <div className="mt-4">
+              <Button 
+                variant="ghost" 
+                onClick={() => navigate('/financial')}
+                className="text-sm text-blue-600 hover:text-blue-800 p-0"
+              >
+                View financial reports →
+              </Button>
+            </div>
+          </div>
+          
+          {/* Business Insights */}
+          {customerHealth && (
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-lg font-semibold mb-4 flex items-center">
+                <Info className="h-5 w-5 mr-2 text-blue-500" />
+                Business Insights
+              </h2>
+              
+              <ul className="space-y-3">
+                {customerHealth.healthScores
+                  .flatMap(score => score.insights
+                    .map(insight => ({ customer: score.name, insight }))
+                  )
+                  .slice(0, 3)
+                  .map((item, index) => (
+                    <li key={index} className="p-3 bg-blue-50 rounded-lg border border-blue-100">
+                      <span className="block text-sm font-medium text-blue-800">{item.customer}</span>
+                      <span className="text-blue-700">{item.insight}</span>
+                    </li>
+                  ))}
+                
+                <li className="p-3 bg-amber-50 rounded-lg border border-amber-100">
+                  <span className="font-medium text-amber-800">Inventory Alert</span>
+                  <span className="block text-amber-700">{stats.lowStock} materials below minimum stock levels</span>
+                </li>
+                
+                <li className="p-3 bg-green-50 rounded-lg border border-green-100">
+                  <span className="font-medium text-green-800">Active Jobs</span>
+                  <span className="block text-green-700">{jobStats.inProgress} jobs currently in progress</span>
+                </li>
+              </ul>
+            </div>
+          )}
         </div>
       </div>
 
@@ -359,7 +693,7 @@ export default function Dashboard() {
         isLoading={isLoading} 
       />
 
-      {/* Customer Health Dashboard Section */}
+      {/* Full Customer Health Dashboard Section */}
       <div className="mt-8">
         <CustomerHealthDashboard />
       </div>

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Box, UserCircle, FileText, ShoppingCart, Briefcase, 
@@ -35,17 +35,53 @@ const RecentActivitySection: React.FC<RecentActivitySectionProps> = ({
 }) => {
   const navigate = useNavigate();
 
-  // Helper to determine activity type
+  // Debug logging of all activities when component mounts
+  useEffect(() => {
+    console.log("All activities:", activities);
+    
+    if (Array.isArray(activities)) {
+      activities.forEach(activity => {
+        console.log(`Activity title: "${activity.title}", has customer in title: ${activity.title?.toLowerCase().includes('customer')}`);
+      });
+    }
+  }, [activities]);
+
+  // Helper to force activity type based on title content
   const getActivityType = (activity: RecentActivity): string => {
+    // Debug log for this specific activity
+    console.log("Determining type for activity:", activity);
+    
+    // Force customer type if title contains "Customer"
+    if (activity.title && activity.title.toLowerCase().includes('customer')) {
+      console.log(`Activity "${activity.title}" contains "customer" - forcing customer type`);
+      return 'customer';
+    }
+    
+    // Force quote type if title contains "Quote"
+    if (activity.title && activity.title.toLowerCase().includes('quote')) {
+      console.log(`Activity "${activity.title}" contains "quote" - forcing quote type`);
+      return 'quote';
+    }
+    
     // Use explicit type if available
-    if (activity.type) return activity.type;
+    if (activity.type) {
+      console.log(`Using explicit type: ${activity.type}`);
+      return activity.type;
+    }
     
     // Try to infer type from available data
-    if (activity.quoteRef) return 'quote';
-    if (activity.title?.toLowerCase().includes('customer')) return 'customer';
-    if (activity.customerName && !activity.projectTitle) return 'customer';
+    if (activity.quoteRef) {
+      console.log(`Has quoteRef: ${activity.quoteRef} - setting type to quote`);
+      return 'quote';
+    }
     
-    // Default to order for anything else
+    if (activity.customerName && !activity.projectTitle) {
+      console.log(`Has customerName without projectTitle - setting type to customer`);
+      return 'customer';
+    }
+    
+    // Default to order
+    console.log("No specific type indicators - defaulting to order");
     return 'order';
   };
 
@@ -86,16 +122,6 @@ const RecentActivitySection: React.FC<RecentActivitySectionProps> = ({
   };
 
   const getActivityTitle = (activity: RecentActivity): string => {
-    const type = getActivityType(activity);
-    
-    if (type === 'customer') {
-      return activity.title || `Customer: ${activity.customerName || 'New Customer'}`;
-    }
-    
-    if (type === 'quote') {
-      return activity.title || `Quote: ${activity.quoteRef || 'New Quote'}`;
-    }
-    
     return activity.title || activity.projectTitle || 'Activity';
   };
 
@@ -139,8 +165,15 @@ const RecentActivitySection: React.FC<RecentActivitySectionProps> = ({
       ) : Array.isArray(activities) && activities.length > 0 ? (
         <div className="space-y-4">
           {activities.map((activity) => {
-            const ActivityIcon = getActivityIcon(activity);
+            // Force evaluation of type here to ensure consistency in display
             const activityType = getActivityType(activity);
+            const ActivityIcon = 
+              activityType === 'customer' ? UserCircle :
+              activityType === 'quote' ? FileText :
+              activityType === 'job' ? Briefcase :
+              activityType === 'supplier' ? Users :
+              activityType === 'inventory' ? Box :
+              ShoppingCart; // Default to order icon
             
             return (
               <div 
