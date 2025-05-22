@@ -14,6 +14,11 @@ import UserProfile from './components/user/UserProfile';
 import AuditDashboard from './components/audit/AuditDashboard'; // Import AuditDashboard
 import { useAuth } from './context/AuthContext';
 
+// Import HMRC R&D components
+import { HmrcDashboard } from './components/hmrc';
+import { TimeEntriesList } from './components/timetracking';
+import { TimeTrackerWrapper } from './components/timetracking/TimeTrackerWrapper';
+
 // Navigation component (remains mostly the same)
 function Navigation() {
   // Removed useAuth from here, as it's rendered only when authenticated
@@ -35,12 +40,14 @@ function Navigation() {
                 { path: "/", label: "Dashboard" },
                 { path: "/customers", label: "Customers" },
                 { path: "/quotes", label: "Quotes" },
-                { path: "/orders", label: "Orders" },
                 { path: "/jobs", label: "Jobs" },
+                { path: "/orders", label: "Orders" },
                 { path: "/suppliers", label: "Suppliers" },
-                { path: "/inventory", label: "Inventory" },
-                { path: "/financial", label: "Financial" },
-                { path: "/audit", label: "Audit Trail" }, // Added Audit Trail navigation
+                { path: "/inventory", label: "Stock" },
+                { path: "/financial", label: "Finance" },
+                { path: "/hmrc", label: "R&D Tax" },
+                { path: "/time-tracking", label: "Time" },
+                { path: "/audit", label: "Audit" },
               ].map((item) => (
                 <Link
                   key={item.path}
@@ -152,6 +159,11 @@ function App() {
           <Route path="customers/:id" element={<CustomerDetails />} /> {/* Dynamic route */}
           <Route path="financial" element={<FinancialPage />} />
           <Route path="audit" element={<AuditDashboard />} /> {/* Added Audit route */}
+          
+          {/* HMRC R&D Routes */}
+          <Route path="hmrc" element={<HmrcDashboard />} />
+          <Route path="time-tracking" element={<TimeTrackerWrapper />} />
+          <Route path="time-entries" element={<TimeEntriesList />} />
 
           {/* Add a catch-all for unknown protected routes */}
           <Route path="*" element={<Navigate to="/" replace />} />

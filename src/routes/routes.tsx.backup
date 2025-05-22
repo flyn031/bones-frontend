@@ -1,4 +1,4 @@
-// src/routes/routes.tsx (amended with audit routes + HMRC R&D routes)
+// src/routes/routes.tsx (amended with audit routes)
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext"; // Import useAuth
 
@@ -16,11 +16,6 @@ import Signup from "../components/Signup";
 import NotFound from "../components/ui/NotFound";
 import JobDetails from "../components/jobs/JobDetails";
 import AuditDashboard from "../components/audit/AuditDashboard"; // Import AuditDashboard
-
-// Import HMRC R&D components
-import HmrcDashboard from "../components/hmrc/HmrcDashboard";
-import TimeTracker from "../components/timetracking/TimeTracker";
-import TimeEntriesList from "../components/timetracking/TimeEntriesList";
 
 // Create a Protected Route wrapper component
 function ProtectedRoute({ children }: { children: JSX.Element }) {
@@ -188,40 +183,6 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <AuditDashboard />
-          </ProtectedRoute>
-        }
-      />
-
-      {/* HMRC R&D Routes */}
-      <Route
-        path="/hmrc"
-        element={
-          <ProtectedRoute>
-            <HmrcDashboard />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/hmrc/dashboard"
-        element={
-          <ProtectedRoute>
-            <HmrcDashboard />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/time-tracking"
-        element={
-          <ProtectedRoute>
-            <TimeTracker />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/time-entries"
-        element={
-          <ProtectedRoute>
-            <TimeEntriesList />
           </ProtectedRoute>
         }
       />
