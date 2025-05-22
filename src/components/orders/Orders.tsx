@@ -1,390 +1,458 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import { Package, Search, Filter, ArrowUpDown, Clock, AlertTriangle, CheckCircle, Plus, LayoutGrid, Table } from "lucide-react";
+// frontend/src/components/orders/Orders.tsx
+
+import React, { useState, useEffect, useCallback } from 'react';
+import { Plus, LayoutGrid, Table, Search, Filter, AlertTriangle, Clock, CheckCircle, ArrowRight, Edit, MoreVertical } from "lucide-react";
 import OrderModal from './OrderModal';
 import OrdersTableView from './OrdersTableView';
+import { apiClient } from '../../utils/api';
 
-const statusColors = {
-  DRAFT: "bg-gray-100 text-gray-800",
+const statusColors: Record<string, string> = {
+  DRAFT: "bg-gray-200 text-gray-700",
   PENDING_APPROVAL: "bg-yellow-100 text-yellow-800",
+  APPROVED: "bg-green-100 text-green-800",
+  DECLINED: "bg-red-200 text-red-800",
   IN_PRODUCTION: "bg-blue-100 text-blue-800",
   ON_HOLD: "bg-orange-100 text-orange-800",
-  COMPLETED: "bg-green-100 text-green-800",
-  CANCELLED: "bg-red-100 text-red-800",
-  APPROVED: "bg-green-100 text-green-800" // Added for converted quotes
+  READY_FOR_DELIVERY: "bg-indigo-100 text-indigo-800",
+  DELIVERED: "bg-purple-100 text-purple-800",
+  COMPLETED: "bg-teal-100 text-teal-800",
+  CANCELLED: "bg-red-100 text-red-700",
 };
 
-const priorityIcons = {
+const priorityIcons: Record<string, JSX.Element> = {
   HIGH: <AlertTriangle className="h-4 w-4 text-red-500" />,
   MEDIUM: <Clock className="h-4 w-4 text-yellow-500" />,
   LOW: <CheckCircle className="h-4 w-4 text-green-500" />
 };
 
+export interface OrderItem {
+  materialId?: string | null;
+  materialCode?: string | null;
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  total: number;
+}
+
+export interface Order {
+  id: string;
+  projectTitle: string;
+  customerName: string;
+  status: string;
+  priority?: string | null;
+  projectValue: number;
+  leadTimeWeeks?: number | null;
+  createdAt: string;
+  updatedAt: string;
+  items: OrderItem[] | any; 
+  notes?: string | null;
+  currency?: string;
+  vatRate?: number | null;
+  paymentTerms?: string | null;
+  quoteRef: string;
+  customerId?: string | null;
+  contactPerson?: string | null;
+  contactEmail?: string | null;
+  contactPhone?: string | null;
+  marginPercent?: number | null;
+  progress?: number | null;
+  deadline?: string | null;
+  sourceQuoteId?: string | null;
+  jobId?: string | null;
+  projectOwnerId?: string;
+  createdById?: string;
+}
+
 export default function Orders() {
-  const [orders, setOrders] = useState([]);
+  // Inline formatDate function to avoid import issues
+  const formatDate = (date: string | Date | null | undefined): string => {
+    if (!date) return 'N/A';
+    try {
+      const dateObj = typeof date === 'string' ? new Date(date) : date;
+      if (isNaN(dateObj.getTime())) return 'Invalid Date';
+      return dateObj.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
+    } catch {
+      return 'Invalid Date';
+    }
+  };
+
+  const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null); 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterOpen, setFilterOpen] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [selectedPriority, setSelectedPriority] = useState('all');
   const [minValue, setMinValue] = useState('');
-  const [sortField, setSortField] = useState('createdAt');
-  const [sortDirection, setSortDirection] = useState('desc');
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
-  const [editingOrder, setEditingOrder] = useState(null);
+  const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
-  const [selectedOrderForStatusUpdate, setSelectedOrderForStatusUpdate] = useState(null);
-  const [viewMode, setViewMode] = useState('grid');
+  const [selectedOrderForStatusUpdate, setSelectedOrderForStatusUpdate] = useState<Order | null>(null);
+  const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
   const [currentPage, setCurrentPage] = useState(1);
 
-  const ITEMS_PER_PAGE = 10;
-  
-  const availableStatuses = [
-    'DRAFT',
-    'PENDING_APPROVAL',
-    'IN_PRODUCTION',
-    'ON_HOLD',
-    'COMPLETED',
-    'CANCELLED'
-  ];
+  const ITEMS_PER_PAGE = viewMode === 'grid' ? 9 : 10; 
+  const availableStatuses = Object.keys(statusColors);
 
-  const fetchOrders = async () => {
+  const fetchOrders = useCallback(async () => {
+    console.log("[Orders.tsx] fetchOrders starting...");
+    setIsLoading(true);
+    setError(null);
+    let apiOrders: Order[] = [];
+    
     try {
-      setIsLoading(true);
-      const token = localStorage.getItem('token');
-      const response = await axios.get('http://localhost:4000/api/orders', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const response = await apiClient.get<Order[] | { orders: Order[] }>('/orders'); 
+      console.log('[Orders.tsx] Fetched orders from API:', response.data);
       
-      // Simply set the orders as they are received, without any sorting
-      console.log('Fetched orders:', response.data);
-      setOrders(response.data);
-      setError(null);
-    } catch (error) {
-      console.error('Error fetching orders:', error);
-      setError('Failed to fetch orders');
+      if (Array.isArray(response.data)) {
+        apiOrders = response.data;
+      } else if (response.data && Array.isArray((response.data as any).orders)) {
+        apiOrders = (response.data as any).orders;
+      } else {
+        console.warn('[Orders.tsx] API response for orders was not an array or expected object.');
+        apiOrders = [];
+      }
+
+    } catch (apiErr: any) {
+      console.error('[Orders.tsx] Error fetching orders from API:', apiErr.response?.data || apiErr.message);
+      setError(`Failed to fetch orders: ${apiErr.response?.data?.message || apiErr.message}. Displaying local data if available.`);
+    }
+    
+    let mockOrders: Order[] = [];
+    try {
+      const storedMockOrders = localStorage.getItem('mockOrders');
+      if (storedMockOrders) {
+          mockOrders = JSON.parse(storedMockOrders);
+          if (!Array.isArray(mockOrders)) mockOrders = [];
+      }
+    } catch (localStorageErr: any) {
+      console.error('[Orders.tsx] Error parsing mock orders from localStorage:', localStorageErr);
+    }
+    
+    const combinedOrdersMap = new Map<string, Order>();
+    apiOrders.forEach(order => { if (order && order.id) combinedOrdersMap.set(order.id, order); });
+    mockOrders.forEach(mockOrder => { if (mockOrder && mockOrder.id && !combinedOrdersMap.has(mockOrder.id)) combinedOrdersMap.set(mockOrder.id, mockOrder); });
+    
+    const combinedOrders = Array.from(combinedOrdersMap.values())
+      .sort((a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime());
+    
+    setOrders(combinedOrders);
+    setIsLoading(false);
+    console.log("[Orders.tsx] fetchOrders finished. Total orders:", combinedOrders.length);
+  }, []); 
+
+  useEffect(() => {
+    fetchOrders();
+  }, [fetchOrders]);
+
+  const handleOrderSubmit = async (orderData: Omit<Order, 'id' | 'createdAt' | 'updatedAt'> | Partial<Order>) => {
+    setIsLoading(true);
+    try {
+      let response;
+      if (editingOrder && editingOrder.id) {
+        console.log('[Orders.tsx] Updating order:', editingOrder.id, orderData);
+        const { id, createdAt, updatedAt, ...updatePayload } = orderData as Order;
+        response = await apiClient.patch<Order>(`/orders/${editingOrder.id}`, updatePayload);
+        setOrders(prevOrders => prevOrders.map(o => o.id === editingOrder.id ? response.data : o));
+      } else {
+        console.log('[Orders.tsx] Creating order:', orderData);
+        response = await apiClient.post<Order>('/orders', orderData);
+        setOrders(prevOrders => [response.data, ...prevOrders]
+          .sort((a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime()));
+      }
+      setIsOrderModalOpen(false);
+      setEditingOrder(null);
+    } catch (err: any) {
+      console.error('[Orders.tsx] Error submitting order:', err.response?.data || err.message);
+      setError(`Failed to submit order: ${err.response?.data?.message || err.message}`);
     } finally {
       setIsLoading(false);
     }
   };
-
-  useEffect(() => {
-    fetchOrders();
-  }, []);
-
-  const handleCreateOrder = async (orderData) => {
-    try {
-      console.log('Creating order with data:', JSON.stringify(orderData, null, 2));
-      const token = localStorage.getItem('token');
-      const response = await axios.post('http://localhost:4000/api/orders', orderData, {
-        headers: { 
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      console.log('Order created:', response.data);
-      await fetchOrders();
-      setIsOrderModalOpen(false);
-    } catch (error) {
-      console.error('Error creating order:', error);
-      console.error('Full error response:', error.response?.data);
-      console.error('Error status:', error.response?.status);
-      console.error('Error message:', error.response?.data?.error);
-      
-      alert('Failed to create order: ' + 
-        (error.response?.data?.error || 
-         error.response?.data?.message || 
-         error.message)
-      );
-    }
-  };
   
-  const handleUpdateOrder = async (orderData) => {
-    try {
-      console.log('Updating order:', orderData);
-      const token = localStorage.getItem('token');
-      await axios.patch(`http://localhost:4000/api/orders/${editingOrder.id}`, orderData, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      await fetchOrders();
-      setEditingOrder(null);
-      setIsOrderModalOpen(false);
-    } catch (error) {
-      console.error('Error updating order:', error);
-      alert('Failed to update order: ' + error.message);
-    }
-  };
-
-  const openStatusUpdateModal = (order) => {
+  const openStatusUpdateModal = (order: Order) => {
     setSelectedOrderForStatusUpdate(order);
     setIsStatusModalOpen(true);
   };
 
-  const confirmStatusUpdate = async (newStatus) => {
-    if (!selectedOrderForStatusUpdate) return;
-
+  const confirmStatusUpdate = async (newStatus: string) => { 
+    if (!selectedOrderForStatusUpdate || !selectedOrderForStatusUpdate.id) return;
+    const orderIdToUpdate = selectedOrderForStatusUpdate.id;
+    setIsLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      await axios.patch(
-        `http://localhost:4000/api/orders/${selectedOrderForStatusUpdate.id}/status`, 
-        { status: newStatus },
-        { headers: { 'Authorization': `Bearer ${token}` }}
-      );
-      await fetchOrders();
+      const response = await apiClient.patch<Order>(`/orders/${orderIdToUpdate}/status`, { status: newStatus });
+      setOrders(prevOrders => prevOrders.map(order => 
+          order.id === orderIdToUpdate ? response.data : order
+      ));
+      console.log(`[Orders.tsx] Status updated for order ${orderIdToUpdate} to ${newStatus}`);
+    } catch (err: any) {
+      console.error('[Orders.tsx] Error updating order status:', err.response?.data || err.message);
+      setError(`Failed to update status: ${err.response?.data?.message || err.message}`);
+    } finally {
       setIsStatusModalOpen(false);
       setSelectedOrderForStatusUpdate(null);
-    } catch (error) {
-      console.error('Error updating order status:', error);
-      alert('Failed to update order status: ' + error.message);
+      setIsLoading(false);
     }
   };
 
-  const handleEdit = (order) => {
+  const handleEdit = (order: Order) => {
     setEditingOrder(order);
     setIsOrderModalOpen(true);
   };
 
-  const handlePageChange = (newPage) => {
+  const handleConvertToJob = async (orderId: string) => { 
+    console.log(`[Orders.tsx] ===== CONVERT TO JOB CLICKED =====`);
+    console.log(`[Orders.tsx] Order ID: ${orderId}`);
+    console.log(`[Orders.tsx] API Client:`, apiClient);
+    
+    setIsLoading(true);
+    
+    try {
+      const url = `/orders/${orderId}/convert-to-job`;
+      console.log(`[Orders.tsx] Making POST request to: ${url}`);
+      
+      // Make API call to convert order to job
+      const response = await apiClient.post(url);
+      
+      console.log(`[Orders.tsx] Response received:`, response);
+      console.log(`[Orders.tsx] Response data:`, response.data);
+      
+      if (response.data.success) {
+        console.log(`[Orders.tsx] Success! Job ID: ${response.data.jobId}`);
+        
+        // Update the order in state to reflect the conversion
+        setOrders(prevOrders => prevOrders.map(order => 
+          order.id === orderId 
+            ? { 
+                ...order, 
+                jobId: response.data.jobId, 
+                status: 'IN_PRODUCTION' 
+              }
+            : order
+        ));
+        
+        // Show success message with job ID
+        alert(`Order successfully converted to job!\nJob ID: ${response.data.jobId}\n\nClick OK to continue.`);
+        
+        // Optionally refresh the page to show updated data
+        fetchOrders();
+      } else {
+        console.log(`[Orders.tsx] Response not successful:`, response.data);
+      }
+    } catch (error: any) {
+      console.error('[Orders.tsx] ===== ERROR IN CONVERT TO JOB =====');
+      console.error('[Orders.tsx] Error object:', error);
+      console.error('[Orders.tsx] Error response:', error.response);
+      console.error('[Orders.tsx] Error message:', error.message);
+      
+      const errorMessage = error.response?.data?.error || error.message;
+      const currentStatus = error.response?.data?.currentStatus;
+      
+      if (currentStatus) {
+        setError(`Cannot convert order to job: ${errorMessage}. Current status: ${currentStatus}`);
+      } else {
+        setError(`Failed to convert order to job: ${errorMessage}`);
+      }
+    } finally {
+      console.log(`[Orders.tsx] ===== CONVERT TO JOB FINISHED =====`);
+      setIsLoading(false);
+    }
+  };
+
+  const handlePageChange = (newPage: number) => { 
     setCurrentPage(newPage);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const filteredOrders = orders.filter(order => {
-    const matchesSearch = (
-      order.projectTitle?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.customerName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.id?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const lowerSearchTerm = searchTerm.toLowerCase();
+    const matchesSearch = !searchTerm || 
+      (order.projectTitle?.toLowerCase().includes(lowerSearchTerm)) ||
+      (order.customerName?.toLowerCase().includes(lowerSearchTerm)) ||
+      (order.id?.toLowerCase().includes(lowerSearchTerm)) ||
+      (order.quoteRef?.toLowerCase().includes(lowerSearchTerm));
 
     const matchesStatus = selectedStatus === 'all' || order.status === selectedStatus;
-    const matchesPriority = selectedPriority === 'all' || order.priority === selectedPriority;
-    const matchesValue = !minValue || order.projectValue >= Number(minValue);
+    const priorityString = order.priority || 'all';
+    const matchesPriority = selectedPriority === 'all' || priorityString.toLowerCase() === selectedPriority.toLowerCase();
+    const matchesValue = !minValue || (order.projectValue !== undefined && order.projectValue >= Number(minValue));
 
     return matchesSearch && matchesStatus && matchesPriority && matchesValue;
   });
 
   const totalPages = Math.ceil(filteredOrders.length / ITEMS_PER_PAGE);
-  const paginatedOrders = filteredOrders.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE
-  );
+  const paginatedOrders = filteredOrders.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
-  if (isLoading) {
-    return <div className="p-8 flex justify-center">Loading orders...</div>;
+  if (isLoading && orders.length === 0 && !error) {
+    return <div className="p-8 flex justify-center items-center text-gray-500 min-h-[300px]">Loading orders...</div>;
   }
-
-  if (error) {
-    return (
-      <div className="p-8">
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative">
-          {error}
-          <button 
-            onClick={fetchOrders}
-            className="ml-4 underline"
-          >
-            Try Again
-          </button>
-        </div>
-      </div>
-    );
-  }
-
+  
   return (
-    <div className="p-8 max-w-7xl mx-auto">
-      <div className="flex justify-between items-center mb-8">
-        <h2 className="text-3xl font-bold">Order Management</h2>
-        
-        <div className="flex space-x-4">
-          <button
-            onClick={() => {
-              setEditingOrder(null);
-              setIsOrderModalOpen(true);
-            }}
-            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
-            <Plus className="h-4 w-4" />
-            <span>Create Order</span>
+    <div className="p-4 sm:p-8 max-w-full mx-auto bg-gray-50 min-h-screen">
+      {/* Header and Filters */}
+      <div className="flex flex-wrap justify-between items-center mb-6 sm:mb-8 gap-4"> 
+        <h2 className="text-2xl sm:text-3xl font-bold text-gray-800">Order Management</h2>
+        <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+          <button onClick={() => { setEditingOrder(null); setIsOrderModalOpen(true); }} className="flex items-center space-x-2 px-3 py-2 text-sm font-medium bg-indigo-600 text-white rounded-lg shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+            <Plus className="h-4 w-4" /> <span>New Order</span>
           </button>
-
-          <div className="flex border rounded-lg">
-            <button
-              onClick={() => setViewMode('grid')}
-              className={`p-2 ${viewMode === 'grid' ? 'bg-gray-100' : ''}`}
-              title="Grid View"
-            >
-              <LayoutGrid className="h-4 w-4" />
-            </button>
-            <button
-              onClick={() => setViewMode('table')}
-              className={`p-2 ${viewMode === 'table' ? 'bg-gray-100' : ''}`}
-              title="Table View"
-            >
-              <Table className="h-4 w-4" />
-            </button>
+          <div className="flex border rounded-lg overflow-hidden shadow-sm">
+            <button onClick={() => setViewMode('grid')} className={`p-2 ${viewMode === 'grid' ? 'bg-indigo-100 text-indigo-700' : 'bg-white hover:bg-gray-50'}`} title="Grid View"><LayoutGrid className="h-4 w-4" /></button>
+            <button onClick={() => setViewMode('table')} className={`p-2 ${viewMode === 'table' ? 'bg-indigo-100 text-indigo-700' : 'bg-white hover:bg-gray-50'}`} title="Table View"><Table className="h-4 w-4" /></button>
           </div>
-
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search orders..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+            <input type="text" placeholder="Search by Title, Customer, ID, Quote Ref..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10 pr-4 py-2 w-full sm:w-64 border border-gray-300 rounded-lg shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"/>
           </div>
-
-          <button 
-            onClick={() => setFilterOpen(!filterOpen)}
-            className="flex items-center space-x-2 px-4 py-2 border rounded-lg hover:bg-gray-50"
-          >
-            <Filter className="h-4 w-4" />
-            <span>Filter</span>
+          <button onClick={() => setFilterOpen(!filterOpen)} className="flex items-center space-x-2 px-3 py-2 text-sm border border-gray-300 rounded-lg shadow-sm bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-indigo-500">
+            <Filter className="h-4 w-4 text-gray-500" /> <span>Filter</span>
           </button>
         </div>
-      </div>
+      </div> 
 
       {filterOpen && (
-        <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="bg-white rounded-lg shadow-xl p-4 sm:p-6 mb-6 border border-gray-200 transition-all duration-300 ease-in-out">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-              <select 
-                className="w-full border rounded-lg p-2"
-                value={selectedStatus}
-                onChange={(e) => setSelectedStatus(e.target.value)}
-              >
+              <label className="block text-xs font-medium text-gray-500 mb-1">Status</label>
+              <select className="w-full border-gray-300 rounded-lg p-2 text-sm shadow-sm focus:ring-indigo-500 focus:border-indigo-500" value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value)}>
                 <option value="all">All Statuses</option>
-                {Object.keys(statusColors).map(status => (
-                  <option key={status} value={status}>{status.replace(/_/g, ' ')}</option>
-                ))}
+                {availableStatuses.map(status => (<option key={status} value={status}>{status.replace(/_/g, ' ')}</option>))}
               </select>
             </div>
-            {/* Other filter options remain the same */}
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Priority</label>
+              <select className="w-full border-gray-300 rounded-lg p-2 text-sm shadow-sm focus:ring-indigo-500 focus:border-indigo-500" value={selectedPriority} onChange={(e) => setSelectedPriority(e.target.value)}>
+                <option value="all">All Priorities</option> <option value="HIGH">High</option> <option value="MEDIUM">Medium</option> <option value="LOW">Low</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Min. Value (£)</label>
+              <input type="number" className="w-full border-gray-300 rounded-lg p-2 text-sm shadow-sm focus:ring-indigo-500 focus:border-indigo-500" value={minValue} onChange={(e) => setMinValue(e.target.value)} placeholder="e.g., 1000"/>
+            </div>
+            <div className="flex items-end"><button onClick={() => setFilterOpen(false)} className="px-3 py-2 text-xs border rounded-lg hover:bg-gray-100 w-full sm:w-auto bg-gray-50">Close Filters</button></div>
           </div>
         </div>
       )}
 
+      {error && (
+        <div className="my-4 p-4 bg-red-50 border-l-4 border-red-400 text-red-700">
+          <p><strong className="font-bold">Error:</strong> {error}</p>
+          {orders.length > 0 && <p className="text-sm mt-1">Displaying currently available data.</p>}
+          <button onClick={fetchOrders} className="mt-2 text-sm text-red-600 hover:text-red-800 underline font-semibold">Retry Fetching Orders</button>
+        </div>
+      )}
+
+      {/* Main Content Area */}
       {viewMode === 'table' ? (
         <OrdersTableView
           orders={paginatedOrders}
+          isLoading={isLoading}
+          error={error}
           currentPage={currentPage}
           totalPages={totalPages}
           onPageChange={handlePageChange}
           onEdit={handleEdit}
           onUpdateStatus={openStatusUpdateModal}
+          onConvertToJob={handleConvertToJob} 
+          statusColors={statusColors}
+          priorityIcons={priorityIcons}
+          formatDate={formatDate}
         />
-      ) : (
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <div className="grid grid-cols-1 gap-4">
-            {paginatedOrders.map((order) => (
-              <div key={order.id} className="p-6 hover:bg-gray-50 border-b">
-                <div className="flex justify-between items-start">
+      ) : ( // Grid View
+        <>
+          {(isLoading && paginatedOrders.length === 0) ? (
+             <div className="text-center py-10 text-gray-500">Loading orders...</div>
+          ) : (!isLoading && paginatedOrders.length === 0 && !error) ? (
+            <div className="col-span-full py-12 text-center text-gray-500 bg-white rounded-lg shadow">
+              No orders found matching your criteria.
+              {orders.length === 0 ? ' Create a new order or convert an approved quote.' : ' Try adjusting your search or filters.'}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {paginatedOrders.map((order) => (
+                <div key={order.id} className="bg-white rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300 p-5 flex flex-col justify-between border border-gray-200">
                   <div>
-                    <h3 className="text-lg font-medium text-gray-900">{order.projectTitle}</h3>
-                    <div className="mt-1 text-sm text-gray-500">{order.id} - {order.customerName}</div>
+                    <div className="flex justify-between items-start mb-2">
+                      <h3 className="text-md font-semibold text-indigo-700 truncate mr-2" title={order.projectTitle}>{order.projectTitle || `Order ${order.id}`}</h3>
+                      <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap ${statusColors[order.status] || statusColors.DRAFT}`}>
+                        {order.status?.replace(/_/g, ' ') || 'Unknown'}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-600 truncate mb-1" title={order.customerName}>{order.customerName || 'N/A'}</p>
+                    <p className="text-xs text-gray-400 mb-3">Ref: {order.quoteRef} {order.id.startsWith('mock-') && <span className="text-orange-500">(Local)</span>}</p>
+                    
+                    <div className="text-sm space-y-1.5 text-gray-700 border-t border-gray-200 pt-3 mt-3">
+                      <p><strong>Value:</strong> {order.projectValue?.toLocaleString('en-GB', { style: 'currency', currency: 'GBP' }) ?? 'N/A'}</p>
+                      <p><strong>Lead Time:</strong> {order.leadTimeWeeks ?? 'N/A'} weeks</p>
+                      <div className="flex items-center"><strong>Priority:</strong> <span className="ml-2 flex items-center">{priorityIcons[order.priority?.toUpperCase() as keyof typeof priorityIcons] || order.priority || 'N/A'}</span></div>
+                      <p><strong>Created:</strong> {formatDate(order.createdAt)}</p>
+                      <p><strong>Deadline:</strong> {formatDate(order.deadline)}</p>
+                    </div>
                   </div>
-                  <div className="flex items-center space-x-4">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColors[order.status]}`}>
-                      {order.status.replace(/_/g, ' ')}
-                    </span>
+                  <div className="mt-5 pt-4 border-t border-gray-200 flex flex-wrap gap-2 justify-end items-center">
+                    <button onClick={() => handleEdit(order)} className="text-xs px-3 py-1.5 border border-gray-300 rounded-md hover:bg-gray-100 shadow-sm flex items-center"><Edit size={14} className="mr-1"/>Edit</button>
+                    <button onClick={() => openStatusUpdateModal(order)} className="text-xs px-3 py-1.5 bg-blue-500 text-white rounded-md hover:bg-blue-600 shadow-sm flex items-center"><MoreVertical size={14} className="mr-1"/>Status</button>
+                    {order.status === 'APPROVED' && (
+                        <button onClick={() => {
+                          console.log(`[Orders.tsx] To Job button clicked for order ID: ${order.id}`);
+                          handleConvertToJob(order.id);
+                        }} className="text-xs px-3 py-1.5 bg-green-500 text-white rounded-md hover:bg-green-600 shadow-sm flex items-center">
+                        <ArrowRight className="h-3 w-3 mr-1" /> To Job
+                        </button>
+                    )}
                   </div>
                 </div>
-
-                <div className="mt-4 flex justify-between items-center">
-                  <div className="text-sm text-gray-500">
-                    <div>Lead Time: {order.leadTimeWeeks} weeks</div>
-                    <div>Value: £{order.projectValue?.toLocaleString()}</div>
-                  </div>
-                  <div className="flex space-x-2">
-                    <button 
-                      onClick={() => handleEdit(order)}
-                      className="px-3 py-1 text-sm border rounded hover:bg-gray-50"
-                    >
-                      Edit Order
-                    </button>
-                    <button 
-                      onClick={() => openStatusUpdateModal(order)}
-                      className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
-                    >
-                      Update Status
-                    </button>
-                  </div>
-                </div>
+              ))}
+            </div>
+          )}
+          {totalPages > 1 && !isLoading && paginatedOrders.length > 0 && (
+            <div className="mt-8 px-4 py-3 flex items-center justify-between border-t bg-white rounded-b-lg shadow-md">
+              <div className="text-sm text-gray-700">Page {currentPage} of {totalPages} ({filteredOrders.length} total orders)</div>
+              <div className="flex space-x-1">
+                <button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1} className="px-3 py-1 border rounded-md hover:bg-gray-50 disabled:opacity-50 text-sm bg-white">Previous</button>
+                <button onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages} className="px-3 py-1 border rounded-md hover:bg-gray-50 disabled:opacity-50 text-sm bg-white">Next</button>
               </div>
-            ))}
-          </div>
-
-          {/* Pagination */}
-          <div className="px-6 py-4 flex items-center justify-between border-t">
-            <div className="text-sm text-gray-700">
-              Showing page {currentPage} of {totalPages}
             </div>
-            <div className="flex space-x-2">
-              <button
-                onClick={() => handlePageChange(currentPage - 1)}
-                disabled={currentPage === 1}
-                className="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-50"
-              >
-                Previous
-              </button>
-              <button
-                onClick={() => handlePageChange(currentPage + 1)}
-                disabled={currentPage === totalPages}
-                className="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-50"
-              >
-                Next
-              </button>
-            </div>
-          </div>
-        </div>
+          )}
+        </>
       )}
 
       {/* Status Update Modal */}
-      {isStatusModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      {isStatusModalOpen && selectedOrderForStatusUpdate && ( 
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[60] p-4">
           <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full">
-            <h2 className="text-xl font-bold mb-4">
-              Update Status for {selectedOrderForStatusUpdate?.projectTitle}
-            </h2>
-            <div className="grid grid-cols-3 gap-4">
+            <h2 className="text-lg font-semibold mb-4">Update Status for: <span className="font-normal text-indigo-600">{selectedOrderForStatusUpdate.projectTitle || `Order ${selectedOrderForStatusUpdate.id}`}</span></h2>
+            <div className="grid grid-cols-2 gap-3">
               {availableStatuses.map((status) => (
-                <button
-                  key={status}
-                  onClick={() => confirmStatusUpdate(status)}
-                  className={`py-2 px-4 rounded ${
-                    selectedOrderForStatusUpdate?.status === status 
-                      ? 'bg-blue-500 text-white' 
-                      : 'bg-gray-200 hover:bg-gray-300'
-                  }`}
+                <button key={status} onClick={() => confirmStatusUpdate(status)}
+                  className={`py-2.5 px-3 text-sm rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-indigo-500
+                    ${selectedOrderForStatusUpdate.status === status 
+                      ? `${statusColors[status] || 'bg-indigo-600 text-white'} ring-2 ring-indigo-400` 
+                      : `${statusColors[status]?.split(' ')[0] || 'bg-gray-100'} ${statusColors[status]?.split(' ')[1] || 'text-gray-700'} hover:opacity-80`}`}
                 >
                   {status.replace(/_/g, ' ')}
                 </button>
               ))}
             </div>
-            <div className="flex justify-end mt-4">
-              <button
-                onClick={() => setIsStatusModalOpen(false)}
-                className="px-4 py-2 bg-gray-200 rounded mr-2"
-              >
-                Cancel
-              </button>
-            </div>
+            <div className="flex justify-end mt-6"><button onClick={() => {setIsStatusModalOpen(false); setSelectedOrderForStatusUpdate(null);}} className="px-4 py-2 border rounded-md text-sm hover:bg-gray-100">Cancel</button></div>
           </div>
         </div>
       )}
 
-      <OrderModal
-        isOpen={isOrderModalOpen}
-        onClose={() => {
-          setIsOrderModalOpen(false);
-          setEditingOrder(null);
-        }}
-        onSubmit={editingOrder ? handleUpdateOrder : handleCreateOrder}
-        editOrder={editingOrder}
-      />
+      {/* Order Create/Edit Modal */}
+      {isOrderModalOpen && (
+        <OrderModal
+          isOpen={isOrderModalOpen}
+          onClose={() => { setIsOrderModalOpen(false); setEditingOrder(null); }}
+          onSubmit={handleOrderSubmit}
+          orderToEdit={editingOrder}
+        />
+      )}
     </div>
   );
 }

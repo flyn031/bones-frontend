@@ -1,11 +1,9 @@
-import '@testing-library/jest-dom';
+// src/__tests__/setup/setupTests.js
 import { TextEncoder, TextDecoder } from 'util';
 
-// Add TextEncoder and TextDecoder to global scope
 global.TextEncoder = TextEncoder;
 global.TextDecoder = TextDecoder;
 
-// Add window.matchMedia mock
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
   value: jest.fn().mockImplementation(query => ({

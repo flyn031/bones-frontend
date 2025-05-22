@@ -93,12 +93,12 @@ const JobStatusOverview: React.FC<JobStatusOverviewProps> = ({ jobStats: propJob
               <p className="text-xl font-bold">{stats.pending}</p>
             </div>
             
-            {/* In Progress */}
+            {/* In Progress (now Active) */}
             <div className="bg-blue-100 rounded-lg p-4 flex flex-col items-center">
               <div className="flex justify-center mb-2">
                 <Activity className="h-6 w-6 text-blue-600" />
               </div>
-              <p className="text-xs text-blue-600 font-medium mb-1">In Progress</p>
+              <p className="text-xs text-blue-600 font-medium mb-1" title="In Progress">Active</p>
               <p className="text-xl font-bold">{stats.inProgress}</p>
             </div>
             

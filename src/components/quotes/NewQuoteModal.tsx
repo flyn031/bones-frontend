@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { X, User, Search, UserPlus, Plus, Trash, History, Clock, Save, RefreshCw } from "lucide-react";
+import { X, User, Search, UserPlus, Plus, Trash, History, Clock, Save, RefreshCw, Check, Clock3, X as XIcon, AlertTriangle, MessageSquare } from "lucide-react";
 import axios from "axios";
 import FrequentItemSelector from "./FrequentItemSelector";
 import BundleSelector from "./BundleSelector";
@@ -70,7 +70,75 @@ interface NewQuoteModalProps {
   customers?: Customer[];
 }
 
-// Comprehensive catalog of inventory items
+// Available quote statuses
+const QUOTE_STATUSES = {
+  DRAFT: "Draft",
+  SENT: "Sent to Customer",
+  PENDING: "Pending Approval",
+  APPROVED: "Approved",
+  DECLINED: "Declined",
+  EXPIRED: "Expired",
+  CONVERTED: "Converted to Order"
+};
+
+// Status descriptions for tooltips
+const STATUS_DESCRIPTIONS = {
+  DRAFT: "Initial creation stage, still being worked on",
+  SENT: "Quote has been sent to the customer",
+  PENDING: "Awaiting customer's decision",
+  APPROVED: "Customer has accepted the quote",
+  DECLINED: "Customer has declined the quote",
+  EXPIRED: "Quote has passed its validity date",
+  CONVERTED: "Quote has been converted to an order"
+};
+
+// Status colors for visual representation
+const STATUS_COLORS = {
+  DRAFT: {
+    bg: "bg-red-100",
+    text: "text-red-800",
+    border: "border-red-200",
+    icon: <Clock className="h-4 w-4 mr-1" />
+  },
+  SENT: {
+    bg: "bg-orange-100",
+    text: "text-orange-800",
+    border: "border-orange-200",
+    icon: <Clock3 className="h-4 w-4 mr-1" />
+  },
+  PENDING: {
+    bg: "bg-yellow-100",
+    text: "text-yellow-800",
+    border: "border-yellow-200",
+    icon: <Clock3 className="h-4 w-4 mr-1" />
+  },
+  APPROVED: {
+    bg: "bg-green-100",
+    text: "text-green-800",
+    border: "border-green-200",
+    icon: <Check className="h-4 w-4 mr-1" />
+  },
+  DECLINED: {
+    bg: "bg-red-100",
+    text: "text-red-800",
+    border: "border-red-200",
+    icon: <XIcon className="h-4 w-4 mr-1" />
+  },
+  EXPIRED: {
+    bg: "bg-purple-100",
+    text: "text-purple-800",
+    border: "border-purple-200",
+    icon: <AlertTriangle className="h-4 w-4 mr-1" />
+  },
+  CONVERTED: {
+    bg: "bg-blue-100",
+    text: "text-blue-800",
+    border: "border-blue-200",
+    icon: <Check className="h-4 w-4 mr-1" />
+  }
+};
+
+// Comprehensive catalog of inventory items (mock data, will be replaced by API)
 const inventoryCatalog: Item[] = [
   // Belt Conveyors
   {
@@ -82,8 +150,111 @@ const inventoryCatalog: Item[] = [
     category: "belt_conveyor",
     description: "Light duty flat belt conveyor for packages up to 15kg",
   },
-  // (additional catalog items removed for brevity)
-  // ... include all your catalog items here
+  {
+    id: "BC002",
+    name: "Trough Belt Conveyor - Heavy Duty",
+    code: "TBC-HD",
+    unitPrice: 2500.0,
+    unit: "meter",
+    category: "belt_conveyor",
+    description: "Heavy duty trough belt conveyor for bulk materials",
+  },
+  {
+    id: "BC003",
+    name: "Incline Belt Conveyor - Grip Top",
+    code: "IBC-GT",
+    unitPrice: 1200.0,
+    unit: "meter",
+    category: "belt_conveyor",
+    description: "Incline belt conveyor with grip top belt for inclines",
+  },
+  // Roller Conveyors
+  {
+    id: "RC001",
+    name: "Gravity Roller Conveyor - Light Duty",
+    code: "GRC-LD",
+    unitPrice: 150.0,
+    unit: "meter",
+    category: "roller_conveyor",
+    description: "Light duty gravity roller conveyor for carton boxes",
+  },
+  {
+    id: "RC002",
+    name: "Powered Roller Conveyor - Medium Duty",
+    code: "PRC-MD",
+    unitPrice: 800.0,
+    unit: "meter",
+    category: "roller_conveyor",
+    description: "Medium duty powered roller conveyor with accumulation zones",
+  },
+  // Chain Conveyors
+  {
+    id: "CC001",
+    name: "Twin Chain Conveyor - Pallet Handling",
+    code: "TCC-PH",
+    unitPrice: 3500.0,
+    unit: "meter",
+    category: "chain_conveyor",
+    description: "Twin chain conveyor for heavy duty pallet transport",
+  },
+  // Modular Conveyors
+  {
+    id: "MC001",
+    name: "Flexible Modular Conveyor - Plastic Chain",
+    code: "FMC-PC",
+    unitPrice: 600.0,
+    unit: "meter",
+    category: "modular_conveyor",
+    description: "Modular plastic chain conveyor for versatile layouts",
+  },
+  // Specialty Conveyors
+  {
+    id: "SC001",
+    name: "Spiral Conveyor - Space Saving",
+    code: "SPC-SS",
+    unitPrice: 15000.0,
+    unit: "unit",
+    category: "specialty_conveyor",
+    description: "Compact spiral conveyor for elevation changes in small footprints",
+  },
+  // Control Systems
+  {
+    id: "CS001",
+    name: "Basic PLC Control Panel",
+    code: "PLC-BSC",
+    unitPrice: 2500.0,
+    unit: "unit",
+    category: "control_system",
+    description: "Basic control panel with PLC for conveyor automation",
+  },
+  {
+    id: "CS002",
+    name: "Advanced SCADA System Integration",
+    code: "SCADA-ADV",
+    unitPrice: 12000.0,
+    unit: "project",
+    category: "control_system",
+    description: "Comprehensive SCADA system for full line integration and monitoring",
+  },
+  // Services
+  {
+    id: "SVC001",
+    name: "On-site Installation Service",
+    code: "INST-OS",
+    unitPrice: 800.0,
+    unit: "day",
+    category: "service",
+    description: "Professional installation service by certified technicians",
+  },
+  {
+    id: "SVC002",
+    name: "Preventative Maintenance Contract",
+    code: "MNT-PREV",
+    unitPrice: 5000.0,
+    unit: "year",
+    category: "service",
+    description: "Annual preventative maintenance contract for conveyor systems",
+  },
 ];
 
 // Enhanced mock data for jobs - includes 6 jobs
@@ -128,6 +299,7 @@ export default function NewQuoteModal({
     notes: "",
     items: [],
     customerReference: "", // Initialize customer reference field
+    status: "DRAFT" // Default status for new quotes
   });
 
   const [selectedItems, setSelectedItems] = useState<SelectedItem[]>([]);
@@ -148,8 +320,17 @@ export default function NewQuoteModal({
   // State for save template functionality
   const [showSaveTemplateModal, setShowSaveTemplateModal] = useState(false);
   
+  // State for status changes
+  const [showStatusConfirmation, setShowStatusConfirmation] = useState(false);
+  const [pendingStatusChange, setPendingStatusChange] = useState<string | null>(null);
+  
   // New state for jobs
   const [jobs, setJobs] = useState(mockJobs);
+
+  // Get status styling based on current status
+  const getStatusStyles = (status: string) => {
+    return STATUS_COLORS[status as keyof typeof STATUS_COLORS] || STATUS_COLORS.DRAFT;
+  };
 
   // Create a memoized function to fetch materials
   const fetchMaterials = useCallback(async () => {
@@ -299,6 +480,7 @@ export default function NewQuoteModal({
         notes: editQuote.notes || "",
         quoteNumber: editQuote.quoteNumber || "", // Set quote number if available
         customerReference: editQuote.customerReference || "", // Set customer reference if available
+        status: editQuote.status || "DRAFT" // Set status if available
       });
 
       // Set selected customer if available
@@ -523,6 +705,59 @@ export default function NewQuoteModal({
     setSelectedItems([...selectedItems, ...bundleItems]);
   };
 
+  // Validate if status change is allowed
+  const isValidStatusChange = (currentStatus: string, newStatus: string): boolean => {
+    // Define valid status transitions
+    const validTransitions: Record<string, string[]> = {
+      'DRAFT': ['SENT', 'PENDING', 'APPROVED', 'DECLINED', 'EXPIRED'],
+      'SENT': ['PENDING', 'APPROVED', 'DECLINED', 'EXPIRED'],
+      'PENDING': ['APPROVED', 'DECLINED', 'EXPIRED'],
+      'APPROVED': ['CONVERTED', 'EXPIRED'],
+      'DECLINED': ['DRAFT'], // Can revert to draft to try again
+      'EXPIRED': ['DRAFT'], // Can revert to draft to try again
+      'CONVERTED': [] // Cannot change status once converted
+    };
+    
+    return validTransitions[currentStatus]?.includes(newStatus) || false;
+  };
+
+  // Handle status change with confirmation
+  const handleStatusChange = (newStatus: string) => {
+    // If status is the same, do nothing
+    if (quoteData.status === newStatus) return;
+    
+    // Check if this is a valid status change
+    if (!isValidStatusChange(quoteData.status || 'DRAFT', newStatus)) {
+      alert(`Cannot change status from ${QUOTE_STATUSES[quoteData.status as keyof typeof QUOTE_STATUSES]} to ${QUOTE_STATUSES[newStatus as keyof typeof QUOTE_STATUSES]}`);
+      return;
+    }
+    
+    // If changing from DRAFT to PENDING or APPROVED, confirm first
+    if ((quoteData.status === 'DRAFT' && (newStatus === 'PENDING' || newStatus === 'APPROVED')) ||
+        (newStatus === 'CONVERTED')) {
+      setPendingStatusChange(newStatus);
+      setShowStatusConfirmation(true);
+    } else {
+      // For other status changes, apply immediately
+      setQuoteData({
+        ...quoteData,
+        status: newStatus
+      });
+    }
+  };
+
+  // Confirm status change
+  const confirmStatusChange = () => {
+    if (pendingStatusChange) {
+      setQuoteData({
+        ...quoteData,
+        status: pendingStatusChange
+      });
+      setPendingStatusChange(null);
+      setShowStatusConfirmation(false);
+    }
+  };
+
   // Create a new customer
   const handleCreateCustomer = async () => {
     if (!newCustomer.name) return;
@@ -622,6 +857,7 @@ export default function NewQuoteModal({
   // Submit the quote
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    console.log("NewQuoteModal: handleSubmit triggered!"); // ADDED LOG
 
     const totalValue = calculateTotal();
 
@@ -648,6 +884,7 @@ export default function NewQuoteModal({
     };
 
     onSubmit(completeQuoteData);
+    console.log("NewQuoteModal: onSubmit (prop) called with data:", completeQuoteData); // ADDED LOG
   };
 
   if (!isOpen) return null;
@@ -681,6 +918,9 @@ export default function NewQuoteModal({
       )
     : [];
 
+  // Get current status style
+  const currentStatusStyle = getStatusStyles(quoteData.status || 'DRAFT');
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -698,7 +938,114 @@ export default function NewQuoteModal({
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Basic Information */}
+          {/* Enhanced Status Section */}
+          <div className={`p-4 rounded-lg border ${currentStatusStyle.border}`}>
+            <div className="flex justify-between items-center">
+              <div>
+                <h3 className="font-medium text-gray-800">Quote Status</h3>
+                <p className="text-sm text-gray-500">
+                  {STATUS_DESCRIPTIONS[quoteData.status as keyof typeof STATUS_DESCRIPTIONS] || 
+                   "Current status of this quote"}
+                </p>
+            </div>
+
+          {/* Basic Information */}<div className="flex items-center">
+                <div className="mr-2 text-gray-700">Current Status:</div>
+                <span className={`px-3 py-1 rounded-full text-sm font-medium flex items-center ${currentStatusStyle.bg} ${currentStatusStyle.text}`}>
+                  {currentStatusStyle.icon}
+                  {QUOTE_STATUSES[quoteData.status as keyof typeof QUOTE_STATUSES] || quoteData.status}
+                </span>
+              </div>
+            </div>
+
+            {/* Visual Status Progress Bar */}
+            <div className="mt-4">
+              <div className="flex w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                {/* DRAFT - Red */}
+                <div 
+                  className={`h-full bg-red-500 ${
+                    ['DRAFT'].includes(quoteData.status || '') ? 'flex-grow' : 'w-1/6'
+                  }`}
+                ></div>
+                
+                {/* SENT/PENDING - Amber */}
+                <div 
+                  className={`h-full bg-yellow-500 ${
+                    ['SENT', 'PENDING'].includes(quoteData.status || '') ? 'flex-grow' : 
+                    quoteData.status === 'DRAFT' ? 'w-0' : 'w-1/6'
+                  }`}
+                ></div>
+                
+                {/* APPROVED - Green */}
+                <div 
+                  className={`h-full bg-green-500 ${
+                    ['APPROVED'].includes(quoteData.status || '') ? 'flex-grow' : 
+                    ['DRAFT', 'SENT', 'PENDING'].includes(quoteData.status || '') ? 'w-0' : 'w-1/6'
+                  }`}
+                ></div>
+                
+                {/* CONVERTED - Blue */}
+                <div 
+                  className={`h-full bg-blue-500 ${
+                    ['CONVERTED'].includes(quoteData.status || '') ? 'flex-grow' : 
+                    ['DRAFT', 'SENT', 'PENDING', 'APPROVED'].includes(quoteData.status || '') ? 'w-0' : 'w-1/6'
+                  }`}
+                ></div>
+              </div>
+              
+              {/* Status Labels */}
+              <div className="flex justify-between text-xs mt-1">
+                <div className="text-red-600 font-medium">Draft</div>
+                <div className="text-yellow-600 font-medium">Pending</div>
+                <div className="text-green-600 font-medium">Approved</div>
+                <div className="text-blue-600 font-medium">Converted</div>
+              </div>
+            </div>
+
+            <div className="mt-3">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Change Status
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {Object.entries(QUOTE_STATUSES).map(([status, label]) => {
+                  // Don't show CONVERTED option in dropdown as it's only set by the system
+                  if (status === 'CONVERTED' && quoteData.status !== 'CONVERTED') return null;
+                  
+                  const statusStyle = getStatusStyles(status);
+                  const isDisabled = quoteData.status === status || 
+                                    (quoteData.status === 'CONVERTED') || 
+                                    !isValidStatusChange(quoteData.status || 'DRAFT', status);
+                  
+                  return (
+                    <button
+                      key={status}
+                      type="button"
+                      onClick={() => handleStatusChange(status)}
+                      disabled={isDisabled}
+                      className={`px-3 py-1 text-sm rounded-lg border flex items-center
+                        ${quoteData.status === status 
+                          ? `${statusStyle.bg} ${statusStyle.border} ${statusStyle.text}` 
+                          : isDisabled
+                            ? 'opacity-50 cursor-not-allowed bg-gray-100 text-gray-500'
+                            : `hover:${statusStyle.bg} border-gray-300 hover:${statusStyle.text}`
+                        }
+                      `}
+                      title={STATUS_DESCRIPTIONS[status as keyof typeof STATUS_DESCRIPTIONS]}
+                    >
+                      {statusStyle.icon}
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+              {quoteData.status === 'CONVERTED' && (
+                <p className="text-sm text-blue-600 mt-2">
+                  This quote has been converted to an order and can no longer be edited.
+                </p>
+              )}
+            </div>
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -729,9 +1076,10 @@ export default function NewQuoteModal({
                   <button
                     type="button"
                     onClick={() => setSelectedCustomer(null)}
-                    className="text-red-600 hover:text-red-800"
+                    className="text-red-500 hover:text-red-700 p-1 rounded-full hover:bg-gray-100"
+                    title="Change Customer"
                   >
-                    <X className="h-4 w-4" />
+                    <XIcon className="h-4 w-4" />
                   </button>
                 </div>
               ) : (
@@ -1337,6 +1685,79 @@ export default function NewQuoteModal({
               materialId: item.id
             }))}
           />
+        )}
+
+        {/* Status Confirmation Modal */}
+        {showStatusConfirmation && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 max-w-md">
+              <h3 className="text-lg font-medium mb-4">Confirm Status Change</h3>
+              <p className="mb-4">
+                Are you sure you want to change the quote status from 
+                <span className="font-medium"> {QUOTE_STATUSES[quoteData.status as keyof typeof QUOTE_STATUSES]} </span> 
+                to 
+                <span className="font-medium"> {QUOTE_STATUSES[pendingStatusChange as keyof typeof QUOTE_STATUSES]}?</span>
+              </p>
+              
+              {pendingStatusChange === 'PENDING' && (
+                <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
+                  <div className="flex">
+                    <Clock3 className="h-5 w-5 text-yellow-600 mr-2" />
+                    <p className="text-sm text-yellow-700">
+                      This will mark the quote as sent to the customer and awaiting their decision.
+                    </p>
+                  </div>
+                </div>
+              )}
+              
+              {pendingStatusChange === 'APPROVED' && (
+                <div className="bg-green-50 border-l-4 border-green-400 p-4 mb-4">
+                  <div className="flex">
+                    <Check className="h-5 w-5 text-green-600 mr-2" />
+                    <p className="text-sm text-green-700">
+                      This will mark the quote as approved by the customer and ready to be converted to an order.
+                    </p>
+                  </div>
+                </div>
+              )}
+              
+              {pendingStatusChange === 'CONVERTED' && (
+                <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mb-4">
+                  <div className="flex">
+                    <Check className="h-5 w-5 text-blue-600 mr-2" />
+                    <p className="text-sm text-blue-700">
+                      This will convert the quote to an order. This action cannot be undone.
+                    </p>
+                  </div>
+                </div>
+              )}
+              
+              <div className="flex justify-end space-x-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowStatusConfirmation(false);
+                    setPendingStatusChange(null);
+                  }}
+                  className="px-4 py-2 border rounded-lg hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmStatusChange}
+                  className={`px-4 py-2 text-white rounded-lg ${
+                    pendingStatusChange === 'APPROVED' ? 'bg-green-600 hover:bg-green-700' :
+                    pendingStatusChange === 'PENDING' ? 'bg-yellow-600 hover:bg-yellow-700' :
+                    pendingStatusChange === 'CONVERTED' ? 'bg-blue-600 hover:bg-blue-700' :
+                    'bg-blue-600 hover:bg-blue-700'
+                  }`}
+                >
+                  Confirm Change
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>

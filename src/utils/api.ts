@@ -1,317 +1,175 @@
+// frontend/src/utils/api.ts (or your file path)
+
 import axios from 'axios';
 
 // Base URL for API calls
-const BASE_URL = 'http://localhost:4000/api';
+const BASE_URL = 'http://localhost:4000/api'; // Make sure this matches your backend port
 
 // Create an axios instance with default configuration
-const apiClient = axios.create({
+export const apiClient = axios.create({
   baseURL: BASE_URL,
   headers: {
     'Content-Type': 'application/json'
-  }
+  },
+  withCredentials: true  // Important for CORS with credentials
 });
 
-// Interceptor to add auth token to every request
+// --- Request Interceptor ---
 apiClient.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
+    const requestInfo = `${config.method?.toUpperCase()} ${config.url}`;
     if (token) {
       config.headers['Authorization'] = `Bearer ${token}`;
+     // Optional verbose logging:
+     // console.log(`[API Interceptor] Requesting: ${requestInfo}`, `Token attached: ${token.substring(0, 10)}...`);
+    } else {
+      console.warn(`[API Interceptor] Requesting: ${requestInfo}`, 'No token found in localStorage.');
+      if (config.headers) {
+        delete config.headers['Authorization'];
+      }
     }
     return config;
   },
   (error) => {
+    console.error('[API Interceptor] Request Setup Error:', error);
     return Promise.reject(error);
   }
 );
 
-// Customer-related API methods
+// --- Response Interceptor ---
+apiClient.interceptors.response.use(
+  (response) => {
+    // Return the whole response object
+    return response;
+  },
+  (error) => {
+    if (error.response) {
+      console.error(`[API Interceptor] Response Error Status: ${error.response.status} for ${error.config?.url}`, 'Data:', error.response.data);
+      if (error.response.status === 401) {
+        console.error("[API Interceptor] Received 401 Unauthorized! Token may be invalid or missing.");
+        // Handle redirect/logout in AuthContext or calling code
+      }
+    } else if (error.request) {
+      console.error('[API Interceptor] No response received:', error.request);
+    } else {
+      console.error('[API Interceptor] Error setting up request:', error.message);
+    }
+    return Promise.reject(error);
+  }
+);
+
+
+// --- Customer-related API methods ---
 export const customerApi = {
-  // Fetch all customers
-  getCustomers: (params?: { search?: string, status?: string }) => {
-    return apiClient.get('/customers', { params });
-  },
+  // Existing methods
+  getCustomers: (params?: { search?: string, status?: string, page?: number, limit?: number }) => apiClient.get('/customers', { params }),
+  getCustomerById: (id: string) => apiClient.get(`/customers/${id}`),
+  createCustomer: (customerData: any) => apiClient.post('/customers', customerData),
+  updateCustomer: (id: string, customerData: any) => apiClient.put(`/customers/${id}`, customerData),
+  deleteCustomer: (id: string) => apiClient.delete(`/customers/${id}`),
+  getCustomerOrders: (customerId: string) => apiClient.get(`/customers/${customerId}/orders`), // Added based on routes file
 
-  // Fetch a single customer by ID
-  getCustomerById: (id: string) => {
-    return apiClient.get(`/customers/${id}`);
-  },
-
-  // Create a new customer
-  createCustomer: (customerData: any) => {
-    return apiClient.post('/customers', customerData);
-  },
-
-  // Update an existing customer
-  updateCustomer: (id: string, customerData: any) => {
-    return apiClient.put(`/customers/${id}`, customerData);
-  },
-
-  // Delete a customer
-  deleteCustomer: (id: string) => {
-    return apiClient.delete(`/customers/${id}`);
-  }
-};
-
-// Material-related API methods
-export const materialApi = {
-  // Fetch all materials
-  getMaterials: (params?: { search?: string, category?: string }) => {
-    return apiClient.get('/materials', { params });
-  },
-
-  // Fetch a single material by ID
-  getMaterialById: (id: string) => {
-    return apiClient.get(`/materials/${id}`);
-  },
-
-  // Create a new material
-  createMaterial: (materialData: any) => {
-    return apiClient.post('/materials', materialData);
-  },
-
-  // Update an existing material
-  updateMaterial: (id: string, materialData: any) => {
-    return apiClient.put(`/materials/${id}`, materialData);
-  },
-
-  // Update material stock
-  updateStock: (id: string, stockData: { quantity: number }) => {
-    return apiClient.put(`/materials/${id}/stock`, stockData);
-  },
-
-  // Delete a material
-  deleteMaterial: (id: string) => {
-    return apiClient.delete(`/materials/${id}`);
-  },
-
-  // Get material categories
-  getMaterialCategories: () => {
-    return apiClient.get('/materials/categories');
-  }
-};
-
-// Supplier-related API methods
-export const supplierApi = {
-  // Fetch all suppliers
-  getSuppliers: (params?: { search?: string, status?: string }) => {
-    return apiClient.get('/suppliers', { params });
-  },
-
-  // Fetch a single supplier by ID
-  getSupplierById: (id: string) => {
-    return apiClient.get(`/suppliers/${id}`);
-  },
-
-  // Create a new supplier
-  createSupplier: (supplierData: any) => {
-    return apiClient.post('/suppliers', supplierData);
-  },
-
-  // Update an existing supplier
-  updateSupplier: (id: string, supplierData: any) => {
-    return apiClient.put(`/suppliers/${id}`, supplierData);
-  },
-
-  // Delete a supplier
-  deleteSupplier: (id: string) => {
-    return apiClient.delete(`/suppliers/${id}`);
-  },
-
-  // Get supplier performance report
-  getSupplierPerformanceReport: (id: string) => {
-    return apiClient.get(`/suppliers/${id}/performance`);
-  },
-
-  // Get all suppliers performance
-  getAllSuppliersPerformance: () => {
-    return apiClient.get('/suppliers/performance');
-  }
-};
-
-// Authentication-related API methods
-export const authApi = {
-  login: (email: string, password: string) => {
-    return apiClient.post('/auth/login', { email, password });
-  },
-
-  register: (userData: any) => {
-    return apiClient.post('/auth/register', userData);
-  }
-};
-
-// Quote-related API methods
-export const quoteApi = {
-  // Fetch all quotes
-  getQuotes: (params?: { 
-    status?: string,
-    customerId?: string, 
-    page?: number, 
-    limit?: number 
-  }) => {
-    return apiClient.get('/quotes', { params });
-  },
-
-  // Get a specific quote by ID
-  getQuoteById: (quoteId: string) => {
-    return apiClient.get(`/quotes/${quoteId}`);
-  },
-
-  // Create a new quote
-  createQuote: (quoteData: {
-    customerId: string;
-    title: string;
-    description?: string;
-    lineItems?: Array<{
-      description: string;
-      quantity: number;
-      unitPrice: number;
-      materialId?: string;
-    }>;
-    validUntil?: Date;
-  }) => {
-    return apiClient.post('/quotes', quoteData);
-  },
-
-  // Update an existing quote
-  updateQuote: (
-    quoteId: string, 
-    quoteData: {
-      customerId?: string;
-      title?: string;
-      description?: string;
-      status?: 'DRAFT' | 'SENT' | 'ACCEPTED' | 'REJECTED';
-      lineItems?: Array<{
-        id?: string;
-        description: string;
-        quantity: number;
-        unitPrice: number;
-        materialId?: string;
-      }>;
-      validUntil?: Date;
-    }
-  ) => {
-    return apiClient.put(`/quotes/${quoteId}`, quoteData);
-  },
-
-  // Delete a quote
-  deleteQuote: (quoteId: string) => {
-    return apiClient.delete(`/quotes/${quoteId}`);
-  },
+  // --- Contact Person Methods (Complete Set) ---
+  getContactPersonsForCustomer: (customerId: string) => apiClient.get(`/customers/${customerId}/contacts`),
   
-  // Clone an existing quote
-  cloneQuote: (quoteId: string, data: { 
-    customerId: string; 
-    title?: string;
-    adjustments?: Record<string, any>;
-  }) => {
-    return apiClient.post(`/quotes/${quoteId}/clone`, data);
-  }
+  // Define a type for contact creation/update data for better safety
+  createContactPerson: (customerId: string, contactData: { 
+    name: string; 
+    email?: string | null; 
+    phone?: string | null; 
+    role?: string | null; 
+    notes?: string | null; 
+    isPrimary?: boolean 
+  }) => apiClient.post(`/customers/${customerId}/contacts`, contactData),
+  
+  // Update an existing contact
+  updateContactPerson: (customerId: string, contactId: string, contactData: { 
+    name: string; 
+    email?: string | null; 
+    phone?: string | null; 
+    role?: string | null; 
+    notes?: string | null; 
+    isPrimary?: boolean 
+  }) => apiClient.put(`/customers/${customerId}/contacts/${contactId}`, contactData),
+  
+  // Delete a contact
+  deleteContactPerson: (customerId: string, contactId: string) => 
+    apiClient.delete(`/customers/${customerId}/contacts/${contactId}`),
+  
+  // Set a contact as primary
+  setPrimaryContactPerson: (customerId: string, contactId: string) =>
+    apiClient.put(`/customers/${customerId}/contacts/${contactId}/set-primary`)
 };
 
-// Jobs-related API methods
+// --- Material-related API methods ---
+export const materialApi = {
+  getMaterials: (params?: { search?: string, category?: string }) => apiClient.get('/materials', { params }),
+  getMaterialById: (id: string) => apiClient.get(`/materials/${id}`),
+  createMaterial: (materialData: any) => apiClient.post('/materials', materialData),
+  updateMaterial: (id: string, materialData: any) => apiClient.put(`/materials/${id}`, materialData),
+  updateStock: (id: string, stockData: { quantity: number }) => apiClient.put(`/materials/${id}/stock`, stockData),
+  deleteMaterial: (id: string) => apiClient.delete(`/materials/${id}`),
+  getMaterialCategories: () => apiClient.get('/materials/categories')
+};
+
+// --- Supplier-related API methods ---
+export const supplierApi = {
+  getSuppliers: (params?: { search?: string, status?: string }) => apiClient.get('/suppliers', { params }),
+  getSupplierById: (id: string) => apiClient.get(`/suppliers/${id}`),
+  createSupplier: (supplierData: any) => apiClient.post('/suppliers', supplierData),
+  updateSupplier: (id: string, supplierData: any) => apiClient.put(`/suppliers/${id}`, supplierData),
+  deleteSupplier: (id: string) => apiClient.delete(`/suppliers/${id}`),
+  getSupplierPerformanceReport: (id: string) => apiClient.get(`/suppliers/${id}/performance`),
+  getAllSuppliersPerformance: () => apiClient.get('/suppliers/performance')
+};
+
+// --- Authentication-related API methods ---
+export const authApi = {
+  login: (email: string, password: string) => apiClient.post('/auth/login', { email, password }),
+  register: (userData: any) => apiClient.post('/auth/register', userData),
+  getProfile: () => apiClient.get('/auth/profile'),
+  updateProfile: (profileData: any) => apiClient.put('/auth/profile', profileData)
+};
+
+// --- Quote-related API methods ---
+export const quoteApi = {
+  getQuotes: (params?: { status?: string, customerId?: string, page?: number, limit?: number }) => apiClient.get('/quotes', { params }),
+  getQuoteById: (quoteId: string) => apiClient.get(`/quotes/${quoteId}`),
+  createQuote: (quoteData: any) => apiClient.post('/quotes', quoteData),
+  updateQuote: (quoteId: string, quoteData: any) => apiClient.put(`/quotes/${quoteId}`, quoteData),
+  deleteQuote: (quoteId: string) => apiClient.delete(`/quotes/${quoteId}`),
+  cloneQuote: (quoteId: string, data: { customerId: string; title?: string; }) => apiClient.post(`/quotes/${quoteId}/clone`, data),
+   convertToOrder: (quoteId: string) => apiClient.post(`/quotes/${quoteId}/convert-to-order`, {}),
+   updateQuoteStatus: (quoteId: string, status: string) => apiClient.patch(`/quotes/${quoteId}/status`, { status })
+};
+
+// --- Jobs-related API methods ---
 export const jobApi = {
-  // Fetch all jobs
-  getJobs: (params?: { 
-    status?: string, 
-    page?: number, 
-    limit?: number 
-  }) => {
-    return apiClient.get('/jobs', { params });
-  },
-
-  // Get a specific job by ID
-  getJobById: (jobId: string) => {
-    return apiClient.get(`/jobs/${jobId}`);
-  },
-
-  // Create a new job
-  createJob: (jobData: {
-    title: string;
-    description?: string;
-    orderId?: string;
-    customerId?: string;
-    status?: string;
-    startDate?: string;
-    assignedUserIds?: string[];
-  }) => {
-    return apiClient.post('/jobs', jobData);
-  },
-
-  // Update an existing job
-  updateJob: (
-    jobId: string, 
-    jobData: {
-      title?: string;
-      description?: string;
-      status?: 'DRAFT' | 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
-    }
-  ) => {
-    return apiClient.patch(`/jobs/${jobId}`, jobData);
-  },
-
-  // Get available orders for job creation
-  getAvailableOrders: () => {
-    return apiClient.get('/jobs/available-orders');
-  },
-
-  // Get available users for job assignment
-  getAvailableUsers: () => {
-    return apiClient.get('/jobs/available-users');
-  },
-
-  // Get job performance metrics
-  getJobPerformanceMetrics: (jobId: string) => {
-    return apiClient.get(`/jobs/${jobId}/performance-metrics`);
-  },
-
-  // Generate comprehensive job progress report
-  getJobProgressReport: (jobId: string) => {
-    return apiClient.get(`/jobs/${jobId}/progress-report`);
-  },
-
-  // Find jobs at risk of delay
-  getAtRiskJobs: (daysThreshold?: number) => {
-    return apiClient.get('/jobs/at-risk', {
-      params: { days: daysThreshold }
-    });
-  },
-
-  // Get resource allocation recommendations for a specific job
-  getResourceRecommendations: (jobId: string) => {
-    return apiClient.get(`/jobs/${jobId}/resource-recommendations`);
-  },
-
-  // Add job material
-  addJobMaterial: (
-    jobId: string, 
-    materialData: {
-      materialId: string;
-      quantity: number;
-      estimatedCost?: number;
-    }
-  ) => {
-    return apiClient.post(`/jobs/${jobId}/materials`, materialData);
-  },
-
-  // Track job status changes
-  updateJobStatus: (
-    jobId: string, 
-    status: 'DRAFT' | 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED'
-  ) => {
-    return apiClient.patch(`/jobs/${jobId}`, { status });
-  },
-
-  // Add a note to a job
-  addJobNote: (jobId: string, noteData: { content: string }) => {
-    return apiClient.post(`/jobs/${jobId}/notes`, noteData);
-  },
-
-  // Delete a job
-  deleteJob: (jobId: string) => {
-    return apiClient.delete(`/jobs/${jobId}`);
-  }
+  getJobs: (params?: { status?: string; page?: number; limit?: number; sortBy?: string; order?: 'asc' | 'desc' }) => apiClient.get('/jobs', { params }),
+  getJobById: (jobId: string) => apiClient.get(`/jobs/${jobId}`),
+  createJob: (jobData: any) => apiClient.post('/jobs', jobData),
+  updateJob: (jobId: string, jobData: any) => apiClient.patch(`/jobs/${jobId}`, jobData),
+  deleteJob: (jobId: string) => apiClient.delete(`/jobs/${jobId}`),
+  addJobMaterial: (jobId: string, materialData: any) => apiClient.post(`/jobs/${jobId}/materials`, materialData),
+  addJobNote: (jobId: string, noteData: { content: string }) => apiClient.post(`/jobs/${jobId}/notes`, noteData),
+  getAvailableOrders: () => apiClient.get('/jobs/available-orders'),
+  getAvailableUsers: () => apiClient.get('/jobs/available-users'),
+  getJobStats: () => apiClient.get('/jobs/stats'),
+  getJobPerformanceMetrics: (jobId: string) => apiClient.get(`/jobs/${jobId}/performance-metrics`),
+  getAtRiskJobs: (daysThreshold: number = 7) => apiClient.get('/jobs/at-risk', { params: { days: daysThreshold } }),
 };
 
-// Export the configured axios instance
-export { apiClient };
+// --- Financial API methods ---
+export const financialApi = {
+    fetchFinancialMetrics: () => apiClient.get('/financial/metrics'),
+};
+
+// --- Dashboard specific API calls ---
+export const dashboardApi = {
+    getStats: () => apiClient.get('/dashboard/stats'),
+    getOrderTrendsChartData: () => apiClient.get('/dashboard/trends'),
+    getRecentActivity: () => apiClient.get('/dashboard/activity'),
+    getCustomerHealth: () => apiClient.get('/dashboard/customer-health'),
+    getOrderTrendKPI: () => apiClient.get('/dashboard/order-trend-kpi')
+};

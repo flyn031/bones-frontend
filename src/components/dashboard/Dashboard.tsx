@@ -1,22 +1,34 @@
-import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  BarChart, Bar, PieChart, Pie, Cell, Legend 
+import {
+  // Keep Recharts imports - they are used in Financial Overview and Customer Health Mini-view
+  BarChart, Bar, PieChart, Pie, Cell, Legend, ResponsiveContainer, CartesianGrid, XAxis, YAxis, Tooltip
 } from 'recharts';
-import { 
-  Activity, Box, Users, AlertTriangle, TrendingUp, RefreshCcw, 
+import {
+  Activity, Box, Users, AlertTriangle, TrendingUp, RefreshCcw,
   UserCircle, FileText, ShoppingCart, Briefcase, ExternalLink,
-  DollarSign, Settings, Info
+  DollarSign, Settings, Info, LayoutDashboard, Brain, TrendingDown
 } from "lucide-react";
-import { Button, Alert } from '@/components/ui';
-import { CustomerHealthDashboard } from "./CustomerHealthDashboard";
-import RecentActivitySection from './RecentActivitySection';
-import JobStatusOverview from './JobStatusOverview';
-import { fetchInventoryAlerts } from '../../utils/inventoryApi';
-import { fetchFinancialMetrics } from '../../utils/financialApi';
 
+// --- UI Component Imports ---
+import { Button } from '@/components/ui/Button'; // Adjust path if necessary
+import { Alert } from '@/components/ui/Alert';   // Adjust path if necessary
+
+// --- Dashboard Specific Component Imports ---
+import { CustomerHealthDashboard } from "./CustomerHealthDashboard"; // Assuming this exists
+import EnhancedCustomerHealthDashboard from "./EnhancedCustomerHealthDashboard"; // Assuming this exists
+import RecentActivitySection from './RecentActivitySection'; // Original
+import JobStatusOverview from './JobStatusOverview'; // Original
+import MonthlyQuotesWidget from "./MonthlyQuotesWidget"; // Original
+import { OrderTrendKPICard } from './OrderTrendKPICard'; // New KPI Card
+
+// --- API Utility Imports ---
+import { dashboardApi, jobApi /* Add others if needed */ } from '../../utils/api'; // Corrected API object usage
+import { fetchInventoryAlerts } from '../../utils/inventoryApi'; // Assuming this exists
+import { fetchFinancialMetrics } from '../../utils/financialApi'; // Assuming this exists
+import { useAuth } from '../../context/AuthContext';
+
+// --- Interface Definitions ---
 interface DashboardStats {
   activeOrders: number;
   totalSuppliers: number;
@@ -24,33 +36,26 @@ interface DashboardStats {
   monthlyRevenue: number;
   totalCustomers: number;
 }
-
-interface OrderTrend {
-  month: string;
-  value: number;
-}
-
 interface JobStats {
   draft: number;
   pending: number;
   inProgress: number;
   completed: number;
   cancelled: number;
+  [key: string]: number;
 }
-
 interface RecentActivity {
   id: string;
   title: string;
   time: string;
   status: string;
-  type?: 'quote' | 'order' | 'job' | 'customer' | 'supplier' | 'inventory';
+  type: 'quote' | 'order' | 'job' | 'customer' | 'supplier' | 'inventory' | 'unknown';
   entityId?: string;
   description?: string;
   quoteRef?: string;
   customerName?: string;
   projectTitle?: string;
 }
-
 interface InventoryAlert {
   id: string;
   materialName: string;
@@ -58,7 +63,6 @@ interface InventoryAlert {
   minStockLevel: number;
   status: 'Low' | 'Critical' | 'Backorder';
 }
-
 interface CustomerHealth {
   healthScores: Array<{
     customerId: string;
@@ -75,7 +79,6 @@ interface CustomerHealth {
     high: number;
   };
 }
-
 interface FinancialData {
   period: string;
   revenue: number;
@@ -83,620 +86,275 @@ interface FinancialData {
   profit: number;
 }
 
+// Default empty/mock states
+const defaultJobStats: JobStats = { draft: 0, pending: 0, inProgress: 0, completed: 0, cancelled: 0 };
+const defaultFinancialData: FinancialData[] = [
+    { period: 'Jan', revenue: 95000, costs: 65000, profit: 30000 },
+    { period: 'Feb', revenue: 105000, costs: 70000, profit: 35000 },
+    { period: 'Mar', revenue: 115000, costs: 75000, profit: 40000 },
+    { period: 'Apr', revenue: 125000, costs: 80000, profit: 45000 }
+];
+
+
 export default function Dashboard() {
   const navigate = useNavigate();
-  const [stats, setStats] = useState<DashboardStats>({
-    activeOrders: 0,
-    totalSuppliers: 0,
-    lowStock: 0,
-    monthlyRevenue: 0,
-    totalCustomers: 0
-  });
-  const [jobStats, setJobStats] = useState<JobStats>({
-    draft: 0,
-    pending: 0,
-    inProgress: 0,
-    completed: 0,
-    cancelled: 0
-  });
-  const [orderTrends, setOrderTrends] = useState<OrderTrend[]>([]);
+  const { isAuthenticated } = useAuth();
+  const [dashboardView, setDashboardView] = useState<'overview' | 'customerHealth'>('overview');
+
+  // --- State Variables ---
+  const [stats, setStats] = useState<DashboardStats>({ activeOrders: 0, totalSuppliers: 0, lowStock: 0, monthlyRevenue: 0, totalCustomers: 0 });
+  const [jobStats, setJobStats] = useState<JobStats>(defaultJobStats);
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
   const [inventoryAlerts, setInventoryAlerts] = useState<InventoryAlert[]>([]);
   const [customerHealth, setCustomerHealth] = useState<CustomerHealth | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [financialData, setFinancialData] = useState<FinancialData[]>(defaultFinancialData);
 
-  // Replace mock financial data with state
-  const [financialData, setFinancialData] = useState<FinancialData[]>([
-    { period: 'Jan', revenue: 95000, costs: 65000, profit: 30000 },
-    { period: 'Feb', revenue: 105000, costs: 70000, profit: 35000 },
-    { period: 'Mar', revenue: 115000, costs: 75000, profit: 40000 },
-    { period: 'Apr', revenue: 125000, costs: 80000, profit: 45000 }
-  ]);
 
-  const fetchDashboardData = async () => {
-    const token = localStorage.getItem('token');
-    console.log('Fetching dashboard data - Token exists:', !!token);
+  // --- Helper: transformActivityData ---
+  const transformActivityData = useCallback((rawData: any[]): RecentActivity[] => {
+    if (!Array.isArray(rawData)) return [];
+    return rawData.map(item => {
+        let type: RecentActivity['type'] = 'unknown';
+        let title = item.title || 'Activity';
+        if (item.type === 'order' || (item.projectTitle !== undefined && item.status !== undefined)) { type = 'order'; title = `Order: ${item.projectTitle || item.id || 'N/A'}`; }
+        else if (item.type === 'customer' || (item.email !== undefined && item.status === 'Added')) { type = 'customer'; title = `Customer: ${item.name || item.id}`; }
+        else if (item.type === 'quote' || item.quoteRef !== undefined) { type = 'quote'; title = `Quote: ${item.quoteRef || item.id}`; }
+        else if (item.type === 'job') { type = 'job'; title = `Job: ${item.jobTitle || item.id}`; }
 
-    if (!token) {
-      console.log('No token found, redirecting to login');
-      navigate('/login');
-      return;
+        const formatDate = (date: Date | string | null | undefined): string => {
+            if (!date) return 'N/A';
+            const dateObj = typeof date === 'string' ? new Date(date) : date;
+            if (isNaN(dateObj.getTime())) return 'Invalid Date';
+            return dateObj.toLocaleString('en-GB', { hour: 'numeric', minute: 'numeric', month: 'short', day: 'numeric' });
+        };
+
+        return {
+            id: item.id || `activity-${Math.random()}`,
+            title: title,
+            time: formatDate(item.time || item.originalDate || item.createdAt || item.updatedAt),
+            status: item.status || 'Info',
+            type: type,
+            entityId: item.entityId || item.id,
+            description: item.description || '',
+            quoteRef: item.quoteRef,
+            customerName: item.customerName,
+            projectTitle: item.projectTitle
+        };
+    });
+  }, []); // Stable function, no external dependencies
+
+
+  // --- Data Fetching Logic (Corrected useCallback dependencies) ---
+  const fetchDashboardData = useCallback(async (authStatus: boolean | null) => {
+    if (authStatus !== true) {
+        console.log("fetchDashboardData: Not authenticated, setting defaults.");
+        // Don't set loading here, let useEffect handle it
+        setStats({ activeOrders: 0, totalSuppliers: 0, lowStock: 0, monthlyRevenue: 0, totalCustomers: 0 });
+        setJobStats(defaultJobStats); setRecentActivity([]); setInventoryAlerts([]); setCustomerHealth(null); setFinancialData(defaultFinancialData); setError(null);
+        return;
     }
+    console.log('Fetching dashboard data...');
+    setError(null); // Clear errors on new fetch
 
     try {
-      setError(null);
-      if (!isRefreshing) setIsLoading(true);
-
-      console.log('Initiating parallel data fetch...');
-
-      // Fetch all dashboard data in parallel
-      const [statsRes, trendsRes, activityRes, jobStatsRes] = await Promise.all([
-        axios.get('http://localhost:4000/api/dashboard/stats', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        }),
-        axios.get('http://localhost:4000/api/dashboard/trends', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        }),
-        axios.get('http://localhost:4000/api/dashboard/activity', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        }),
-        axios.get('http://localhost:4000/api/jobs/stats', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        })
+      const results = await Promise.allSettled([
+        dashboardApi.getStats(), dashboardApi.getRecentActivity(), jobApi.getJobStats(),
+        fetchInventoryAlerts(), fetchFinancialMetrics(), dashboardApi.getCustomerHealth()
       ]);
+      console.log('API Fetch Results:', results);
 
-      // Detailed logging of responses
-      console.log('Stats Response:', statsRes.data);
-      console.log('Trends Response:', trendsRes.data);
-      console.log('Activity Response:', activityRes.data);
-      console.log('Job Stats Response:', jobStatsRes.data);
+      let lowStockCount = 0; // Temporary variable for stats update
 
-      // Validate and set data with additional checks
-      if (statsRes.data) {
-        setStats(prevStats => ({
-          ...prevStats,
-          ...statsRes.data
-        }));
-      } else {
-        console.warn('No stats data received');
-      }
-
-      if (Array.isArray(trendsRes.data)) {
-        setOrderTrends(trendsRes.data);
-      } else {
-        console.warn('Invalid trends data:', trendsRes.data);
-        setOrderTrends([]);
-      }
-
-      if (jobStatsRes.data) {
-        setJobStats(jobStatsRes.data);
-      } else {
-        console.warn('No job stats data received');
-      }
-
-      const activityData = Array.isArray(activityRes.data) ? activityRes.data : [];
-      setRecentActivity(activityData);
-
-      // Fetch real inventory alerts from the API
-      try {
-        // Get inventory alerts
-        const alertsData = await fetchInventoryAlerts();
-        console.log('Inventory Alerts Response:', alertsData);
-        
-        if (Array.isArray(alertsData) && alertsData.length > 0) {
-          // Format and limit to 5 most critical alerts for the dashboard display
-          const formattedAlerts = alertsData
-            .slice(0, 5)
-            .map(alert => ({
-              id: alert.id,
-              materialName: alert.materialName,
-              currentStock: alert.currentStock,
-              minStockLevel: alert.minStockLevel,
-              status: alert.status
-            }));
-          
-          setInventoryAlerts(formattedAlerts);
-          
-          // Update the lowStock count in dashboard stats
-          setStats(prevStats => ({
-            ...prevStats,
-            lowStock: alertsData.length
-          }));
-        } else {
-          console.warn('No inventory alerts data or unexpected format');
-          setInventoryAlerts([]);
-        }
-      } catch (alertError) {
-        console.error('Error fetching inventory alerts:', alertError);
-        // Fallback to empty alerts if there's an error
-        setInventoryAlerts([]);
-      }
-
-      // Fetch real financial metrics data
-      try {
-        // Get financial metrics
-        const financialMetricsData = await fetchFinancialMetrics();
-        console.log('Financial Metrics Response:', financialMetricsData);
-        
-        // Transform the monthly trends into the format expected by the chart
-        if (financialMetricsData && financialMetricsData.monthlyTrends) {
-          const formattedData = financialMetricsData.monthlyTrends.map(item => ({
-            period: item.month,
-            revenue: item.revenue,
-            costs: item.costs,
-            profit: item.profit
-          }));
-          setFinancialData(formattedData);
-        }
-      } catch (financialError) {
-        console.error('Error fetching financial metrics:', financialError);
-        // Keep using mock data if API fails - already set as initial state
-      }
-
-      // Mock customer health data - would be replaced with actual API call
-      setCustomerHealth({
-        healthScores: [
-          { customerId: 'C1', name: 'Acme Corp', overallScore: 92, churnRisk: 'Low', potentialUpsell: true, insights: ['Regular monthly orders', 'Consistent payment history'] },
-          { customerId: 'C2', name: 'Smith Family', overallScore: 78, churnRisk: 'Medium', potentialUpsell: true, insights: ['Recently requested quote for additional work'] },
-          { customerId: 'C3', name: 'Johnson Residence', overallScore: 85, churnRisk: 'Low', potentialUpsell: false, insights: ['Completed three jobs in past year'] },
-          { customerId: 'C4', name: 'City Services', overallScore: 65, churnRisk: 'High', potentialUpsell: false, insights: ['Payment delays', 'Decreased order frequency'] },
-          { customerId: 'C5', name: 'Tech Solutions Inc', overallScore: 88, churnRisk: 'Low', potentialUpsell: true, insights: ['Expanding office space', 'Consistent growth'] }
-        ],
-        totalCustomers: stats.totalCustomers || 32,
-        churnRiskBreakdown: {
-          low: 20,
-          medium: 8,
-          high: 4
-        }
-      });
+      // Process results safely
+      if (results[0].status === 'fulfilled' && results[0].value.data) setStats(prev => ({ ...prev, ...results[0].value.data })); else console.warn('Failed fetch stats');
+      if (results[1].status === 'fulfilled' && Array.isArray(results[1].value.data)) setRecentActivity(transformActivityData(results[1].value.data)); else { console.warn('Failed fetch activity'); setRecentActivity([]); }
+      if (results[2].status === 'fulfilled' && results[2].value.data) setJobStats(results[2].value.data); else { console.warn('Failed fetch job stats'); setJobStats(defaultJobStats); }
+      if (results[3].status === 'fulfilled' && Array.isArray(results[3].value)) { const d = results[3].value; setInventoryAlerts(d.slice(0, 5)); lowStockCount = d.length; } else { console.warn('Failed fetch alerts'); setInventoryAlerts([]); }
+      setStats(prev => ({ ...prev, lowStock: lowStockCount })); // Update lowStock count
+      if (results[4].status === 'fulfilled' && results[4].value?.monthlyTrends) {
+         const financialMetricsData = results[4].value;
+         const formattedData = financialMetricsData.monthlyTrends.map((item: any) => ({
+            period: item.month || 'N/A', revenue: item.revenue || 0, costs: item.costs || 0, profit: item.profit || 0
+         }));
+         setFinancialData(formattedData);
+      } else { console.warn('Failed fetch financial metrics'); setFinancialData(defaultFinancialData); } // Revert to default on fail
+      if (results[5].status === 'fulfilled' && results[5].value.data) setCustomerHealth(results[5].value.data); else { console.warn('Failed fetch customer health'); setCustomerHealth(null); }
 
     } catch (error: any) {
-      console.error('Full error details:', error);
-
-      if (error.response) {
-        console.error('Error response data:', error.response.data);
-        console.error('Error response status:', error.response.status);
-        
-        if (error.response.status === 403) {
-          console.log('Unauthorized access, removing token');
-          localStorage.removeItem('token');
-          navigate('/login');
-        }
-
-        setError(`Failed to fetch dashboard data: ${error.response.data?.message || 'Unknown error'}`);
-      } else if (error.request) {
-        console.error('No response received:', error.request);
-        setError('No response from server. Please check your network connection.');
-      } else {
-        console.error('Error setting up request:', error.message);
-        setError(`Request setup error: ${error.message}`);
-      }
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
+        console.error('Error processing dashboard data:', error);
+        setError(`Failed to process dashboard data: ${error.message}`);
     }
-  };
+  }, [transformActivityData]); // Minimal stable dependencies
 
+
+  // --- Effect Hook for Initial Load / Auth Change (Corrected) ---
   useEffect(() => {
-    fetchDashboardData();
-  }, [navigate]);
+    console.log("Dashboard useEffect triggered. isAuthenticated:", isAuthenticated);
+    let isMounted = true;
 
-  const handleRefresh = () => {
-    setIsRefreshing(true);
-    fetchDashboardData();
-  };
+    const initOrRefetch = async () => {
+        if (isAuthenticated !== null) { // Only proceed if auth status is determined
+             console.log("Auth determined, calling fetchDashboardData");
+             if (isMounted) setIsLoading(true); // Set loading true *before* async call
+             await fetchDashboardData(isAuthenticated);
+             if (isMounted) setIsLoading(false); // Set loading false *after* async call completes
+        } else {
+             console.log("Auth not determined yet, waiting...");
+             if (isMounted) setIsLoading(true); // Show loading while waiting for auth
+        }
+    };
 
+     initOrRefetch();
+
+     return () => { isMounted = false; } // Cleanup function
+
+  }, [isAuthenticated, fetchDashboardData]); // Correct dependencies
+
+
+  // --- handleRefresh function ---
+  const handleRefresh = useCallback(async () => {
+    console.log("Manual refresh triggered");
+    setIsRefreshing(true); setError(null);
+    await fetchDashboardData(isAuthenticated); // Call fetch with current auth status
+    setIsRefreshing(false);
+  }, [fetchDashboardData, isAuthenticated]); // Depends on stable fetchDashboardData and auth status
+
+
+  // --- Other Helpers ---
   const getActivityIcon = (type: RecentActivity['type']) => {
-    const icons = {
-      'quote': FileText,
-      'order': ShoppingCart,
-      'job': Briefcase,
-      'customer': UserCircle,
-      'supplier': Users,
-      'inventory': Box
+    const icons: { [key in RecentActivity['type']]: React.ElementType } = {
+      'quote': FileText, 'order': ShoppingCart, 'job': Briefcase, 'customer': UserCircle,
+      'supplier': Users, 'inventory': Box, 'unknown': Activity
     };
-    return icons[type] || Box;
+    return icons[type] || Activity;
   };
-
   const navigateToActivity = (activity: RecentActivity) => {
-    const routes = {
-      'quote': `/quotes/${activity.entityId}`,
-      'order': `/orders/${activity.entityId}`,
-      'job': `/jobs/${activity.entityId}`,
-      'customer': `/customers/${activity.entityId}`,
-      'supplier': `/suppliers/${activity.entityId}`,
-      'inventory': `/inventory`
-    };
-    navigate(routes[activity.type]);
+     if (!activity.entityId) return;
+     const routes: { [key in RecentActivity['type']]?: string } = {
+       'quote': `/quotes/${activity.entityId}`, 'order': `/orders/${activity.entityId}`, 'job': `/jobs/${activity.entityId}`,
+       'customer': `/customers/${activity.entityId}`, 'supplier': `/suppliers/${activity.entityId}`, 'inventory': `/inventory`
+     };
+     const path = routes[activity.type];
+     if (path) navigate(path); else console.warn(`Nav path undefined for type: ${activity.type}`);
   };
-
-  // Loading state component
   const LoadingState = () => (
     <div className="p-8 flex justify-center items-center min-h-screen">
-      <div className="text-center">
-        <RefreshCcw className="h-8 w-8 animate-spin mx-auto mb-4 text-brand-500" />
-        <p className="text-neutral-600">Loading dashboard data...</p>
-      </div>
+      <div className="text-center"><RefreshCcw className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-500" /><p className="text-neutral-600 dark:text-neutral-400">Loading dashboard...</p></div>
+    </div>
+  );
+  const StatCard = ({ icon: Icon, title, value, description, onClick, iconColor }: { icon: React.ElementType, title: string, value: number | string, description: string, onClick?: () => void, iconColor: string }) => (
+    <div onClick={onClick} className={`bg-white dark:bg-gray-800 rounded-xl shadow-soft p-4 md:p-6 transition-shadow border dark:border-gray-700 ${onClick ? 'hover:shadow-medium cursor-pointer hover:bg-neutral-50 dark:hover:bg-gray-700 group' : ''}`}>
+      <div className="flex items-center justify-between mb-1 md:mb-2"><h3 className="text-xs md:text-sm font-medium text-neutral-700 dark:text-gray-300">{title}</h3><Icon className={`h-4 w-4 md:h-5 md:w-5 ${iconColor} ${onClick ? 'group-hover:scale-110 transition-transform' : ''}`} /></div>
+      <div className="text-xl md:text-2xl font-bold text-neutral-900 dark:text-gray-100">{value}</div><p className="text-xs md:text-sm text-neutral-500 dark:text-gray-400 mt-1">{description}</p>
     </div>
   );
 
-  // Stat Card Component
-  const StatCard = ({ 
-    icon: Icon, 
-    title, 
-    value, 
-    description, 
-    onClick,
-    iconColor 
-  }: { 
-    icon: React.ElementType, 
-    title: string, 
-    value: number | string, 
-    description: string, 
-    onClick: () => void,
-    iconColor: string
-  }) => (
-    <div 
-      onClick={onClick}
-      className="bg-white rounded-xl shadow-soft p-6 hover:shadow-medium transition-shadow cursor-pointer hover:bg-neutral-50 group"
-    >
-      <div className="flex items-center justify-between mb-2">
-        <h3 className="text-sm font-medium text-neutral-700">{title}</h3>
-        <Icon className={`h-5 w-5 ${iconColor} group-hover:scale-110 transition-transform`} />
-      </div>
-      <div className="text-2xl font-bold text-neutral-900">{value}</div>
-      <p className="text-sm text-neutral-500">{description}</p>
-    </div>
-  );
 
-  // Transform the raw API data into the format expected by RecentActivitySection
-  const transformActivityData = (rawData: any[]): RecentActivity[] => {
-    if (!Array.isArray(rawData)) return [];
-    
-    return rawData.map(item => {
-      // Determine the activity type based on available properties
-      let type: RecentActivity['type'] = 'order';
-      if (item.quoteRef) type = 'quote';
-      else if (item.jobId) type = 'job';
-      
-      // Create a transformed activity object
-      return {
-        id: item.id,
-        title: item.projectTitle || item.title || (item.quoteRef ? `Quote ${item.quoteRef}` : 'Activity'),
-        time: new Date(item.createdAt || item.updatedAt).toLocaleString('en-US', { 
-          hour: 'numeric', 
-          minute: 'numeric',
-          month: 'short',
-          day: 'numeric'
-        }),
-        status: item.status || 'ACTIVE',
-        type,
-        entityId: item.id,
-        quoteRef: item.quoteRef,
-        customerName: item.customerName,
-        projectTitle: item.projectTitle
-      };
-    });
-  };
-
-  // Calculate totals for job stats
-  const totalJobs = 
-    jobStats.draft + 
-    jobStats.pending + 
-    jobStats.inProgress + 
-    jobStats.completed + 
-    jobStats.cancelled;
-
-  // Render loading state if initial load
+  // --- Render Logic ---
+  // Show loading indicator if isLoading is true AND not currently doing a manual refresh
   if (isLoading && !isRefreshing) {
     return <LoadingState />;
   }
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
+    <div className="p-4 md:p-8 max-w-full xl:max-w-7xl mx-auto">
       {/* Dashboard Header */}
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h2 
-            onClick={handleRefresh}
-            className="text-3xl font-bold 
-                       bg-gradient-to-r from-neutral-800 to-neutral-600 
-                       bg-clip-text text-transparent 
-                       cursor-pointer 
-                       select-none"
-          >
-            BONES CRM Dashboard
-          </h2>
-        </div>
-        <Button 
-          variant="ghost"
-          onClick={handleRefresh}
-          disabled={isRefreshing}
-          className={isRefreshing ? 'opacity-50' : ''}
-        >
-          <RefreshCcw className={`h-5 w-5 ${isRefreshing ? 'animate-spin' : ''}`} />
-        </Button>
+      <div className="flex justify-between items-center mb-6">
+        <div><h2 onClick={handleRefresh} className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-neutral-800 to-neutral-600 bg-clip-text text-transparent cursor-pointer select-none dark:from-neutral-300 dark:to-neutral-500">Dashboard</h2></div>
+        <Button variant="ghost" onClick={handleRefresh} disabled={isRefreshing} className={`p-2 text-gray-600 dark:text-gray-400 ${isRefreshing ? 'animate-spin' : ''}`}><RefreshCcw className="h-5 w-5" /></Button>
       </div>
 
-      {/* Error Handling */}
-      {error && (
-        <Alert 
-          type="error" 
-          message={error} 
-          className="mb-8" 
-        />
-      )}
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6 mb-8">
-        <StatCard
-          icon={Activity}
-          title="Active Orders"
-          value={stats.activeOrders}
-          description="Orders in progress"
-          onClick={() => navigate('/orders')}
-          iconColor="text-brand-500"
-        />
-        <StatCard
-          icon={Users}
-          title="Total Suppliers"
-          value={stats.totalSuppliers}
-          description="Active partnerships"
-          onClick={() => navigate('/suppliers')}
-          iconColor="text-green-600"
-        />
-        <StatCard
-          icon={UserCircle}
-          title="Total Customers"
-          value={stats.totalCustomers}
-          description="Active customers"
-          onClick={() => navigate('/customers')}
-          iconColor="text-indigo-600"
-        />
-        <StatCard
-          icon={AlertTriangle}
-          title="Low Stock Items"
-          value={stats.lowStock}
-          description="Need attention"
-          onClick={() => navigate('/inventory')}
-          iconColor="text-red-600"
-        />
-        <StatCard
-          icon={TrendingUp}
-          title="Monthly Revenue"
-          value={`£${stats.monthlyRevenue.toLocaleString('en-GB', { 
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
-          })}`}
-          description={new Date().toLocaleString('default', { month: 'long' })}
-          onClick={() => navigate('/financial')}
-          iconColor="text-purple-600"
-        />
+      {/* Dashboard View Tabs */}
+      <div className="flex border-b border-gray-200 dark:border-gray-700 mb-6">
+        <button className={`px-4 py-2 md:px-6 md:py-3 flex items-center space-x-2 border-b-2 font-medium text-sm md:text-base transition-colors duration-150 ${ dashboardView === 'overview' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:border-gray-300 dark:hover:border-gray-600' }`} onClick={() => setDashboardView('overview')}> <LayoutDashboard className="h-4 w-4 md:h-5 md:w-5 mr-1 md:mr-2" /><span>Overview</span></button>
+        <button className={`px-4 py-2 md:px-6 md:py-3 flex items-center space-x-2 border-b-2 font-medium text-sm md:text-base transition-colors duration-150 ${ dashboardView === 'customerHealth' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:border-gray-300 dark:hover:border-gray-600' }`} onClick={() => setDashboardView('customerHealth')}><Brain className="h-4 w-4 md:h-5 md:w-5 mr-1 md:mr-2" /><span>Customer Health</span><span className="ml-1 md:ml-2 px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300">AI</span></button>
       </div>
 
-      {/* Main Dashboard Content - Grid Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        {/* First Column */}
-        <div className="space-y-6">
-          {/* Job Status Overview */}
-          <JobStatusOverview jobStats={jobStats} />
-          
-          {/* Inventory Alerts */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-lg font-semibold mb-4 flex items-center">
-              <AlertTriangle className="h-5 w-5 mr-2 text-amber-500" />
-              Inventory Alerts
-            </h2>
-            
-            {inventoryAlerts.length > 0 ? (
-              <div className="space-y-3">
-                {inventoryAlerts.map(alert => (
-                  <div key={alert.id} className={`p-3 rounded-md ${
-                    alert.status === 'Critical' ? 'bg-red-50 border-l-4 border-red-500' :
-                    alert.status === 'Low' ? 'bg-amber-50 border-l-4 border-amber-500' :
-                    'bg-orange-50 border-l-4 border-orange-500'
-                  }`}>
-                    <div className="flex justify-between">
-                      <span className="font-medium">{alert.materialName}</span>
-                      <span className={`text-sm px-2 py-1 rounded-full ${
-                        alert.status === 'Critical' ? 'bg-red-100 text-red-800' :
-                        alert.status === 'Low' ? 'bg-amber-100 text-amber-800' :
-                        'bg-orange-100 text-orange-800'
-                      }`}>
-                        {alert.status}
-                      </span>
-                    </div>
-                    <div className="text-sm text-gray-600 mt-1">
-                      Current: {alert.currentStock} | Minimum: {alert.minStockLevel}
-                    </div>
+      {/* Error Display: Show only if there's an error AND we are not actively refreshing */}
+      {error && !isRefreshing && ( <Alert type="error" message={error} className="mb-6 md:mb-8" /> )}
+
+      {/* Main Content Area */}
+      {dashboardView === 'overview' ? (
+        <>
+          {/* Stats Cards */}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 md:gap-6 mb-6 md:mb-8">
+             <StatCard icon={Activity} title="Active Orders" value={stats.activeOrders} description="In progress" onClick={() => navigate('/orders')} iconColor="text-blue-500" />
+             <StatCard icon={Users} title="Suppliers" value={stats.totalSuppliers} description="Active partners" onClick={() => navigate('/suppliers')} iconColor="text-green-600" />
+             <StatCard icon={UserCircle} title="Customers" value={stats.totalCustomers} description="Total active" onClick={() => navigate('/customers')} iconColor="text-indigo-600" />
+             <StatCard icon={AlertTriangle} title="Low Stock" value={stats.lowStock} description="Items need attention" onClick={() => navigate('/inventory')} iconColor="text-red-600" />
+             <StatCard icon={TrendingUp} title="Revenue (MTD)" value={`£${stats.monthlyRevenue.toLocaleString('en-GB', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`} description={new Date().toLocaleString('default', { month: 'long' })} onClick={() => navigate('/financial')} iconColor="text-purple-600" />
+          </div>
+
+          {/* Grid Layout */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+            {/* Col 1 */}
+            <div className="space-y-6">
+              <JobStatusOverview jobStats={jobStats} />
+              <MonthlyQuotesWidget />
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 md:p-6 border dark:border-gray-700">
+                    <h2 className="text-base md:text-lg font-semibold mb-4 flex items-center text-gray-800 dark:text-gray-200"><AlertTriangle className="h-5 w-5 mr-2 text-amber-500" />Inventory Alerts</h2>
+                    {inventoryAlerts.length > 0 ? (
+                      <div className="space-y-3">
+                        {inventoryAlerts.map(alert => (
+                          <div key={alert.id} className={`p-3 rounded-md text-sm ${ alert.status === 'Critical' ? 'bg-red-50 dark:bg-red-900/30 border-l-4 border-red-500' : alert.status === 'Low' ? 'bg-amber-50 dark:bg-amber-900/30 border-l-4 border-amber-500' : 'bg-orange-50 dark:bg-orange-900/30 border-l-4 border-orange-500' }`}>
+                            <div className="flex justify-between items-center"><span className="font-medium text-gray-800 dark:text-gray-200">{alert.materialName}</span><span className={`px-2 py-0.5 rounded-full text-xs font-medium ${ alert.status === 'Critical' ? 'bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100' : alert.status === 'Low' ? 'bg-amber-100 text-amber-800 dark:bg-amber-700 dark:text-amber-100' : 'bg-orange-100 text-orange-800 dark:bg-orange-700 dark:text-orange-100' }`}>{alert.status}</span></div>
+                            <div className="text-gray-600 dark:text-gray-400 mt-1">Current: {alert.currentStock} | Min: {alert.minStockLevel}</div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : ( <p className="text-sm text-gray-500 dark:text-gray-400">No inventory alerts.</p> )}
+                    <div className="mt-4"><Button variant="link" onClick={() => navigate('/inventory')} className="text-sm p-0 h-auto text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">View inventory →</Button></div>
+               </div>
+            </div>
+
+            {/* Col 2 */}
+            <div className="space-y-6">
+               <OrderTrendKPICard />
+               {customerHealth && ( // Customer Health Mini-View
+                  <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 md:p-6 border dark:border-gray-700">
+                       <h2 className="text-base md:text-lg font-semibold mb-4 flex items-center text-gray-800 dark:text-gray-200"><Users className="h-5 w-5 mr-2 text-green-500" />Customer Health</h2>
+                         <div className="h-40 md:h-48">
+                            <ResponsiveContainer width="100%" height="100%">
+                               <PieChart><Pie data={[{ name: 'Low', value: customerHealth.churnRiskBreakdown.low }, { name: 'Med', value: customerHealth.churnRiskBreakdown.medium }, { name: 'High', value: customerHealth.churnRiskBreakdown.high }]} cx="50%" cy="50%" innerRadius="60%" outerRadius="80%" fill="#8884d8" dataKey="value"><Cell fill="#4ade80" /><Cell fill="#fbbf24" /><Cell fill="#f87171" /></Pie><Tooltip formatter={(value, name) => [`${value} customers`, name]} /><Legend verticalAlign="bottom" height={36}/></PieChart>
+                            </ResponsiveContainer>
+                        </div>
+                         <div className="mt-4"><Button variant="link" onClick={() => setDashboardView('customerHealth')} className="text-sm p-0 h-auto text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">View AI insights →</Button></div>
                   </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-gray-500">No inventory alerts at this time.</p>
-            )}
-            
-            <div className="mt-4">
-              <Button 
-                variant="ghost" 
-                onClick={() => navigate('/inventory')}
-                className="text-sm text-blue-600 hover:text-blue-800 p-0"
-              >
-                View inventory →
-              </Button>
+               )}
             </div>
-          </div>
-        </div>
-        
-        {/* Second Column */}
-        <div className="space-y-6">
-          {/* Order Trends Chart */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-lg font-semibold mb-4 flex items-center">
-              <TrendingUp className="h-5 w-5 mr-2 text-blue-500" />
-              Order Trends
-            </h3>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={orderTrends}>
-                  <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.1} />
-                  <XAxis 
-                    dataKey="month" 
-                    stroke="#6B7280"
-                    fontSize={12}
-                  />
-                  <YAxis 
-                    stroke="#6B7280"
-                    fontSize={12}
-                  />
-                  <Tooltip />
-                  <Line 
-                    type="monotone" 
-                    dataKey="value" 
-                    stroke="#2563eb" 
-                    strokeWidth={2}
-                    dot={{ r: 4 }}
-                    activeDot={{ r: 8 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-          
-          {/* Customer Health Mini-View */}
-          {customerHealth && (
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-semibold mb-4 flex items-center">
-                <Users className="h-5 w-5 mr-2 text-green-500" />
-                Customer Health
-              </h2>
-              
-              {/* Donut Chart for Churn Risk */}
-              <div className="h-48">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={[
-                        { name: 'Low Risk', value: customerHealth.churnRiskBreakdown.low },
-                        { name: 'Medium Risk', value: customerHealth.churnRiskBreakdown.medium },
-                        { name: 'High Risk', value: customerHealth.churnRiskBreakdown.high }
-                      ]}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={40}
-                      outerRadius={60}
-                      fill="#8884d8"
-                      dataKey="value"
-                      label={({name, percent}) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                    >
-                      <Cell fill="#4ade80" /> {/* Low - green */}
-                      <Cell fill="#fbbf24" /> {/* Medium - amber */}
-                      <Cell fill="#f87171" /> {/* High - red */}
-                    </Pie>
-                    <Tooltip formatter={(value) => [`${value} customers`, '']} />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-              
-              <div className="mt-4">
-                <Button 
-                  variant="ghost" 
-                  onClick={() => navigate('/customers')}
-                  className="text-sm text-blue-600 hover:text-blue-800 p-0"
-                >
-                  View all customers →
-                </Button>
-              </div>
-            </div>
-          )}
-        </div>
-        
-        {/* Third Column */}
-        <div className="space-y-6">
-          {/* Financial Overview */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-lg font-semibold mb-4 flex items-center">
-              <DollarSign className="h-5 w-5 mr-2 text-emerald-500" />
-              Financial Overview
-            </h2>
-            
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={financialData}
-                  margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="period" />
-                  <YAxis />
-                  <Tooltip formatter={(value) => [`£${value.toLocaleString()}`, '']} />
-                  <Legend />
-                  <Bar dataKey="revenue" fill="#3b82f6" name="Revenue" />
-                  <Bar dataKey="costs" fill="#9ca3af" name="Costs" />
-                  <Bar dataKey="profit" fill="#10b981" name="Profit" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-            
-            <div className="mt-4">
-              <Button 
-                variant="ghost" 
-                onClick={() => navigate('/financial')}
-                className="text-sm text-blue-600 hover:text-blue-800 p-0"
-              >
-                View financial reports →
-              </Button>
-            </div>
-          </div>
-          
-          {/* Business Insights */}
-          {customerHealth && (
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-semibold mb-4 flex items-center">
-                <Info className="h-5 w-5 mr-2 text-blue-500" />
-                Business Insights
-              </h2>
-              
-              <ul className="space-y-3">
-                {customerHealth.healthScores
-                  .flatMap(score => score.insights
-                    .map(insight => ({ customer: score.name, insight }))
-                  )
-                  .slice(0, 3)
-                  .map((item, index) => (
-                    <li key={index} className="p-3 bg-blue-50 rounded-lg border border-blue-100">
-                      <span className="block text-sm font-medium text-blue-800">{item.customer}</span>
-                      <span className="text-blue-700">{item.insight}</span>
-                    </li>
-                  ))}
-                
-                <li className="p-3 bg-amber-50 rounded-lg border border-amber-100">
-                  <span className="font-medium text-amber-800">Inventory Alert</span>
-                  <span className="block text-amber-700">{stats.lowStock} materials below minimum stock levels</span>
-                </li>
-                
-                <li className="p-3 bg-green-50 rounded-lg border border-green-100">
-                  <span className="font-medium text-green-800">Active Jobs</span>
-                  <span className="block text-green-700">{jobStats.inProgress} jobs currently in progress</span>
-                </li>
-              </ul>
-            </div>
-          )}
-        </div>
-      </div>
 
-      {/* Recent Activity Section */}
-      <RecentActivitySection 
-        activities={transformActivityData(recentActivity)} 
-        isLoading={isLoading} 
-      />
+            {/* Col 3 */}
+            <div className="space-y-6">
+               <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 md:p-6 border dark:border-gray-700"> {/* Financial Overview */}
+                    <h2 className="text-base md:text-lg font-semibold mb-4 flex items-center text-gray-800 dark:text-gray-200"><DollarSign className="h-5 w-5 mr-2 text-emerald-500" />Financial Overview</h2>
+                    <div className="h-60 md:h-64">
+                        <ResponsiveContainer width="100%" height="100%"><BarChart data={financialData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}><CartesianGrid strokeDasharray="3 3" strokeOpacity={0.1}/><XAxis dataKey="period" fontSize={12} /><YAxis fontSize={12} tickFormatter={(value) => `£${value/1000}k`} /><Tooltip formatter={(value: number) => [`£${value.toLocaleString()}`, '']} /><Legend /><Bar dataKey="revenue" fill="#3b82f6" name="Revenue" /><Bar dataKey="costs" fill="#9ca3af" name="Costs" /><Bar dataKey="profit" fill="#10b981" name="Profit" /></BarChart></ResponsiveContainer>
+                    </div>
+                     <div className="mt-4"><Button variant="link" onClick={() => navigate('/financial')} className="text-sm p-0 h-auto text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">View reports →</Button></div>
+               </div>
+               {customerHealth && ( // Business Insights
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 md:p-6 border dark:border-gray-700">
+                    <h2 className="text-base md:text-lg font-semibold mb-4 flex items-center text-gray-800 dark:text-gray-200"><Info className="h-5 w-5 mr-2 text-blue-500" />Key Insights</h2>
+                    <ul className="space-y-2 text-sm">
+                        {customerHealth.healthScores.filter(s => s.churnRisk === 'High' || s.potentialUpsell).slice(0, 2).map((s) => (<li key={s.customerId} className="p-2 bg-gray-50 dark:bg-gray-700/50 rounded border border-gray-100 dark:border-gray-700"><span className="block font-medium text-gray-800 dark:text-gray-200">{s.name}</span><span className={`text-gray-600 dark:text-gray-400 ${s.churnRisk === 'High' ? 'text-red-600 dark:text-red-400' : s.potentialUpsell ? 'text-green-600 dark:text-green-400' : ''}`}>{s.churnRisk === 'High' ? 'High Churn Risk' : s.potentialUpsell ? 'Upsell Potential' : ''}{s.insights.length > 0 ? `: ${s.insights[0]}` : ''}</span></li>))}
+                        {stats.lowStock > 0 && (<li className="p-2 bg-amber-50 dark:bg-amber-900/30 rounded border border-amber-100 dark:border-amber-800/50"><span className="font-medium text-amber-800 dark:text-amber-300">Inventory: </span><span className="text-amber-700 dark:text-amber-400">{stats.lowStock} items below min. stock</span></li>)}
+                        {jobStats.inProgress > 0 && (<li className="p-2 bg-blue-50 dark:bg-blue-900/30 rounded border border-blue-100 dark:border-blue-800/50"><span className="font-medium text-blue-800 dark:text-blue-300">Jobs: </span><span className="text-blue-700 dark:text-blue-400">{jobStats.inProgress} currently in progress</span></li>)}
+                        {customerHealth.healthScores.length === 0 && stats.lowStock === 0 && jobStats.inProgress === 0 && (<li className="text-gray-500 dark:text-gray-400">No specific insights available.</li>)}
+                     </ul>
+                </div>
+               )}
+            </div>
+          </div>
 
-      {/* Full Customer Health Dashboard Section */}
-      <div className="mt-8">
-        <CustomerHealthDashboard />
-      </div>
+          {/* Recent Activity */}
+          <RecentActivitySection activities={recentActivity} isLoading={isLoading || isRefreshing} />
+        </>
+      ) : (
+        <EnhancedCustomerHealthDashboard /> // Customer Health View
+      )}
     </div>
   );
 }
