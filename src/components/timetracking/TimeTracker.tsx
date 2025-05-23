@@ -1,5 +1,4 @@
 // src/components/timetracking/TimeTracker.tsx
-
 import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, Save, AlertCircle, CheckCircle2 } from 'lucide-react';
 
@@ -14,7 +13,10 @@ interface Job {
 interface Employee {
   id: string;
   name: string;
-  jobTitle: string;
+  email: string;
+  role: string;
+  jobTitle?: string; // Optional for backward compatibility
+  department?: string;
 }
 
 interface TimeEntry {
@@ -29,7 +31,7 @@ interface TimeEntry {
 
 interface TimeTrackerProps {
   currentEmployee: Employee;
-  onTimeEntrySaved?: (entry: TimeEntry) => void;
+  onTimeEntrySaved?: (timeEntry: TimeEntry) => void;
 }
 
 export const TimeTracker: React.FC<TimeTrackerProps> = ({ 
@@ -45,115 +47,135 @@ export const TimeTracker: React.FC<TimeTrackerProps> = ({
     isRdActivity: false,
     rdDescription: '',
   });
+  const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
 
+  // Fetch available jobs
   useEffect(() => {
+    const fetchJobs = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch('/api/jobs', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch jobs');
+        }
+
+        const data = await response.json();
+        setJobs(data.jobs || data || []);
+      } catch (error) {
+        console.error('Error fetching jobs:', error);
+        setError('Failed to load available jobs');
+      }
+    };
+
     fetchJobs();
   }, []);
 
-  const fetchJobs = async () => {
-    try {
-      const response = await fetch('/api/jobs', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setJobs(data.jobs || data); // Handle different response formats
-      }
-    } catch (error) {
-      console.error('Error fetching jobs:', error);
-    }
+  // Update employee ID when currentEmployee changes
+  useEffect(() => {
+    setTimeEntry(prev => ({
+      ...prev,
+      employeeId: currentEmployee.id
+    }));
+  }, [currentEmployee.id]);
+
+  const handleJobChange = (jobId: string) => {
+    const job = jobs.find(j => j.id === jobId);
+    setSelectedJob(job || null);
+    setTimeEntry({ ...timeEntry, jobId });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    setMessage(null);
-
-    // Validation
+    
     if (!timeEntry.jobId || timeEntry.hours <= 0) {
-      setMessage({ type: 'error', text: 'Please select a job and enter valid hours' });
-      setLoading(false);
+      setError('Please select a job and enter valid hours');
       return;
     }
 
-    if (timeEntry.isRdActivity && !timeEntry.rdDescription?.trim()) {
-      setMessage({ type: 'error', text: 'R&D activities require a description for HMRC compliance' });
-      setLoading(false);
-      return;
-    }
+    setLoading(true);
+    setError(null);
 
     try {
+      const token = localStorage.getItem('token');
       const response = await fetch('/api/time-entries', {
         method: 'POST',
         headers: {
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
         },
         body: JSON.stringify(timeEntry),
       });
 
-      if (response.ok) {
-        const savedEntry = await response.json();
-        setMessage({ type: 'success', text: 'Time entry saved successfully!' });
-        
-        // Reset form
-        setTimeEntry({
-          employeeId: currentEmployee.id,
-          jobId: '',
-          date: new Date().toISOString().split('T')[0],
-          hours: 0,
-          isRdActivity: false,
-          rdDescription: '',
-        });
-
-        // Callback to parent component
-        if (onTimeEntrySaved) {
-          onTimeEntrySaved(savedEntry);
-        }
-      } else {
-        const errorData = await response.json();
-        setMessage({ type: 'error', text: errorData.message || 'Failed to save time entry' });
+      if (!response.ok) {
+        throw new Error('Failed to save time entry');
       }
-    } catch (error) {
-      setMessage({ type: 'error', text: 'Network error. Please try again.' });
+
+      const savedEntry = await response.json();
+      setSuccess(true);
+      
+      // Reset form
+      setTimeEntry({
+        employeeId: currentEmployee.id,
+        jobId: '',
+        date: new Date().toISOString().split('T')[0],
+        hours: 0,
+        isRdActivity: false,
+        rdDescription: '',
+      });
+      setSelectedJob(null);
+
+      // Call callback if provided
+      if (onTimeEntrySaved) {
+        onTimeEntrySaved(savedEntry);
+      }
+
+      // Clear success message after 3 seconds
+      setTimeout(() => setSuccess(false), 3000);
+
+    } catch (error: any) {
+      setError(error.message || 'Failed to save time entry');
     } finally {
       setLoading(false);
     }
   };
 
-  const selectedJob = jobs.find(job => job.id === timeEntry.jobId);
-
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
-      <div className="flex items-center gap-2 mb-6">
-        <Clock className="h-6 w-6 text-blue-600" />
-        <h2 className="text-xl font-semibold text-gray-900">Log Time Entry</h2>
-      </div>
+    <div className="max-w-2xl mx-auto">
+      {/* Success Message */}
+      {success && (
+        <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md flex items-center">
+          <CheckCircle2 className="h-5 w-5 text-green-600 mr-2" />
+          <span className="text-green-700">Time entry saved successfully!</span>
+        </div>
+      )}
 
-      {message && (
-        <div className={`mb-4 p-3 rounded-md flex items-center gap-2 ${
-          message.type === 'success' 
-            ? 'bg-green-50 text-green-700 border border-green-200' 
-            : 'bg-red-50 text-red-700 border border-red-200'
-        }`}>
-          {message.type === 'success' ? (
-            <CheckCircle2 className="h-4 w-4" />
-          ) : (
-            <AlertCircle className="h-4 w-4" />
-          )}
-          {message.text}
+      {/* Error Message */}
+      {error && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md flex items-center">
+          <AlertCircle className="h-5 w-5 text-red-600 mr-2" />
+          <span className="text-red-700">{error}</span>
         </div>
       )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Employee Info */}
+        {/* Employee Info - FIXED */}
         <div className="bg-gray-50 p-3 rounded-md">
           <p className="text-sm text-gray-600">Logging time for:</p>
-          <p className="font-medium">{currentEmployee.name} - {currentEmployee.jobTitle}</p>
+          <p className="font-medium">
+            {currentEmployee.name}
+            <span className="text-gray-500 font-normal">
+              {' '}({currentEmployee.role})
+            </span>
+          </p>
         </div>
 
         {/* Date */}
@@ -178,7 +200,7 @@ export const TimeTracker: React.FC<TimeTrackerProps> = ({
           </label>
           <select
             value={timeEntry.jobId}
-            onChange={(e) => setTimeEntry({ ...timeEntry, jobId: e.target.value })}
+            onChange={(e) => handleJobChange(e.target.value)}
             className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             required
           >
@@ -194,55 +216,53 @@ export const TimeTracker: React.FC<TimeTrackerProps> = ({
         {/* Hours */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Hours Worked
+            <Clock className="inline h-4 w-4 mr-1" />
+            Hours
           </label>
           <input
             type="number"
+            step="0.25"
             min="0"
             max="24"
-            step="0.25"
             value={timeEntry.hours}
             onChange={(e) => setTimeEntry({ ...timeEntry, hours: parseFloat(e.target.value) || 0 })}
             className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            placeholder="e.g., 8.0, 4.5"
+            placeholder="e.g., 8 or 4.5"
             required
           />
         </div>
 
-        {/* R&D Activity Checkbox */}
-        <div className="border-2 border-orange-200 bg-orange-50 p-4 rounded-md">
-          <div className="flex items-center gap-2 mb-2">
+        {/* R&D Activity */}
+        <div className="space-y-2">
+          <div className="flex items-center">
             <input
               type="checkbox"
               id="isRdActivity"
               checked={timeEntry.isRdActivity}
-              onChange={(e) => setTimeEntry({ 
-                ...timeEntry, 
-                isRdActivity: e.target.checked,
-                rdDescription: e.target.checked ? timeEntry.rdDescription : ''
-              })}
-              className="h-4 w-4 text-orange-600 focus:ring-orange-500 border-gray-300 rounded"
+              onChange={(e) => setTimeEntry({ ...timeEntry, isRdActivity: e.target.checked })}
+              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
             />
-            <label htmlFor="isRdActivity" className="text-sm font-medium text-gray-900">
-              This is R&D Activity (for HMRC Tax Credits)
+            <label htmlFor="isRdActivity" className="ml-2 text-sm text-gray-700">
+              This is an R&D activity (eligible for HMRC R&D tax relief)
             </label>
           </div>
-          
+
+          {/* R&D Description */}
           {timeEntry.isRdActivity && (
-            <div className="mt-3">
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                R&D Description <span className="text-red-500">*</span>
+                R&D Activity Description
               </label>
               <textarea
-                value={timeEntry.rdDescription}
+                value={timeEntry.rdDescription || ''}
                 onChange={(e) => setTimeEntry({ ...timeEntry, rdDescription: e.target.value })}
-                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                placeholder="Describe the technological advancement or uncertainty being addressed..."
+                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 rows={3}
-                placeholder="Describe the technological uncertainty, innovation challenge, or research activity for HMRC compliance..."
                 required={timeEntry.isRdActivity}
               />
               <p className="text-xs text-gray-500 mt-1">
-                HMRC requires detailed descriptions of R&D activities including technological uncertainties and innovation objectives.
+                💡 Include details about technical challenges, new processes, or innovative solutions for HMRC compliance
               </p>
             </div>
           )}
@@ -252,30 +272,30 @@ export const TimeTracker: React.FC<TimeTrackerProps> = ({
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          className="w-full flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading ? (
             <>
-              <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
               Saving...
             </>
           ) : (
             <>
-              <Save className="h-4 w-4" />
+              <Save className="h-4 w-4 mr-2" />
               Save Time Entry
             </>
           )}
         </button>
-      </form>
 
-      {/* Job Details */}
-      {selectedJob && (
-        <div className="mt-4 p-3 bg-blue-50 rounded-md">
-          <p className="text-sm text-blue-600">
-            <strong>Selected Project:</strong> {selectedJob.title} for {selectedJob.customer.name}
-          </p>
-        </div>
-      )}
+        {/* Job Details */}
+        {selectedJob && (
+          <div className="mt-4 p-3 bg-blue-50 rounded-md">
+            <p className="text-sm text-blue-600">
+              <strong>Selected Project:</strong> {selectedJob.title} for {selectedJob.customer.name}
+            </p>
+          </div>
+        )}
+      </form>
     </div>
   );
 };
