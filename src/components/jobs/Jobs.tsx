@@ -1,4 +1,4 @@
-// src/components/jobs/Jobs.tsx (amended with audit trail)
+// src/components/jobs/Jobs.tsx (amended with audit trail + orders as jobs + status fixes)
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   Briefcase,
@@ -14,7 +14,9 @@ import {
   Download,
   Play,
   CheckCircle,
-  History
+  History,
+  ExternalLink,
+  RefreshCw
 } from 'lucide-react';
 import { jobApi } from '../../utils/api'; // Verify path
 import CreateJobModal from './CreateJobModal'; // Verify path
@@ -31,18 +33,22 @@ interface Job {
   createdAt: string;
   expectedEndDate: string;
   estimatedCost: number;
-  status: 'DRAFT' | 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELED' | 'ACTIVE'; // Match backend enum
+  status: 'DRAFT' | 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELED' | 'ACTIVE' | 'PENDING_APPROVAL' | 'APPROVED' | 'DECLINED' | 'IN_PRODUCTION' | 'ON_HOLD' | 'READY_FOR_DELIVERY' | 'DELIVERED' | 'CANCELLED'; // All possible statuses
   customer: {
     id: string;
     name: string;
   };
+  // New fields for orders displayed as jobs
+  isFromOrder?: boolean;
+  originalOrderId?: string;
+  quoteRef?: string;
 }
 
 // At Risk Job structure (from GET /jobs/at-risk) - match backend service response
 interface AtRiskJob {
     id: string;
     title: string;
-    status: 'DRAFT' | 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELED' | 'ACTIVE'; // Should match JobStatus enum
+    status: 'DRAFT' | 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELED' | 'ACTIVE' | 'PENDING_APPROVAL' | 'APPROVED' | 'DECLINED' | 'IN_PRODUCTION' | 'ON_HOLD' | 'READY_FOR_DELIVERY' | 'DELIVERED' | 'CANCELLED';
     expectedEndDate: string; // Comes as Date, format needed
     customer: string; // Customer Name (string)
     assignedUsers: string[]; // Array of user names (strings)
@@ -84,14 +90,20 @@ export default function Jobs() {
   const [activeView, setActiveView] = useState<'list' | 'atRisk'>('list'); // State for view toggle
   const [pagination, setPagination] = useState({ currentPage: 1, totalPages: 1, totalJobs: 0, pageSize: 10 });
   const [sortConfig, setSortConfig] = useState<{ key: keyof Job | 'customer.name'; direction: 'asc' | 'desc' }>({ key: 'expectedEndDate', direction: 'asc' });
+  const [refreshing, setRefreshing] = useState(false);
   
   // Add dropdown state
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
 
-  // --- Data Fetching ---
-  const fetchListData = async () => {
-      setIsLoading(true);
+  // --- Enhanced Data Fetching Logic ---
+  const fetchListData = async (showRefreshing = false) => {
+      if (showRefreshing) {
+        setRefreshing(true);
+      } else {
+        setIsLoading(true);
+      }
       setError(null);
+      
       try {
           // Fetch regular job list with filters/sorting/pagination
           const params: any = {
@@ -103,9 +115,52 @@ export default function Jobs() {
           if (filter !== 'ALL') {
               params.status = filter;
           }
-          const response = await jobApi.getJobs(params);
-          setJobs(response.data.jobs || []);
-          setPagination(response.data.pagination || { currentPage: 1, totalPages: 1, totalJobs: 0, pageSize: pagination.pageSize });
+          
+          // Fetch both jobs and orders in parallel
+          const [jobsResponse, ordersResponse] = await Promise.all([
+              jobApi.getJobs(params),
+              fetch('/api/orders', {
+                  headers: {
+                      'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                      'Content-Type': 'application/json',
+                  },
+              })
+          ]);
+
+          const jobsData = jobsResponse.data.jobs || [];
+          
+          // Get orders with IN_PRODUCTION status
+          let ordersData = [];
+          if (ordersResponse.ok) {
+              const allOrders = await ordersResponse.json();
+              ordersData = allOrders
+                  .filter((order: any) => order.status === 'IN_PRODUCTION')
+                  .map((order: any) => ({
+                      id: order.id,
+                      title: order.projectTitle + ' (Order)',
+                      description: `Order converted to job: ${order.quoteRef || order.id}`,
+                      createdAt: order.createdAt,
+                      expectedEndDate: order.expectedEndDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+                      estimatedCost: order.totalAmount || 0,
+                      status: 'IN_PRODUCTION' as const, // Keep original status
+                      customer: {
+                          id: order.customerId || 'unknown',
+                          name: order.customerName || order.customer?.name || 'Unknown Customer'
+                      },
+                      isFromOrder: true, // Flag to identify this came from an order
+                      originalOrderId: order.id,
+                      quoteRef: order.quoteRef
+                  }));
+          }
+
+          // Combine jobs and orders, with jobs first
+          const combinedData = [...jobsData, ...ordersData];
+          
+          console.log(`✅ Loaded ${jobsData.length} jobs + ${ordersData.length} orders = ${combinedData.length} total items`);
+          
+          setJobs(combinedData);
+          setPagination(jobsResponse.data.pagination || { currentPage: 1, totalPages: 1, totalJobs: combinedData.length, pageSize: pagination.pageSize });
+          
       } catch (err: any) {
           console.error('Error fetching job list:', err);
           setError(err.response?.data?.error || err.response?.data?.message || 'Failed to fetch jobs');
@@ -113,6 +168,7 @@ export default function Jobs() {
           setPagination({ currentPage: 1, totalPages: 1, totalJobs: 0, pageSize: pagination.pageSize });
       } finally {
           setIsLoading(false);
+          setRefreshing(false);
       }
   };
 
@@ -132,6 +188,16 @@ export default function Jobs() {
       }
   };
 
+  // Manual refresh function
+  const handleRefresh = () => {
+    console.log('🔄 Manual refresh triggered');
+    if (activeView === 'list') {
+      fetchListData(true); // true = show refreshing state
+    } else {
+      fetchAtRiskData();
+    }
+  };
+
   // Fetch data based on the active view
   useEffect(() => {
     if (activeView === 'list') {
@@ -144,6 +210,17 @@ export default function Jobs() {
     setSelectedJobData(null);
   }, [activeView, filter, sortConfig, pagination.currentPage]); // Dependencies that trigger refetch
 
+  // Auto-refresh every 15 seconds when in list view
+  useEffect(() => {
+    if (activeView === 'list') {
+      const interval = setInterval(() => {
+        console.log('🔄 Auto-refresh triggered');
+        fetchListData(true); // true = show refreshing state
+      }, 15000); // 15 seconds
+
+      return () => clearInterval(interval);
+    }
+  }, [activeView]);
 
   // Fetch full job details when an ID is selected
   useEffect(() => {
@@ -204,11 +281,7 @@ export default function Jobs() {
   const handleJobUpdated = () => {
       handleCloseDetails(); // Close details modal
       // Refetch data for the current view
-      if (activeView === 'list') {
-          fetchListData();
-      } else {
-          fetchAtRiskData(); // Refetch at-risk list in case status changed
-      }
+      handleRefresh();
   }
 
   const handlePageChange = (newPage: number) => {
@@ -256,11 +329,7 @@ export default function Jobs() {
        alert('Delete functionality to be implemented');
        setOpenDropdown(null);
        // Refresh the list after delete
-       if (activeView === 'list') {
-         fetchListData();
-       } else {
-         fetchAtRiskData();
-       }
+       handleRefresh();
      } catch (error) {
        console.error('Error deleting job:', error);
        alert('Failed to delete job');
@@ -273,32 +342,49 @@ export default function Jobs() {
        alert(`Status change to ${newStatus} to be implemented`);
        setOpenDropdown(null);
        // Refresh the list after status change
-       if (activeView === 'list') {
-         fetchListData();
-       } else {
-         fetchAtRiskData();
-       }
+       handleRefresh();
      } catch (error) {
        console.error('Error updating job status:', error);
        alert('Failed to update job status');
      }
    };
 
-  // --- Rendering ---
+  // --- Enhanced Status Badge Rendering ---
   const renderStatusBadge = (status: Job['status'] | AtRiskJob['status'] | undefined) => {
-    if (!status) return null;
+    // Handle undefined/null status
+    if (!status) {
+      return (
+        <span className="px-2 py-0.5 rounded-full text-xs font-medium inline-block bg-gray-200 text-gray-700">
+          Loading...
+        </span>
+      );
+    }
+
     const statusStyles: Record<string, string> = {
+      // Job statuses
       'DRAFT': 'bg-gray-100 text-gray-800',
       'PENDING': 'bg-yellow-100 text-yellow-800',
       'IN_PROGRESS': 'bg-blue-100 text-blue-800',
       'ACTIVE': 'bg-purple-100 text-purple-800',
       'COMPLETED': 'bg-green-100 text-green-800',
-      'CANCELED': 'bg-red-100 text-red-800', // Check spelling vs backend
+      'CANCELED': 'bg-red-100 text-red-800',
+      // Order statuses (for orders shown as jobs)
+      'PENDING_APPROVAL': 'bg-yellow-100 text-yellow-800',
+      'APPROVED': 'bg-green-100 text-green-800',
+      'DECLINED': 'bg-red-200 text-red-800',
+      'IN_PRODUCTION': 'bg-blue-100 text-blue-800',
+      'ON_HOLD': 'bg-orange-100 text-orange-800',
+      'READY_FOR_DELIVERY': 'bg-indigo-100 text-indigo-800',
+      'DELIVERED': 'bg-purple-100 text-purple-800',
+      'CANCELLED': 'bg-red-100 text-red-700',
     };
+
     const style = statusStyles[status] || 'bg-gray-200 text-gray-900';
+    const displayText = status.replace(/_/g, ' ');
+    
     return (
       <span className={`px-2 py-0.5 rounded-full text-xs font-medium inline-block ${style}`}>
-        {status.replace('_', ' ')}
+        {displayText}
       </span>
     );
   };
@@ -310,7 +396,17 @@ export default function Jobs() {
       return <div className="text-center py-10 text-gray-500">Loading...</div>;
     }
     if (error) {
-      return <div className="text-red-600 text-center py-10 bg-red-50 p-4 rounded border border-red-200">{error}</div>;
+      return (
+        <div className="text-red-600 text-center py-10 bg-red-50 p-4 rounded border border-red-200">
+          {error}
+          <button 
+            onClick={handleRefresh}
+            className="ml-4 px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700"
+          >
+            Retry
+          </button>
+        </div>
+      );
     }
     if (displayData.length === 0 && !isLoading) {
       return (
@@ -369,7 +465,21 @@ export default function Jobs() {
 
                return (
                   <tr key={job.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{job.title}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                      <div className="flex items-center">
+                        {job.title}
+                        {(job as Job).isFromOrder && (
+                          <span className="ml-2 px-2 py-0.5 text-xs bg-blue-100 text-blue-800 rounded-full">
+                            From Order
+                          </span>
+                        )}
+                      </div>
+                      {(job as Job).quoteRef && (
+                        <div className="text-xs text-gray-500 mt-1">
+                          Quote: {(job as Job).quoteRef}
+                        </div>
+                      )}
+                    </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{customerName || 'N/A'}</td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{formatDate(job.expectedEndDate)}</td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 text-right">{value}</td>
@@ -384,114 +494,128 @@ export default function Jobs() {
                           <Eye className="h-4 w-4" />
                         </button>
                         
-                        {/* Dropdown Menu */}
-                        <div className="relative">
+                        {/* Show different actions for orders vs real jobs */}
+                        {(job as Job).isFromOrder ? (
                           <button
-                            onClick={(e) => toggleDropdown(job.id, e)}
-                            className="text-gray-400 hover:text-gray-600 p-1 rounded"
-                            title="More Actions"
+                            onClick={() => {
+                              // Navigate to the original order
+                              window.location.href = `/orders`;
+                            }}
+                            className="text-green-600 hover:text-green-800"
+                            title="View Original Order"
                           >
-                            <MoreHorizontal className="h-4 w-4" />
+                            <ExternalLink className="h-4 w-4" />
                           </button>
-                          
-                          {/* Dropdown Content */}
-                          {openDropdown === job.id && (
-                            <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-md shadow-lg border border-gray-200 z-10">
-                              <div className="py-1">
-                                <button
-                                  onClick={() => handleQuickEdit(job)}
-                                  className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                                >
-                                  <Edit className="h-4 w-4 mr-3" />
-                                  Edit Job
-                                </button>
-                                
-                                <button
-                                  onClick={() => {
-                                    handleSelectJob(job);
-                                    setOpenDropdown(null);
-                                  }}
-                                  className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                                >
-                                  <Eye className="h-4 w-4 mr-3" />
-                                  View Details
-                                </button>
-                                
-                                {/* Audit History Button */}
-                                <div
-                                  className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                                  onClick={() => setOpenDropdown(null)}
-                                >
-                                  <History className="h-4 w-4 mr-3" />
-                                  <AuditButton
-                                    entityType="JOB"
-                                    entityId={job.id}
-                                    entityTitle={job.title}
-                                    buttonText="View Audit Trail"
-                                    showIcon={false}
-                                    variant="ghost"
-                                    className="w-full text-left justify-start p-0"
-                                  />
-                                </div>
-                                
-                                <hr className="my-1" />
-                                
-                                {/* Quick status updates */}
-                                {job.status !== 'IN_PROGRESS' && (
+                        ) : (
+                          /* Regular dropdown menu for real jobs */
+                          <div className="relative">
+                            <button
+                              onClick={(e) => toggleDropdown(job.id, e)}
+                              className="text-gray-400 hover:text-gray-600 p-1 rounded"
+                              title="More Actions"
+                            >
+                              <MoreHorizontal className="h-4 w-4" />
+                            </button>
+                            
+                            {/* Dropdown Content - only show for real jobs */}
+                            {openDropdown === job.id && (
+                              <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-md shadow-lg border border-gray-200 z-10">
+                                <div className="py-1">
                                   <button
-                                    onClick={() => handleStatusChange(job.id, 'IN_PROGRESS')}
+                                    onClick={() => handleQuickEdit(job)}
                                     className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                                   >
-                                    <Play className="h-4 w-4 mr-3" />
-                                    Start Job
+                                    <Edit className="h-4 w-4 mr-3" />
+                                    Edit Job
                                   </button>
-                                )}
-                                
-                                {job.status === 'IN_PROGRESS' && (
+                                  
                                   <button
-                                    onClick={() => handleStatusChange(job.id, 'COMPLETED')}
-                                    className="flex items-center w-full px-4 py-2 text-sm text-green-600 hover:bg-green-50"
+                                    onClick={() => {
+                                      handleSelectJob(job);
+                                      setOpenDropdown(null);
+                                    }}
+                                    className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                                   >
-                                    <CheckCircle className="h-4 w-4 mr-3" />
-                                    Mark Complete
+                                    <Eye className="h-4 w-4 mr-3" />
+                                    View Details
                                   </button>
-                                )}
-                                
-                                <button
-                                  onClick={() => {
-                                    alert('Duplicate functionality to be implemented');
-                                    setOpenDropdown(null);
-                                  }}
-                                  className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                                >
-                                  <Copy className="h-4 w-4 mr-3" />
-                                  Duplicate Job
-                                </button>
-                                
-                                <button
-                                  onClick={() => {
-                                    alert('Export functionality to be implemented');
-                                    setOpenDropdown(null);
-                                  }}
-                                  className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                                >
-                                  <Download className="h-4 w-4 mr-3" />
-                                  Export PDF
-                                </button>
-                                
-                                <hr className="my-1" />
-                                
-                                <button
-                                  onClick={() => handleDeleteJob(job.id)}
-                                  className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50"
-                                >
-                                  <Trash2 className="h-4 w-4 mr-3" />
-                                  Delete Job
-                                </button>
+                                  
+                                  {/* Audit History Button */}
+                                  <div
+                                    className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                    onClick={() => setOpenDropdown(null)}
+                                  >
+                                    <History className="h-4 w-4 mr-3" />
+                                    <AuditButton
+                                      entityType="JOB"
+                                      entityId={job.id}
+                                      entityTitle={job.title}
+                                      buttonText="View Audit Trail"
+                                      showIcon={false}
+                                      variant="ghost"
+                                      className="w-full text-left justify-start p-0"
+                                    />
+                                  </div>
+                                  
+                                  <hr className="my-1" />
+                                  
+                                  {/* Quick status updates */}
+                                  {job.status !== 'IN_PROGRESS' && (
+                                    <button
+                                      onClick={() => handleStatusChange(job.id, 'IN_PROGRESS')}
+                                      className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                    >
+                                      <Play className="h-4 w-4 mr-3" />
+                                      Start Job
+                                    </button>
+                                  )}
+                                  
+                                  {job.status === 'IN_PROGRESS' && (
+                                    <button
+                                      onClick={() => handleStatusChange(job.id, 'COMPLETED')}
+                                      className="flex items-center w-full px-4 py-2 text-sm text-green-600 hover:bg-green-50"
+                                    >
+                                      <CheckCircle className="h-4 w-4 mr-3" />
+                                      Mark Complete
+                                    </button>
+                                  )}
+                                  
+                                  <button
+                                    onClick={() => {
+                                      alert('Duplicate functionality to be implemented');
+                                      setOpenDropdown(null);
+                                    }}
+                                    className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                  >
+                                    <Copy className="h-4 w-4 mr-3" />
+                                    Duplicate Job
+                                  </button>
+                                  
+                                  <button
+                                    onClick={() => {
+                                      alert('Export functionality to be implemented');
+                                      setOpenDropdown(null);
+                                    }}
+                                    className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                  >
+                                    <Download className="h-4 w-4 mr-3" />
+                                    Export PDF
+                                  </button>
+                                  
+                                  <hr className="my-1" />
+                                  
+                                  <button
+                                    onClick={() => handleDeleteJob(job.id)}
+                                    className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                                  >
+                                    <Trash2 className="h-4 w-4 mr-3" />
+                                    Delete Job
+                                  </button>
+                                </div>
                               </div>
-                            </div>
-                          )}
-                        </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -559,10 +683,22 @@ export default function Jobs() {
                 <option value="PENDING">Pending</option>
                 <option value="ACTIVE">Active</option>
                 <option value="IN_PROGRESS">In Progress</option>
+                <option value="IN_PRODUCTION">In Production</option>
                 <option value="COMPLETED">Completed</option>
                 <option value="CANCELED">Cancelled</option>
               </select>
           </div>
+
+          {/* Refresh Button */}
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="flex items-center bg-gray-600 text-white px-3 py-1.5 rounded-md hover:bg-gray-700 text-sm font-medium disabled:opacity-50"
+            title="Refresh jobs and orders"
+          >
+            <RefreshCw className={`mr-1 h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+            {refreshing ? 'Refreshing...' : 'Refresh'}
+          </button>
 
           {/* Create Job Button */}
           <button
@@ -574,9 +710,11 @@ export default function Jobs() {
         </div>
       </div>
 
-       {/* Loading Indicator */}
-       {isLoading && (
-           <div className="text-center py-2 text-sm text-gray-500">Loading...</div>
+       {/* Loading/Refreshing Indicator */}
+       {(isLoading || refreshing) && (
+           <div className="text-center py-2 text-sm text-gray-500">
+             {refreshing ? '🔄 Refreshing...' : 'Loading...'}
+           </div>
        )}
 
       {/* Jobs Content Area */}

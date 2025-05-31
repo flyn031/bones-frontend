@@ -1,3 +1,5 @@
+// frontend/src/components/orders/OrderModal.tsx
+
 import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import axios from 'axios';
@@ -6,19 +8,19 @@ interface OrderModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (orderData: any) => void;
-  editOrder?: any;
+  orderToEdit?: any;
 }
 
+// ✅ CLEAN: Only Order statuses - no Job statuses
 const ORDER_STATUSES = [
   'DRAFT',
   'PENDING_APPROVAL',
-  'IN_PRODUCTION',
-  'ON_HOLD',
-  'COMPLETED',
+  'APPROVED',
+  'DECLINED',
   'CANCELLED'
 ];
 
-export default function OrderModal({ isOpen, onClose, onSubmit, editOrder }: OrderModalProps) {
+export default function OrderModal({ isOpen, onClose, onSubmit, orderToEdit }: OrderModalProps) {
   const [formData, setFormData] = useState({
     projectTitle: '',
     quoteRef: '',
@@ -48,16 +50,16 @@ export default function OrderModal({ isOpen, onClose, onSubmit, editOrder }: Ord
   }, [isOpen]);
 
   useEffect(() => {
-    if (editOrder) {
+    if (orderToEdit) {
       setFormData({
         ...formData,
-        ...editOrder,
-        projectValue: editOrder.projectValue || 0,
-        marginPercent: editOrder.marginPercent || 20,
-        leadTimeWeeks: editOrder.leadTimeWeeks || 1
+        ...orderToEdit,
+        projectValue: orderToEdit.projectValue || 0,
+        marginPercent: orderToEdit.marginPercent || 20,
+        leadTimeWeeks: orderToEdit.leadTimeWeeks || 1
       });
     }
-  }, [editOrder]);
+  }, [orderToEdit]);
 
   const fetchCustomers = async () => {
     setIsLoading(true);
@@ -102,7 +104,7 @@ export default function OrderModal({ isOpen, onClose, onSubmit, editOrder }: Ord
       <div className="bg-white rounded-lg p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold">
-            {editOrder ? 'Edit Order' : 'Create New Order'}
+            {orderToEdit ? 'Edit Order' : 'Create New Order'}
           </h2>
           <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
             <X className="h-6 w-6" />
@@ -263,9 +265,10 @@ export default function OrderModal({ isOpen, onClose, onSubmit, editOrder }: Ord
             </div>
           </div>
 
+          {/* ✅ CLEAN: Status dropdown with only Order statuses */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Status
+              Order Status
             </label>
             <select
               value={formData.status}
@@ -275,9 +278,14 @@ export default function OrderModal({ isOpen, onClose, onSubmit, editOrder }: Ord
               {ORDER_STATUSES.map(status => (
                 <option key={status} value={status}>
                   {status.replace(/_/g, ' ')}
+                  {status === 'APPROVED' ? ' (→ Auto-creates Job)' : ''}
                 </option>
               ))}
             </select>
+            {/* ✅ NEW: Helper text explaining the workflow */}
+            <p className="text-xs text-gray-500 mt-1">
+              When set to "APPROVED", a job will be automatically created with status "IN_PRODUCTION"
+            </p>
           </div>
 
           <div>
@@ -289,6 +297,7 @@ export default function OrderModal({ isOpen, onClose, onSubmit, editOrder }: Ord
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
               rows={4}
               className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+              placeholder="Additional notes or instructions..."
             />
           </div>
 
@@ -305,7 +314,7 @@ export default function OrderModal({ isOpen, onClose, onSubmit, editOrder }: Ord
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
               disabled={isLoading}
             >
-              {editOrder ? 'Update Order' : 'Create Order'}
+              {orderToEdit ? 'Update Order' : 'Create Order'}
             </button>
           </div>
         </form>

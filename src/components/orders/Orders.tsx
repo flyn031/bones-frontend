@@ -1,21 +1,17 @@
 // frontend/src/components/orders/Orders.tsx
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Plus, LayoutGrid, Table, Search, Filter, AlertTriangle, Clock, CheckCircle, ArrowRight, Edit, MoreVertical } from "lucide-react";
+import { Plus, LayoutGrid, Table, Search, Filter, AlertTriangle, Clock, CheckCircle, Edit, MoreVertical, Briefcase } from "lucide-react";
 import OrderModal from './OrderModal';
 import OrdersTableView from './OrdersTableView';
 import { apiClient } from '../../utils/api';
 
+// ✅ CLEAN: Only Order statuses - no Job statuses
 const statusColors: Record<string, string> = {
   DRAFT: "bg-gray-200 text-gray-700",
   PENDING_APPROVAL: "bg-yellow-100 text-yellow-800",
   APPROVED: "bg-green-100 text-green-800",
   DECLINED: "bg-red-200 text-red-800",
-  IN_PRODUCTION: "bg-blue-100 text-blue-800",
-  ON_HOLD: "bg-orange-100 text-orange-800",
-  READY_FOR_DELIVERY: "bg-indigo-100 text-indigo-800",
-  DELIVERED: "bg-purple-100 text-purple-800",
-  COMPLETED: "bg-teal-100 text-teal-800",
   CANCELLED: "bg-red-100 text-red-700",
 };
 
@@ -61,6 +57,11 @@ export interface Order {
   jobId?: string | null;
   projectOwnerId?: string;
   createdById?: string;
+  job?: {
+    id: string;
+    status: string;
+    title: string;
+  } | null;
 }
 
 export default function Orders() {
@@ -96,7 +97,8 @@ export default function Orders() {
   const [currentPage, setCurrentPage] = useState(1);
 
   const ITEMS_PER_PAGE = viewMode === 'grid' ? 9 : 10; 
-  const availableStatuses = Object.keys(statusColors);
+  // ✅ CLEAN: Only valid Order statuses
+  const availableOrderStatuses = ['DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'DECLINED', 'CANCELLED'];
 
   const fetchOrders = useCallback(async () => {
     console.log("[Orders.tsx] fetchOrders starting...");
@@ -179,16 +181,32 @@ export default function Orders() {
     setIsStatusModalOpen(true);
   };
 
+  // ✅ UPDATED: Enhanced status update with job creation feedback
   const confirmStatusUpdate = async (newStatus: string) => { 
     if (!selectedOrderForStatusUpdate || !selectedOrderForStatusUpdate.id) return;
     const orderIdToUpdate = selectedOrderForStatusUpdate.id;
     setIsLoading(true);
     try {
-      const response = await apiClient.patch<Order>(`/orders/${orderIdToUpdate}/status`, { status: newStatus });
-      setOrders(prevOrders => prevOrders.map(order => 
-          order.id === orderIdToUpdate ? response.data : order
-      ));
-      console.log(`[Orders.tsx] Status updated for order ${orderIdToUpdate} to ${newStatus}`);
+      const response = await apiClient.patch<any>(`/orders/${orderIdToUpdate}/status`, { status: newStatus });
+      
+      // Handle the enhanced response from orderController
+      if (response.data.order) {
+        setOrders(prevOrders => prevOrders.map(order => 
+            order.id === orderIdToUpdate ? response.data.order : order
+        ));
+        
+        // Show feedback if a job was auto-created
+        if (response.data.jobCreated && response.data.jobId) {
+          alert(`✅ Order approved successfully!\n🏭 Job automatically created: ${response.data.jobId}\n\nThe job is now IN_PRODUCTION and ready for work to begin.`);
+        }
+        
+        console.log(`[Orders.tsx] Status updated for order ${orderIdToUpdate} to ${newStatus}. Job created: ${response.data.jobCreated}`);
+      } else {
+        // Fallback for simpler response format
+        setOrders(prevOrders => prevOrders.map(order => 
+            order.id === orderIdToUpdate ? { ...order, status: newStatus } : order
+        ));
+      }
     } catch (err: any) {
       console.error('[Orders.tsx] Error updating order status:', err.response?.data || err.message);
       setError(`Failed to update status: ${err.response?.data?.message || err.message}`);
@@ -202,65 +220,6 @@ export default function Orders() {
   const handleEdit = (order: Order) => {
     setEditingOrder(order);
     setIsOrderModalOpen(true);
-  };
-
-  const handleConvertToJob = async (orderId: string) => { 
-    console.log(`[Orders.tsx] ===== CONVERT TO JOB CLICKED =====`);
-    console.log(`[Orders.tsx] Order ID: ${orderId}`);
-    console.log(`[Orders.tsx] API Client:`, apiClient);
-    
-    setIsLoading(true);
-    
-    try {
-      const url = `/orders/${orderId}/convert-to-job`;
-      console.log(`[Orders.tsx] Making POST request to: ${url}`);
-      
-      // Make API call to convert order to job
-      const response = await apiClient.post(url);
-      
-      console.log(`[Orders.tsx] Response received:`, response);
-      console.log(`[Orders.tsx] Response data:`, response.data);
-      
-      if (response.data.success) {
-        console.log(`[Orders.tsx] Success! Job ID: ${response.data.jobId}`);
-        
-        // Update the order in state to reflect the conversion
-        setOrders(prevOrders => prevOrders.map(order => 
-          order.id === orderId 
-            ? { 
-                ...order, 
-                jobId: response.data.jobId, 
-                status: 'IN_PRODUCTION' 
-              }
-            : order
-        ));
-        
-        // Show success message with job ID
-        alert(`Order successfully converted to job!\nJob ID: ${response.data.jobId}\n\nClick OK to continue.`);
-        
-        // Optionally refresh the page to show updated data
-        fetchOrders();
-      } else {
-        console.log(`[Orders.tsx] Response not successful:`, response.data);
-      }
-    } catch (error: any) {
-      console.error('[Orders.tsx] ===== ERROR IN CONVERT TO JOB =====');
-      console.error('[Orders.tsx] Error object:', error);
-      console.error('[Orders.tsx] Error response:', error.response);
-      console.error('[Orders.tsx] Error message:', error.message);
-      
-      const errorMessage = error.response?.data?.error || error.message;
-      const currentStatus = error.response?.data?.currentStatus;
-      
-      if (currentStatus) {
-        setError(`Cannot convert order to job: ${errorMessage}. Current status: ${currentStatus}`);
-      } else {
-        setError(`Failed to convert order to job: ${errorMessage}`);
-      }
-    } finally {
-      console.log(`[Orders.tsx] ===== CONVERT TO JOB FINISHED =====`);
-      setIsLoading(false);
-    }
   };
 
   const handlePageChange = (newPage: number) => { 
@@ -321,7 +280,7 @@ export default function Orders() {
               <label className="block text-xs font-medium text-gray-500 mb-1">Status</label>
               <select className="w-full border-gray-300 rounded-lg p-2 text-sm shadow-sm focus:ring-indigo-500 focus:border-indigo-500" value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value)}>
                 <option value="all">All Statuses</option>
-                {availableStatuses.map(status => (<option key={status} value={status}>{status.replace(/_/g, ' ')}</option>))}
+                {availableOrderStatuses.map(status => (<option key={status} value={status}>{status.replace(/_/g, ' ')}</option>))}
               </select>
             </div>
             <div>
@@ -358,7 +317,6 @@ export default function Orders() {
           onPageChange={handlePageChange}
           onEdit={handleEdit}
           onUpdateStatus={openStatusUpdateModal}
-          onConvertToJob={handleConvertToJob} 
           statusColors={statusColors}
           priorityIcons={priorityIcons}
           formatDate={formatDate}
@@ -379,12 +337,21 @@ export default function Orders() {
                   <div>
                     <div className="flex justify-between items-start mb-2">
                       <h3 className="text-md font-semibold text-indigo-700 truncate mr-2" title={order.projectTitle}>{order.projectTitle || `Order ${order.id}`}</h3>
-                      <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap ${statusColors[order.status] || statusColors.DRAFT}`}>
-                        {order.status?.replace(/_/g, ' ') || 'Unknown'}
-                      </span>
+                      <div className="flex flex-col items-end gap-1">
+                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap ${statusColors[order.status] || statusColors.DRAFT}`}>
+                          {order.status?.replace(/_/g, ' ') || 'Unknown'}
+                        </span>
+                        {/* ✅ NEW: Show job indicator when order has linked job */}
+                        {order.jobId && (
+                          <div className="flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full text-xs">
+                            <Briefcase className="h-3 w-3" />
+                            <span>Job Created</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
                     <p className="text-sm text-gray-600 truncate mb-1" title={order.customerName}>{order.customerName || 'N/A'}</p>
-                    <p className="text-xs text-gray-400 mb-3">Ref: {order.quoteRef} {order.id.startsWith('mock-') && <span className="text-orange-500">(Local)</span>}</p>
+                    <p className="text-xs text-gray-400 mb-3">Ref: {order.quoteRef} {order.id?.startsWith('mock-') && <span className="text-orange-500">(Local)</span>}</p>
                     
                     <div className="text-sm space-y-1.5 text-gray-700 border-t border-gray-200 pt-3 mt-3">
                       <p><strong>Value:</strong> {order.projectValue?.toLocaleString('en-GB', { style: 'currency', currency: 'GBP' }) ?? 'N/A'}</p>
@@ -392,19 +359,16 @@ export default function Orders() {
                       <div className="flex items-center"><strong>Priority:</strong> <span className="ml-2 flex items-center">{priorityIcons[order.priority?.toUpperCase() as keyof typeof priorityIcons] || order.priority || 'N/A'}</span></div>
                       <p><strong>Created:</strong> {formatDate(order.createdAt)}</p>
                       <p><strong>Deadline:</strong> {formatDate(order.deadline)}</p>
+                      {/* ✅ NEW: Show job status if linked */}
+                      {order.job && (
+                        <p><strong>Job Status:</strong> <span className="text-blue-600 font-medium">{order.job.status.replace(/_/g, ' ')}</span></p>
+                      )}
                     </div>
                   </div>
                   <div className="mt-5 pt-4 border-t border-gray-200 flex flex-wrap gap-2 justify-end items-center">
                     <button onClick={() => handleEdit(order)} className="text-xs px-3 py-1.5 border border-gray-300 rounded-md hover:bg-gray-100 shadow-sm flex items-center"><Edit size={14} className="mr-1"/>Edit</button>
                     <button onClick={() => openStatusUpdateModal(order)} className="text-xs px-3 py-1.5 bg-blue-500 text-white rounded-md hover:bg-blue-600 shadow-sm flex items-center"><MoreVertical size={14} className="mr-1"/>Status</button>
-                    {order.status === 'APPROVED' && (
-                        <button onClick={() => {
-                          console.log(`[Orders.tsx] To Job button clicked for order ID: ${order.id}`);
-                          handleConvertToJob(order.id);
-                        }} className="text-xs px-3 py-1.5 bg-green-500 text-white rounded-md hover:bg-green-600 shadow-sm flex items-center">
-                        <ArrowRight className="h-3 w-3 mr-1" /> To Job
-                        </button>
-                    )}
+                    {/* ✅ REMOVED: Convert to Job button - now happens automatically */}
                   </div>
                 </div>
               ))}
@@ -422,13 +386,13 @@ export default function Orders() {
         </>
       )}
 
-      {/* Status Update Modal */}
+      {/* ✅ CLEAN: Status Update Modal - Only Order Statuses */}
       {isStatusModalOpen && selectedOrderForStatusUpdate && ( 
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[60] p-4">
           <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full">
             <h2 className="text-lg font-semibold mb-4">Update Status for: <span className="font-normal text-indigo-600">{selectedOrderForStatusUpdate.projectTitle || `Order ${selectedOrderForStatusUpdate.id}`}</span></h2>
             <div className="grid grid-cols-2 gap-3">
-              {availableStatuses.map((status) => (
+              {availableOrderStatuses.map((status) => (
                 <button key={status} onClick={() => confirmStatusUpdate(status)}
                   className={`py-2.5 px-3 text-sm rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-indigo-500
                     ${selectedOrderForStatusUpdate.status === status 
@@ -436,6 +400,9 @@ export default function Orders() {
                       : `${statusColors[status]?.split(' ')[0] || 'bg-gray-100'} ${statusColors[status]?.split(' ')[1] || 'text-gray-700'} hover:opacity-80`}`}
                 >
                   {status.replace(/_/g, ' ')}
+                  {status === 'APPROVED' && (
+                    <div className="text-xs text-gray-500 mt-1">→ Auto-creates Job</div>
+                  )}
                 </button>
               ))}
             </div>
