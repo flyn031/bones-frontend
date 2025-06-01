@@ -6,13 +6,13 @@ import OrderModal from './OrderModal';
 import OrdersTableView from './OrdersTableView';
 import { apiClient } from '../../utils/api';
 
-// ✅ CLEAN: Only Order statuses - no Job statuses
+// ✅ FIXED: Updated to match backend OrderStatus enum values
 const statusColors: Record<string, string> = {
-  DRAFT: "bg-gray-200 text-gray-700",
-  PENDING_APPROVAL: "bg-yellow-100 text-yellow-800",
-  APPROVED: "bg-green-100 text-green-800",
-  DECLINED: "bg-red-200 text-red-800",
-  CANCELLED: "bg-red-100 text-red-700",
+  IN_PRODUCTION: "bg-blue-100 text-blue-800",
+  ON_HOLD: "bg-yellow-100 text-yellow-800", 
+  READY_FOR_DELIVERY: "bg-green-100 text-green-800",  // This was "APPROVED"
+  DELIVERED: "bg-purple-100 text-purple-800",
+  COMPLETED: "bg-gray-100 text-gray-700",
 };
 
 const priorityIcons: Record<string, JSX.Element> = {
@@ -97,8 +97,8 @@ export default function Orders() {
   const [currentPage, setCurrentPage] = useState(1);
 
   const ITEMS_PER_PAGE = viewMode === 'grid' ? 9 : 10; 
-  // ✅ CLEAN: Only valid Order statuses
-  const availableOrderStatuses = ['DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'DECLINED', 'CANCELLED'];
+  // ✅ FIXED: Updated to match backend OrderStatus enum values
+  const availableOrderStatuses = ['IN_PRODUCTION', 'ON_HOLD', 'READY_FOR_DELIVERY', 'DELIVERED', 'COMPLETED'];
 
   const fetchOrders = useCallback(async () => {
     console.log("[Orders.tsx] fetchOrders starting...");
@@ -197,7 +197,7 @@ export default function Orders() {
         
         // Show feedback if a job was auto-created
         if (response.data.jobCreated && response.data.jobId) {
-          alert(`✅ Order approved successfully!\n🏭 Job automatically created: ${response.data.jobId}\n\nThe job is now IN_PRODUCTION and ready for work to begin.`);
+          alert(`✅ Order ready for delivery!\n🏭 Job automatically created: ${response.data.jobId}\n\nThe job is now ACTIVE and ready for work to begin.`);
         }
         
         console.log(`[Orders.tsx] Status updated for order ${orderIdToUpdate} to ${newStatus}. Job created: ${response.data.jobCreated}`);
@@ -338,7 +338,7 @@ export default function Orders() {
                     <div className="flex justify-between items-start mb-2">
                       <h3 className="text-md font-semibold text-indigo-700 truncate mr-2" title={order.projectTitle}>{order.projectTitle || `Order ${order.id}`}</h3>
                       <div className="flex flex-col items-end gap-1">
-                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap ${statusColors[order.status] || statusColors.DRAFT}`}>
+                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap ${statusColors[order.status] || statusColors.IN_PRODUCTION}`}>
                           {order.status?.replace(/_/g, ' ') || 'Unknown'}
                         </span>
                         {/* ✅ NEW: Show job indicator when order has linked job */}
@@ -386,7 +386,7 @@ export default function Orders() {
         </>
       )}
 
-      {/* ✅ CLEAN: Status Update Modal - Only Order Statuses */}
+      {/* ✅ FIXED: Status Update Modal with correct enum values */}
       {isStatusModalOpen && selectedOrderForStatusUpdate && ( 
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[60] p-4">
           <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full">
@@ -400,7 +400,7 @@ export default function Orders() {
                       : `${statusColors[status]?.split(' ')[0] || 'bg-gray-100'} ${statusColors[status]?.split(' ')[1] || 'text-gray-700'} hover:opacity-80`}`}
                 >
                   {status.replace(/_/g, ' ')}
-                  {status === 'APPROVED' && (
+                  {status === 'READY_FOR_DELIVERY' && (
                     <div className="text-xs text-gray-500 mt-1">→ Auto-creates Job</div>
                   )}
                 </button>

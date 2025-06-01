@@ -2,8 +2,10 @@
 
 import axios from 'axios';
 
-// Base URL for API calls
-const BASE_URL = 'http://localhost:4000/api'; // Make sure this matches your backend port
+// ✅ FIXED - Import from constants:
+import { API_URL } from '../config/constants';
+
+const BASE_URL = API_URL; // Now uses environment-aware URL
 
 // Create an axios instance with default configuration
 export const apiClient = axios.create({
