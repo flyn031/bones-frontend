@@ -132,8 +132,10 @@ export default function Customers() {
         return;
       }
 
+      // FIX 1: Update API URL to use Railway backend instead of localhost
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://bonesbackend-production.up.railway.app';
       const response = await axios.get<CustomerResponse>(
-        `http://localhost:4000/api/customers?page=${page}&limit=${pageSize}&search=${searchTerm}`,
+        `${apiUrl}/api/customers?page=${page}&limit=${pageSize}&search=${searchTerm}`,
         {
           headers: {
             'Authorization': `Bearer ${token}` // Use token
@@ -212,7 +214,9 @@ export default function Customers() {
       console.log('>>> Frontend sending this data to POST /api/customers:', JSON.stringify(data, null, 2));
       // --- <<< END ADDED LOGGING >>> ---
 
-      await axios.post('http://localhost:4000/api/customers', data, {
+      // FIX 2: Update API URL to use Railway backend instead of localhost
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://bonesbackend-production.up.railway.app';
+      await axios.post(`${apiUrl}/api/customers`, data, {
         headers: {
           'Authorization': `Bearer ${token}` // Use token
           // Content-Type is usually set automatically by Axios for JSON
