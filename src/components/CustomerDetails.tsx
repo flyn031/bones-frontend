@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 // Using customerApi from central api.ts is preferred for consistency
 import { customerApi } from "../utils/api";
@@ -68,7 +68,8 @@ export default function CustomerDetails() {
     try {
       console.log(`[CustomerDetails] Fetching customer ${id}`);
       const customerResponse = await customerApi.getCustomerById(id);
-      setCustomer(customerResponse.data);
+      // FIX 1: Proper typing for API response
+      setCustomer(customerResponse.data as CustomerDetailsData);
 
       // Trigger other fetches
       fetchContacts();
@@ -127,11 +128,14 @@ export default function CustomerDetails() {
     try {
         // Use central customerApi
         const response = await customerApi.getContactPersonsForCustomer(id);
-        setContacts(response.data || []);
-        console.log(`[CustomerDetails] Found ${response.data?.length || 0} contacts`);
+        // FIX 2: Proper typing and array fallback
+        const contactsData = response.data as ContactPerson[];
+        setContacts(Array.isArray(contactsData) ? contactsData : []);
+        console.log(`[CustomerDetails] Found ${Array.isArray(contactsData) ? contactsData.length : 0} contacts`);
     } catch (err: any) {
         console.error("Error fetching contacts:", err);
         setContactError(`Failed to load contacts: ${err.response?.data?.error || err.message}`);
+        // FIX 3: Set to empty array, not empty object
         setContacts([]);
     } finally {
         setIsLoadingContacts(false);
@@ -305,7 +309,8 @@ export default function CustomerDetails() {
              <button
                 onClick={handleOpenAddContactModal}
                 className="flex items-center px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600"
-                title="Add New Contact"
+                {/* FIX 4: Remove title prop from button, add proper aria-label */}
+                aria-label="Add New Contact"
              >
                  <Plus className="h-3 w-3 mr-1"/> Add
              </button>
@@ -323,7 +328,7 @@ export default function CustomerDetails() {
                           <div className="flex justify-between items-start">
                               <div>
                                   <p className={`font-medium text-gray-900 text-sm ${contact.isPrimary ? 'flex items-center' : ''}`}>
-                                      {contact.isPrimary && <Star className="h-4 w-4 text-yellow-400 fill-current mr-1.5 flex-shrink-0" title="Primary Contact"/>}
+                                      {contact.isPrimary && <Star className="h-4 w-4 text-yellow-400 fill-current mr-1.5 flex-shrink-0"/>}
                                       {contact.name}
                                   </p>
                                   {contact.role && <p className="text-xs text-gray-500">{formatRole(contact.role)}</p>}
@@ -335,15 +340,15 @@ export default function CustomerDetails() {
                                           onClick={() => handleSetPrimary(contact.id)}
                                           disabled={isProcessingContactAction}
                                           className={`p-1 rounded ${isProcessingContactAction ? 'text-gray-300 cursor-not-allowed' : 'text-gray-400 hover:bg-yellow-100 hover:text-yellow-600'}`}
-                                          title="Make Primary"
+                                          aria-label="Make Primary"
                                       >
                                           <Star className="h-4 w-4" />
                                       </button>
                                   )}
                                   {/* Edit Button */}
-                                  <button onClick={() => handleOpenEditContactModal(contact)} className="p-1 rounded text-gray-400 hover:bg-blue-100 hover:text-blue-600" title="Edit"><Edit className="h-4 w-4" /></button>
+                                  <button onClick={() => handleOpenEditContactModal(contact)} className="p-1 rounded text-gray-400 hover:bg-blue-100 hover:text-blue-600" aria-label="Edit"><Edit className="h-4 w-4" /></button>
                                   {/* Delete Button */}
-                                  <button onClick={() => handleDeleteContact(contact.id)} className="p-1 rounded text-gray-400 hover:bg-red-100 hover:text-red-600" title="Delete"><Trash2 className="h-4 w-4" /></button>
+                                  <button onClick={() => handleDeleteContact(contact.id)} className="p-1 rounded text-gray-400 hover:bg-red-100 hover:text-red-600" aria-label="Delete"><Trash2 className="h-4 w-4" /></button>
                               </div>
                           </div>
                           <div className="mt-2 text-xs space-y-1">
