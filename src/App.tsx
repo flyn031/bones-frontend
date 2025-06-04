@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+// FIX: Remove unused React import (React 17+ doesn't need it for JSX)
+import { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, Navigate, Outlet } from 'react-router-dom';
 import Dashboard from './components/dashboard/Dashboard';
 import Suppliers from './components/suppliers/Suppliers';
