@@ -309,7 +309,6 @@ export default function CustomerDetails() {
              <button
                 onClick={handleOpenAddContactModal}
                 className="flex items-center px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600"
-                {/* FIX 4: Remove title prop from button, add proper aria-label */}
                 aria-label="Add New Contact"
              >
                  <Plus className="h-3 w-3 mr-1"/> Add
