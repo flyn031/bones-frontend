@@ -1,13 +1,41 @@
-import React, { useState } from "react";
+// FIX 1: Remove unused React import (not needed in React 17+)
+import { useState } from "react";
 import axios from "axios"; // Keep using axios directly for login, it's fine
-import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext"; // Correct path assuming Login.tsx is in src/components
 import { Button, Input, Alert } from "../components/ui"; // Assuming ui is inside components
 import { Mail, Lock } from "lucide-react";
 import loginBackground from "../assets/images/login-background copy.jpeg";
 
+// Define API response types
+interface LoginResponse {
+  token: string;
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    role: string; // Make role required to match AuthContext
+  };
+}
+
+interface RegisterResponse {
+  token?: string;
+  user?: {
+    id: string;
+    name: string;
+    email: string;
+    role: string; // Make role required to match AuthContext
+  };
+  message?: string;
+}
+
+// FIX 2: Define Alert props interface to ensure type safety
+interface AlertProps {
+  type: "error" | "success" | "warning" | "info";
+  message: string;
+  className?: string;
+}
+
 function Login() {
-  const navigate = useNavigate(); // Still needed for potential manual navigation if needed elsewhere
   const { login } = useAuth();
   const [isLogin, setIsLogin] = useState(true); // Assuming default is login view
   const [formData, setFormData] = useState({
@@ -29,33 +57,44 @@ function Login() {
 
     try {
        console.log(`Attempting ${isLogin ? 'login' : 'registration'} for:`, payload.email);
-      // Use axios directly for login/register - doesn't need interceptor yet
+      // FIX 3: Update API URL to use Railway backend instead of localhost
       const response = await axios.post(
-        `http://localhost:4000/api${endpoint}`,
+        `${process.env.NEXT_PUBLIC_API_URL || 'https://bonesbackend-production.up.railway.app'}/api${endpoint}`,
         payload
       );
 
       console.log(`${isLogin ? 'Login' : 'Registration'} response:`, response.data);
 
-      if (response.data && response.data.token && response.data.user) {
-        // Call context's login with BOTH token and user data
-        await login(response.data.token, response.data.user);
-        
-        // Let the router in App.tsx handle redirection based on isAuthenticated state
-        // No immediate navigation needed here
+      if (isLogin) {
+        // Type assertion for login response
+        const loginData = response.data as LoginResponse;
+        if (loginData && loginData.token && loginData.user) {
+          // Call context's login with BOTH token and user data
+          await login(loginData.token, loginData.user);
+          
+          // Let the router in App.tsx handle redirection based on isAuthenticated state
+          // No immediate navigation needed here
 
-      } else if (isLogin) {
-         // Handle case where login response is missing expected data
-         console.error("Login Error: Response missing token or user data.", response.data);
-         setError("Login failed: Invalid server response.");
+        } else {
+           // Handle case where login response is missing expected data
+           console.error("Login Error: Response missing token or user data.", response.data);
+           setError("Login failed: Invalid server response.");
+        }
       } else {
-         // Handle successful registration (maybe show success message or auto-login)
-         console.log("Registration successful. User might need to login now or auto-login triggered.");
-         // If auto-login after register:
-         // login(response.data.token, response.data.user);
-         // Otherwise, maybe switch back to login view:
-         setIsLogin(true);
-         setError("Registration successful! Please log in."); // Use success alert ideally
+        // Type assertion for register response
+        const registerData = response.data as RegisterResponse;
+        
+        // Handle successful registration (maybe show success message or auto-login)
+        console.log("Registration successful. User might need to login now or auto-login triggered.");
+        
+        // If auto-login after register and data is available:
+        if (registerData.token && registerData.user) {
+          await login(registerData.token, registerData.user);
+        } else {
+          // Otherwise, switch back to login view:
+          setIsLogin(true);
+          setError("Registration successful! Please log in."); // Use success alert ideally
+        }
       }
     } catch (err: any) {
       console.error(`Authentication ${isLogin ? 'login' : 'registration'} error:`, err.response?.data || err.message);
@@ -90,7 +129,7 @@ function Login() {
             type="error"
             message={error}
             className="mb-4"
-            onDismiss={() => setError("")} // Allow dismissing error
+            {/* FIX 4: Remove onDismiss prop if it doesn't exist on Alert component */}
           />
         )}
 
@@ -181,7 +220,7 @@ function Login() {
 
         <div className="text-sm text-center mt-6"> {/* Adjusted margin */}
           <Button
-            variant="link" // Use link variant if available for less emphasis
+            variant="ghost" // FIX 5: Keep "ghost" instead of "link" (already fixed)
             onClick={toggleForm}
             className="font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300"
           >
