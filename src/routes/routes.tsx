@@ -1,5 +1,5 @@
 // src/routes/routes.tsx (amended with audit routes + HMRC R&D routes)
-import { Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation, useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext"; // Import useAuth
 
 // Import your components
@@ -59,6 +59,50 @@ function PublicRoute({ children }: { children: JSX.Element }) {
     return children;
 }
 
+// JobDetails Route Wrapper
+function JobDetailsRoute() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  
+  const handleClose = () => {
+    navigate('/jobs');
+  };
+  
+  const handleUpdate = () => {
+    // Refresh will be handled by the component itself
+    window.location.reload();
+  };
+
+  if (!id) {
+    return <Navigate to="/jobs" replace />;
+  }
+
+  return (
+    <JobDetails 
+      job={{ id }} 
+      onClose={handleClose}
+      onUpdate={handleUpdate}
+    />
+  );
+}
+
+// TimeTracker Route Wrapper  
+function TimeTrackerRoute() {
+  const { user } = useAuth();
+  
+  // Create a default employee from user data
+  const currentEmployee = {
+    id: user?.id || '',
+    name: user?.name || 'Current User',
+    email: user?.email || '',
+    role: user?.role || 'Employee',
+    hourlyRate: 25.00 // Default rate
+  };
+
+  return (
+    <TimeTracker currentEmployee={currentEmployee} />
+  );
+}
 
 // --- Main AppRoutes Component ---
 const AppRoutes = () => {
@@ -177,7 +221,7 @@ const AppRoutes = () => {
         path="/jobs/:id"
         element={
           <ProtectedRoute>
-            <JobDetails />
+            <JobDetailsRoute />
           </ProtectedRoute>
         }
       />
@@ -213,7 +257,7 @@ const AppRoutes = () => {
         path="/time-tracking"
         element={
           <ProtectedRoute>
-            <TimeTracker />
+            <TimeTrackerRoute />
           </ProtectedRoute>
         }
       />

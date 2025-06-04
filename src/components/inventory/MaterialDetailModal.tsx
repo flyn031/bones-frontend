@@ -2,9 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { X, Edit, Trash, AlertTriangle } from 'lucide-react';
-import DeleteConfirmationModal from './DeleteConfirmationModal';
-import OrderStockModal from './OrderStockModal';
-
+// Local Material interface with all required properties for this component
 interface Material {
   id: string;
   name: string;
@@ -29,6 +27,8 @@ interface Material {
     name: string;
   };
 }
+import DeleteConfirmationModal from './DeleteConfirmationModal';
+import OrderStockModal from './OrderStockModal';
 
 interface MaterialDetailModalProps {
   materialId: string | null;
@@ -61,8 +61,8 @@ export default function MaterialDetailModal({ materialId, onClose, onUpdate }: M
         });
         
         console.log('Fetched material details:', response.data);
-        setMaterial(response.data);
-        setEditedMaterial(response.data);
+        setMaterial(response.data as Material);
+        setEditedMaterial(response.data as Material);
       } catch (error) {
         console.error('Error fetching material details:', error);
         setError('Failed to load material details');
@@ -159,11 +159,11 @@ export default function MaterialDetailModal({ materialId, onClose, onUpdate }: M
       console.log('🔍 VERIFICATION - Final state after all updates:', {
         originalPurpose: material?.inventoryPurpose,
         selectedPurpose: selectedPurpose,
-        finalPurpose: finalCheck.data.inventoryPurpose,
-        success: finalCheck.data.inventoryPurpose === selectedPurpose
+        finalPurpose: (finalCheck.data as Material).inventoryPurpose,
+        success: (finalCheck.data as Material).inventoryPurpose === selectedPurpose
       });
       
-      if (finalCheck.data.inventoryPurpose !== selectedPurpose) {
+      if ((finalCheck.data as Material).inventoryPurpose !== selectedPurpose) {
         console.error('❌ CRITICAL ERROR: Purpose change failed despite emergency endpoint');
         alert('Warning: The inventory type change may not have saved correctly. Please try again.');
       } else {
@@ -171,22 +171,22 @@ export default function MaterialDetailModal({ materialId, onClose, onUpdate }: M
       }
       
       setIsEditMode(false);
-      setMaterial(finalCheck.data);
+      setMaterial(finalCheck.data as Material);
       onUpdate();
     } catch (error) {
       console.error('❌ Error updating material:', error);
-      console.error('Error details:', error.response?.data);
+      console.error('Error details:', (error as any).response?.data);
       
       // Display more detailed error message
       let errorMsg = 'Failed to update material';
-      if (error.response?.data?.error) {
-        errorMsg += ': ' + error.response.data.error;
-      } else if (error.message) {
-        errorMsg += ': ' + error.message;
+      if ((error as any).response?.data?.error) {
+        errorMsg += ': ' + (error as any).response.data.error;
+      } else if ((error as any).message) {
+        errorMsg += ': ' + (error as any).message;
       }
       
-      if (error.response?.data?.details) {
-        errorMsg += '\n\nDetails: ' + error.response.data.details;
+      if ((error as any).response?.data?.details) {
+        errorMsg += '\n\nDetails: ' + (error as any).response.data.details;
       }
       
       alert(errorMsg);
@@ -664,12 +664,12 @@ export default function MaterialDetailModal({ materialId, onClose, onUpdate }: M
       )}
 
       {/* Order Stock Modal */}
-      {isOrderModalOpen && (
+      {isOrderModalOpen && material && (
         <OrderStockModal
           isOpen={isOrderModalOpen}
           onClose={() => setIsOrderModalOpen(false)}
           material={material}
-          onOrderPlaced={onUpdate}
+          onUpdate={onUpdate}
         />
       )}
     </div>

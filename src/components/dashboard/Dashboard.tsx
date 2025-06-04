@@ -6,8 +6,8 @@ import {
 } from 'recharts';
 import {
   Activity, Box, Users, AlertTriangle, TrendingUp, RefreshCcw,
-  UserCircle, FileText, ShoppingCart, Briefcase, ExternalLink,
-  DollarSign, Settings, Info, LayoutDashboard, Brain, TrendingDown
+  UserCircle, FileText, ShoppingCart, Briefcase,
+  DollarSign, Info, LayoutDashboard, Brain
 } from "lucide-react";
 
 // --- UI Component Imports ---
@@ -84,6 +84,15 @@ interface FinancialData {
   revenue: number;
   costs: number;
   profit: number;
+}
+
+interface FinancialMetricsResponse {
+  monthlyTrends: Array<{
+    month: string;
+    revenue: number;
+    costs: number;
+    profit: number;
+  }>;
 }
 
 // Default empty/mock states
@@ -168,20 +177,55 @@ export default function Dashboard() {
 
       let lowStockCount = 0; // Temporary variable for stats update
 
-      // Process results safely
-      if (results[0].status === 'fulfilled' && results[0].value.data) setStats(prev => ({ ...prev, ...results[0].value.data })); else console.warn('Failed fetch stats');
-      if (results[1].status === 'fulfilled' && Array.isArray(results[1].value.data)) setRecentActivity(transformActivityData(results[1].value.data)); else { console.warn('Failed fetch activity'); setRecentActivity([]); }
-      if (results[2].status === 'fulfilled' && results[2].value.data) setJobStats(results[2].value.data); else { console.warn('Failed fetch job stats'); setJobStats(defaultJobStats); }
-      if (results[3].status === 'fulfilled' && Array.isArray(results[3].value)) { const d = results[3].value; setInventoryAlerts(d.slice(0, 5)); lowStockCount = d.length; } else { console.warn('Failed fetch alerts'); setInventoryAlerts([]); }
+      // Process results safely with proper type guards
+      if (results[0].status === 'fulfilled' && results[0].value?.data) {
+        setStats(prev => ({ ...prev, ...(results[0].value as any).data }));
+      } else {
+        console.warn('Failed fetch stats');
+      }
+      
+      if (results[1].status === 'fulfilled' && Array.isArray((results[1].value as any)?.data)) {
+        setRecentActivity(transformActivityData((results[1].value as any).data));
+      } else {
+        console.warn('Failed fetch activity');
+        setRecentActivity([]);
+      }
+      
+      if (results[2].status === 'fulfilled' && (results[2].value as any)?.data) {
+        setJobStats((results[2].value as any).data as JobStats);
+      } else {
+        console.warn('Failed fetch job stats');
+        setJobStats(defaultJobStats);
+      }
+      
+      if (results[3].status === 'fulfilled' && Array.isArray(results[3].value)) {
+        const d = results[3].value as InventoryAlert[];
+        setInventoryAlerts(d.slice(0, 5));
+        lowStockCount = d.length;
+      } else {
+        console.warn('Failed fetch alerts');
+        setInventoryAlerts([]);
+      }
+      
       setStats(prev => ({ ...prev, lowStock: lowStockCount })); // Update lowStock count
-      if (results[4].status === 'fulfilled' && results[4].value?.monthlyTrends) {
-         const financialMetricsData = results[4].value;
+      
+      if (results[4].status === 'fulfilled' && (results[4].value as FinancialMetricsResponse)?.monthlyTrends) {
+         const financialMetricsData = results[4].value as FinancialMetricsResponse;
          const formattedData = financialMetricsData.monthlyTrends.map((item: any) => ({
             period: item.month || 'N/A', revenue: item.revenue || 0, costs: item.costs || 0, profit: item.profit || 0
          }));
          setFinancialData(formattedData);
-      } else { console.warn('Failed fetch financial metrics'); setFinancialData(defaultFinancialData); } // Revert to default on fail
-      if (results[5].status === 'fulfilled' && results[5].value.data) setCustomerHealth(results[5].value.data); else { console.warn('Failed fetch customer health'); setCustomerHealth(null); }
+      } else {
+        console.warn('Failed fetch financial metrics');
+        setFinancialData(defaultFinancialData);
+      }
+      
+      if (results[5].status === 'fulfilled' && (results[5].value as any)?.data) {
+        setCustomerHealth((results[5].value as any).data as CustomerHealth);
+      } else {
+        console.warn('Failed fetch customer health');
+        setCustomerHealth(null);
+      }
 
     } catch (error: any) {
         console.error('Error processing dashboard data:', error);
@@ -224,13 +268,6 @@ export default function Dashboard() {
 
 
   // --- Other Helpers ---
-  const getActivityIcon = (type: RecentActivity['type']) => {
-    const icons: { [key in RecentActivity['type']]: React.ElementType } = {
-      'quote': FileText, 'order': ShoppingCart, 'job': Briefcase, 'customer': UserCircle,
-      'supplier': Users, 'inventory': Box, 'unknown': Activity
-    };
-    return icons[type] || Activity;
-  };
   const navigateToActivity = (activity: RecentActivity) => {
      if (!activity.entityId) return;
      const routes: { [key in RecentActivity['type']]?: string } = {

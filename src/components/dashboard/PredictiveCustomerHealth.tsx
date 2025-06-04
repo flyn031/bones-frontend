@@ -1,13 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  BarChart, Bar, PieChart, Pie, Cell, Legend, ScatterChart, Scatter, ZAxis 
+  BarChart, Bar
 } from 'recharts';
 import { 
   Users, TrendingUp, ArrowUp, ArrowDown, ChevronsUp, Phone, 
-  DollarSign, Clock, Calendar, AlertTriangle, CheckCircle,
-  UserPlus, BadgeCheck, Info, Filter
+  Calendar, AlertTriangle, Info, Filter, FileText
 } from "lucide-react";
 import { fetchPredictiveHealth } from '../../utils/customerHealthApi';
 import { Button } from '@/components/ui';
@@ -86,31 +85,6 @@ const PredictiveCustomerHealth: React.FC = () => {
   const segments = Array.from(
     new Set(customers.flatMap(customer => customer.segments))
   );
-  
-  // Color mapping for engagement trends
-  const getTrendColor = (trend: string) => {
-    switch(trend) {
-      case 'increasing': return 'text-green-500';
-      case 'decreasing': return 'text-red-500';
-      default: return 'text-amber-500';
-    }
-  };
-  
-  // Icon for engagement trends
-  const getTrendIcon = (trend: string) => {
-    switch(trend) {
-      case 'increasing': return <ArrowUp size={16} />;
-      case 'decreasing': return <ArrowDown size={16} />;
-      default: return <TrendingUp size={16} />;
-    }
-  };
-  
-  // Calculate the risk level from probability
-  const getRiskLevel = (probability: number) => {
-    if (probability < 0.3) return 'Low';
-    if (probability < 0.6) return 'Medium';
-    return 'High';
-  };
   
   // Component for Prediction Summary Cards
   const PredictionSummary = () => (
@@ -454,21 +428,21 @@ const PredictiveCustomerHealth: React.FC = () => {
   const TimeframeSelector = () => (
     <div className="flex space-x-2 mb-6">
       <Button
-        variant={timeframe === '30' ? 'default' : 'outline'}
+        variant={timeframe === '30' ? 'primary' : 'outline'}
         size="sm"
         onClick={() => setTimeframe('30')}
       >
         30 Days
       </Button>
       <Button
-        variant={timeframe === '60' ? 'default' : 'outline'}
+        variant={timeframe === '60' ? 'primary' : 'outline'}
         size="sm"
         onClick={() => setTimeframe('60')}
       >
         60 Days
       </Button>
       <Button
-        variant={timeframe === '90' ? 'default' : 'outline'}
+        variant={timeframe === '90' ? 'primary' : 'outline'}
         size="sm"
         onClick={() => setTimeframe('90')}
       >
@@ -481,14 +455,14 @@ const PredictiveCustomerHealth: React.FC = () => {
   const ViewModeSelector = () => (
     <div className="flex space-x-2 mb-6">
       <Button
-        variant={viewMode === 'overview' ? 'default' : 'outline'}
+        variant={viewMode === 'overview' ? 'primary' : 'outline'}
         size="sm"
         onClick={() => setViewMode('overview')}
       >
         Overview
       </Button>
       <Button
-        variant={viewMode === 'detailed' ? 'default' : 'outline'}
+        variant={viewMode === 'detailed' ? 'primary' : 'outline'}
         size="sm"
         onClick={() => setViewMode('detailed')}
       >

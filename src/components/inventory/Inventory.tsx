@@ -1,8 +1,7 @@
 // src/components/inventory/Inventory.tsx
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Search, Plus, Grid, List, ChevronLeft, ChevronRight, Filter, Briefcase, Check, X } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Search, Plus, Grid, List, ChevronLeft, ChevronRight, Filter, Briefcase, X } from 'lucide-react';
 import CreateItemModal, { MaterialCategory } from './CreateItemModal';
 import MaterialDetailModal from './MaterialDetailModal';
 import { useAuth } from '../../context/AuthContext';
@@ -51,8 +50,26 @@ interface JobAssignmentItem {
   errorMessage?: string;
 }
 
+// ✅ ADDED - API response interfaces
+interface SuppliersResponse {
+  suppliers?: Supplier[];
+  data?: Supplier[];
+}
+
+interface MaterialsResponse {
+  items?: InventoryItem[];
+  materials?: InventoryItem[];
+  data?: InventoryItem[] | any;
+  totalPages?: number;
+  total?: number;
+}
+
+interface JobsResponse {
+  jobs?: Job[];
+  data?: Job[] | any;
+}
+
 export default function Inventory() {
-  const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
 
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
@@ -89,22 +106,27 @@ export default function Inventory() {
     const fetchSuppliers = async () => {
       try {
         const token = localStorage.getItem('token');
-        const response = await axios.get('http://localhost:4000/api/suppliers', {
+        const response = await axios.get<SuppliersResponse>('http://localhost:4000/api/suppliers', {
           headers: {
             'Authorization': `Bearer ${token}`
           }
         });
-         if (Array.isArray(response.data)) {
-             setSuppliers(response.data);
-         } else if (response.data && Array.isArray(response.data.suppliers)) {
-            setSuppliers(response.data.suppliers);
-         } else {
-            console.warn("Unexpected format for suppliers response:", response.data);
-            setSuppliers([]);
-         }
+        
+        // ✅ FIXED - Proper type checking for suppliers response
+        const responseData = response.data;
+        if (Array.isArray(responseData)) {
+          setSuppliers(responseData);
+        } else if (responseData && Array.isArray(responseData.suppliers)) {
+          setSuppliers(responseData.suppliers);
+        } else if (responseData && Array.isArray(responseData.data)) {
+          setSuppliers(responseData.data);
+        } else {
+          console.warn("Unexpected format for suppliers response:", responseData);
+          setSuppliers([]);
+        }
       } catch (error) {
         console.error('Error fetching suppliers:', error);
-         setSuppliers([]);
+        setSuppliers([]);
       }
     };
 
@@ -120,7 +142,7 @@ export default function Inventory() {
         throw new Error('No authentication token found');
       }
 
-      const response = await axios.get(
+      const response = await axios.get<MaterialsResponse>(
         `http://localhost:4000/api/materials`,
         {
           headers: {
@@ -138,8 +160,9 @@ export default function Inventory() {
         }
       );
 
+      // ✅ FIXED - Proper type checking for materials response
       const data = response.data;
-      const items = data.items || data.materials || data.data || (Array.isArray(data) ? data : []);
+      const items = data.items || data.materials || (Array.isArray(data.data) ? data.data : []) || (Array.isArray(data) ? data : []);
 
       setInventory(Array.isArray(items) ? items : []);
       setTotalPages(data.totalPages || 1);
@@ -148,6 +171,7 @@ export default function Inventory() {
     } catch (error) {
       console.error('Error fetching inventory:', error);
 
+      // ✅ FIXED - Use axios.isAxiosError instead of instanceof
       if (axios.isAxiosError(error)) {
         const errorMsg = error.response?.data?.message ||
                          error.response?.data?.error ||
@@ -170,7 +194,7 @@ export default function Inventory() {
   const fetchJobs = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get('http://localhost:4000/api/jobs', {
+      const response = await axios.get<JobsResponse>('http://localhost:4000/api/jobs', {
         headers: {
           'Authorization': `Bearer ${token}`
         },
@@ -179,14 +203,17 @@ export default function Inventory() {
         }
       });
 
-      // Filter out COMPLETED and CANCELED jobs explicitly just in case the API param isn't perfect
-      const jobData = response.data.jobs || response.data.data || response.data;
+      // ✅ FIXED - Proper type checking for jobs response
+      const responseData = response.data;
+      const jobData = responseData.jobs || responseData.data || responseData;
+      
       if (Array.isArray(jobData)) {
-         const activeJobs = jobData.filter(job => job.status !== 'COMPLETED' && job.status !== 'CANCELED');
-         setJobs(activeJobs);
+        // Filter out COMPLETED and CANCELED jobs explicitly just in case the API param isn't perfect
+        const activeJobs = jobData.filter((job: Job) => job.status !== 'COMPLETED' && job.status !== 'CANCELED');
+        setJobs(activeJobs);
       } else {
-         console.warn("Unexpected format for jobs response:", response.data);
-         setJobs([]);
+        console.warn("Unexpected format for jobs response:", responseData);
+        setJobs([]);
       }
 
     } catch (error) {
@@ -288,10 +315,7 @@ export default function Inventory() {
         return;
     }
 
-
     setIsSubmitting(true);
-    // Added a slight delay or visual feedback change here might be good
-    // e.g., disabling the modal entirely or showing a spinner over it
 
     try {
       const token = localStorage.getItem('token');
@@ -308,8 +332,7 @@ export default function Inventory() {
             materialId: item.materialId,
             quantityNeeded: item.quantity,
             unitCost: item.unitCost, // Use the cost recorded when opening modal
-            // notes: `Added from inventory bulk assignment` // Add a default note or allow input in modal
-             notes: item.errorMessage || `Added from inventory` // Use error message as note if there was one, or a default
+            notes: item.errorMessage || `Added from inventory` // Use error message as note if there was one, or a default
           },
           { headers }
         )
@@ -319,10 +342,7 @@ export default function Inventory() {
       const failedResults = results.filter((result): result is PromiseRejectedResult => result.status === 'rejected');
 
       if (successfulCount > 0) {
-         // Partial success is possible with Promise.allSettled
          alert(`Successfully added ${successfulCount} material${successfulCount !== 1 ? 's' : ''} to job!`);
-         // Only clear selection and close if at least one was successful?
-         // Or clear only the *successfully added* items? Clearing all is simpler for now.
          setSelectedItems(new Set());
          setIsJobModalOpen(false);
          setSelectedJobId('');
@@ -356,12 +376,6 @@ export default function Inventory() {
                  }
              });
        }
-
-       if (successfulCount === 0 && failedResults.length > 0) {
-           // All failed
-           // The alert above covers this case, but keeping this check logic might be useful
-       }
-
 
     } catch (error) {
       console.error('An unexpected error occurred during submission:', error);
@@ -397,6 +411,7 @@ export default function Inventory() {
       fetchInventory();
     } catch (error) {
       console.error('Error adding item:', error);
+      // ✅ FIXED - Use axios.isAxiosError instead of instanceof
       if (axios.isAxiosError(error)) {
         console.error("Error status:", error.response?.status);
         console.error("Error details:", error.response?.data);
@@ -525,7 +540,7 @@ export default function Inventory() {
             </div>
             <button
               onClick={handleAddToJob}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
               disabled={selectedItems.size === 0}
             >
                <Briefcase className="h-4 w-4 mr-2" />
@@ -855,7 +870,6 @@ export default function Inventory() {
                               id={`quantity-${item.materialId}`}
                               type="number"
                               min="0"
-                              // max={item.material.currentStockLevel} // Decided not to strictly enforce max via input constraint here
                               step="0.01"
                               value={item.quantity}
                               onChange={(e) => handleQuantityChange(item.materialId, parseFloat(e.target.value) || 0)}
@@ -911,7 +925,7 @@ export default function Inventory() {
               <button
                 onClick={handleSubmitJobAssignment}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={isSubmitting || !selectedJobId || assignmentItems.length === 0 || hasErrors || assignmentItems.some(item => item.quantity <= 0)} // Disable if submitting, no job, no items, errors, or quantity <= 0
+                disabled={isSubmitting || !selectedJobId || assignmentItems.length === 0 || hasErrors || assignmentItems.some(item => item.quantity <= 0)}
               >
                 {isSubmitting ? 'Adding...' : 'Add to Job'}
               </button>
@@ -919,25 +933,6 @@ export default function Inventory() {
           </div>
         </div>
       )}
-
-      {/* Add Item Modal */}
-      <CreateItemModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSubmit={handleAddItem}
-        categories={Object.values(MaterialCategory)}
-        suppliers={suppliers}
-      />
-
-      {/* Material Detail Modal */}
-      {isDetailModalOpen && selectedMaterialId && (
-        <MaterialDetailModal
-          materialId={selectedMaterialId}
-          onClose={handleCloseDetailModal}
-          onUpdate={fetchInventory}
-        />
-      )}
     </div>
   );
 }
-// END_OF_FILE_MARKER

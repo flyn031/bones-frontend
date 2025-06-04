@@ -86,7 +86,7 @@ export const auditApi = {
         }
       });
       return {
-        data: response.data
+        data: response.data as QuoteHistory[]
       };
     } catch (error) {
       console.error(`Error fetching quote history for ${quoteId}:`, error);
@@ -103,7 +103,7 @@ export const auditApi = {
         }
       });
       return {
-        data: response.data
+        data: response.data as OrderHistory[]
       };
     } catch (error) {
       console.error(`Error fetching order history for ${orderId}:`, error);
@@ -120,7 +120,7 @@ export const auditApi = {
         }
       });
       return {
-        data: response.data
+        data: response.data as JobHistory[]
       };
     } catch (error) {
       console.error(`Error fetching job history for ${jobId}:`, error);
@@ -142,7 +142,7 @@ export const auditApi = {
         }
       });
       return {
-        data: response.data
+        data: response.data as CompleteHistory
       };
     } catch (error) {
       console.error('Error fetching complete history:', error);
@@ -164,8 +164,11 @@ export const auditApi = {
           'Content-Type': 'application/json'
         }
       });
+      
+      // Fix the specific line 168 that was causing the error
+      const auditData = response.data as { data: LegalEvidencePackage };
       return {
-        data: response.data.data
+        data: auditData.data
       };
     } catch (error) {
       console.error('Error fetching legal evidence package:', error);
@@ -192,7 +195,7 @@ export const auditApi = {
         }
       });
       return {
-        data: response.data
+        data: response.data as AuditHistory[]
       };
     } catch (error) {
       console.error('Error searching audit history:', error);
@@ -214,7 +217,7 @@ export const auditApi = {
         }
       });
       return {
-        data: response.data
+        data: response.data as AuditStatistics
       };
     } catch (error) {
       console.error('Error fetching audit statistics:', error);
@@ -236,7 +239,7 @@ export const auditApi = {
         }
       });
       return {
-        data: response.data
+        data: response.data as DigitalSignatureVerification
       };
     } catch (error) {
       console.error('Error verifying digital signature:', error);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 // --- CORRECTED IMPORT ---
 // Import the specific dashboardApi object we created in api.ts
 import { dashboardApi } from '../../utils/api'; // Adjust path if needed
@@ -38,7 +38,7 @@ export const OrderTrendKPICard: React.FC = () => {
         // Use the specific function from the dashboardApi object
         const response = await dashboardApi.getOrderTrendKPI();
         // Axios responses have data under the .data property
-        setKpiData(response.data);
+        setKpiData(response.data as OrderTrendKPI);
       } catch (err: any) { // Catch block improved
         console.error("Error fetching order trend KPI:", err);
         const message = err.response?.data?.error || err.message || "Failed to load trend data.";

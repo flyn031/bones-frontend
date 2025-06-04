@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
 
 // Temporarily define constants directly to bypass import issues
@@ -68,7 +68,7 @@ export const FinancialPage: React.FC = () => {
         }
       });
       
-      setSummary(response.data);
+      setSummary(response.data as FinancialSummary);
       setError(null);
     } catch (err) {
       console.error('Error fetching financial summary:', err);
@@ -141,7 +141,7 @@ export const FinancialPage: React.FC = () => {
                 summary.recentTransactions.map((transaction) => (
                   <tr key={transaction.id} className="border-t">
                     <td className="py-2 px-4">
-                      {transaction.date || formatDate(transaction.date)}
+                      {transaction.date ? formatDate(transaction.date) : 'No date'}
                     </td>
                     <td className="py-2 px-4">{transaction.description}</td>
                     <td className="py-2 px-4 text-right">{formatCurrency(transaction.amount)}</td>

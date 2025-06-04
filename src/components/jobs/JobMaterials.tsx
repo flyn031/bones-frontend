@@ -1,8 +1,8 @@
 // frontend/src/components/jobs/JobMaterials.tsx
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Plus, Search, Package, AlertTriangle, Edit, Trash2 } from 'lucide-react';
-
+// Local Material interface with required properties
 interface Material {
   id: string;
   name: string;
@@ -30,6 +30,21 @@ interface JobMaterial {
   notes?: string;
   material: Material;
   createdAt: string;
+}
+
+interface JobMaterialsResponse {
+  materials: JobMaterial[];
+  totals: {
+    totalMaterials: number;
+    totalCost: number;
+    totalQuantityNeeded: number;
+    totalQuantityAllocated: number;
+    totalQuantityUsed: number;
+  };
+}
+
+interface AvailableMaterialsResponse {
+  materials: Material[];
 }
 
 interface JobMaterialsProps {
@@ -83,8 +98,9 @@ export default function JobMaterials({ jobId }: JobMaterialsProps) {
       const response = await axios.get(`http://localhost:4000/api/jobs/${jobId}/materials`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      setJobMaterials(response.data.materials || []);
-      setTotals(response.data.totals || {});
+      const data = response.data as JobMaterialsResponse;
+      setJobMaterials(data.materials || []);
+      setTotals(data.totals || {});
       setError(null);
     } catch (error) {
       console.error('Error fetching job materials:', error);
@@ -101,7 +117,8 @@ export default function JobMaterials({ jobId }: JobMaterialsProps) {
         headers: { 'Authorization': `Bearer ${token}` },
         params: { search: searchTerm }
       });
-      setAvailableMaterials(response.data.materials || []);
+      const data = response.data as AvailableMaterialsResponse;
+      setAvailableMaterials(data.materials || []);
     } catch (error) {
       console.error('Error fetching available materials:', error);
     }
@@ -250,7 +267,7 @@ export default function JobMaterials({ jobId }: JobMaterialsProps) {
                       <h4 className="font-medium">{jobMaterial.material.name}</h4>
                       <span className="text-sm text-gray-500">({jobMaterial.material.code})</span>
                       {jobMaterial.material.currentStockLevel < jobMaterial.quantityNeeded && (
-                        <AlertTriangle className="h-4 w-4 text-amber-500" title="Insufficient stock" />
+                        <AlertTriangle className="h-4 w-4 text-amber-500" />
                       )}
                     </div>
                     

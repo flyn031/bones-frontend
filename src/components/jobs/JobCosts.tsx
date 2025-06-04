@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { jobCostApi } from '../../utils/jobCostApi';
-import { Plus, Edit, Trash2, FileText, ExternalLink, Filter } from 'lucide-react';
+import { Plus, Edit, Trash2, FileText, Filter } from 'lucide-react';
 import AddJobCostModal from './AddJobCostModal';
 import EditJobCostModal from './EditJobCostModal';
 
@@ -49,7 +49,7 @@ const JobCosts: React.FC<JobCostsProps> = ({ jobId, onCostChange }) => {
     try {
       setLoading(true);
       const response = await jobCostApi.getJobCosts(jobId);
-      setCosts(response.data);
+      setCosts(response.data as JobCost[]);
       setError('');
     } catch (err) {
       console.error('Error fetching job costs:', err);

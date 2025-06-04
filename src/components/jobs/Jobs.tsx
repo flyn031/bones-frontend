@@ -1,5 +1,5 @@
 // src/components/jobs/Jobs.tsx (amended with audit trail + orders as jobs + status fixes)
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Briefcase,
   Plus,
@@ -23,6 +23,7 @@ import CreateJobModal from './CreateJobModal'; // Verify path
 import JobDetails from './JobDetails';       // Verify path
 import { format } from 'date-fns';         // Or your date library
 import { AuditButton } from '../audit';    // Import audit button
+import { JobsResponse, JobStats } from '../../types/api';
 
 // --- Type Definitions ---
 // Main Job structure (from GET /jobs)
@@ -127,7 +128,9 @@ export default function Jobs() {
               })
           ]);
 
-          const jobsData = jobsResponse.data.jobs || [];
+          // Type assertion for jobs response
+          const jobsData = jobsResponse.data as JobsResponse;
+          const jobs = jobsData.jobs || jobsData.data || [];
           
           // Get orders with IN_PRODUCTION status
           let ordersData = [];
@@ -154,12 +157,12 @@ export default function Jobs() {
           }
 
           // Combine jobs and orders, with jobs first
-          const combinedData = [...jobsData, ...ordersData];
+          const combinedData = [...jobs, ...ordersData];
           
-          console.log(`✅ Loaded ${jobsData.length} jobs + ${ordersData.length} orders = ${combinedData.length} total items`);
+          console.log(`✅ Loaded ${jobs.length} jobs + ${ordersData.length} orders = ${combinedData.length} total items`);
           
           setJobs(combinedData);
-          setPagination(jobsResponse.data.pagination || { currentPage: 1, totalPages: 1, totalJobs: combinedData.length, pageSize: pagination.pageSize });
+          setPagination(jobsData.pagination || { currentPage: 1, totalPages: 1, totalJobs: combinedData.length, pageSize: pagination.pageSize });
           
       } catch (err: any) {
           console.error('Error fetching job list:', err);
@@ -178,7 +181,12 @@ export default function Jobs() {
       try {
           // Fetch at-risk jobs (no filters/sorting/pagination assumed for this endpoint)
           const response = await jobApi.getAtRiskJobs(); // Add threshold if needed: (10)
-          setAtRiskJobs(response.data || []);
+          
+          // Type assertion for at-risk jobs response
+          const atRiskData = response.data as AtRiskJob[] | { data: AtRiskJob[] };
+          const atRiskJobs = Array.isArray(atRiskData) ? atRiskData : (atRiskData.data || []);
+          
+          setAtRiskJobs(atRiskJobs);
       } catch (err: any) {
           console.error('Error fetching at-risk jobs:', err);
           setError(err.response?.data?.error || err.response?.data?.message || 'Failed to fetch at-risk jobs');
@@ -233,7 +241,10 @@ export default function Jobs() {
       try {
         // Use getJobById which returns the full Job structure
         const response = await jobApi.getJobById(selectedJobId);
-        setSelectedJobData(response.data);
+        
+        // Type assertion for job details response
+        const jobData = response.data as Job;
+        setSelectedJobData(jobData);
       } catch (err) {
         console.error("Failed to fetch job details:", err);
         setSelectedJobData(null); // Clear on error
@@ -321,7 +332,7 @@ export default function Jobs() {
      setOpenDropdown(null);
    };
 
-   const handleDeleteJob = async (jobId: string) => {
+   const handleDeleteJob = async (_jobId: string) => {
      if (!confirm('Are you sure you want to delete this job?')) return;
      
      try {
@@ -336,7 +347,7 @@ export default function Jobs() {
      }
    };
 
-   const handleStatusChange = async (jobId: string, newStatus: string) => {
+   const handleStatusChange = async (_jobId: string, newStatus: string) => {
      try {
        // await jobApi.updateJob(jobId, { status: newStatus });
        alert(`Status change to ${newStatus} to be implemented`);

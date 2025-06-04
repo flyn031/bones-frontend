@@ -7,6 +7,20 @@ import { API_URL } from '../config/constants';
 
 const BASE_URL = API_URL; // Now uses environment-aware URL
 
+// ✅ FIXED - Define types manually for better compatibility
+interface AxiosErrorType extends Error {
+  config?: any;
+  code?: string;
+  request?: any;
+  response?: {
+    data: any;
+    status: number;
+    statusText: string;
+    headers: any;
+  };
+  isAxiosError: boolean;
+}
+
 // Create an axios instance with default configuration
 export const apiClient = axios.create({
   baseURL: BASE_URL,
@@ -22,7 +36,10 @@ apiClient.interceptors.request.use(
     const token = localStorage.getItem('token');
     const requestInfo = `${config.method?.toUpperCase()} ${config.url}`;
     if (token) {
-      config.headers['Authorization'] = `Bearer ${token}`;
+      // ✅ FIXED - Added null check for config.headers
+      if (config.headers) {
+        config.headers['Authorization'] = `Bearer ${token}`;
+      }
      // Optional verbose logging:
      // console.log(`[API Interceptor] Requesting: ${requestInfo}`, `Token attached: ${token.substring(0, 10)}...`);
     } else {
@@ -46,21 +63,37 @@ apiClient.interceptors.response.use(
     return response;
   },
   (error) => {
-    if (error.response) {
-      console.error(`[API Interceptor] Response Error Status: ${error.response.status} for ${error.config?.url}`, 'Data:', error.response.data);
-      if (error.response.status === 401) {
-        console.error("[API Interceptor] Received 401 Unauthorized! Token may be invalid or missing.");
-        // Handle redirect/logout in AuthContext or calling code
+    // ✅ FIXED - Use axios.isAxiosError for better compatibility
+    if (axios.isAxiosError && axios.isAxiosError(error)) {
+      if (error.response) {
+        console.error(`[API Interceptor] Response Error Status: ${error.response.status} for ${error.config?.url}`, 'Data:', error.response.data);
+        if (error.response.status === 401) {
+          console.error("[API Interceptor] Received 401 Unauthorized! Token may be invalid or missing.");
+          // Handle redirect/logout in AuthContext or calling code
+        }
+      } else if (error.request) {
+        console.error('[API Interceptor] No response received:', error.request);
+      } else {
+        console.error('[API Interceptor] Error setting up request:', error.message);
       }
-    } else if (error.request) {
-      console.error('[API Interceptor] No response received:', error.request);
     } else {
-      console.error('[API Interceptor] Error setting up request:', error.message);
+      console.error('[API Interceptor] Unknown error:', error);
     }
     return Promise.reject(error);
   }
 );
 
+// ✅ FIXED - Use axios.isAxiosError for better compatibility
+export const isAxiosErrorUtil = (error: unknown): error is AxiosErrorType => {
+  return axios.isAxiosError && axios.isAxiosError(error);
+};
+
+// ✅ ADDED - Generic API response type
+export interface ApiResponse<T = any> {
+  data: T;
+  message?: string;
+  success?: boolean;
+}
 
 // --- Customer-related API methods ---
 export const customerApi = {

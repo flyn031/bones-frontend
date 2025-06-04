@@ -299,3 +299,6 @@ export const TimeTracker: React.FC<TimeTrackerProps> = ({
     </div>
   );
 };
+
+// Add default export
+export default TimeTracker;

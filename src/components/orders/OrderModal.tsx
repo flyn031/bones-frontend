@@ -3,12 +3,31 @@
 import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import axios from 'axios';
+import { Customer, CustomersResponse } from '../../types/api';
+
+interface OrderData {
+  projectTitle: string;
+  quoteRef: string;
+  customerName: string;
+  contactPerson: string;
+  contactPhone: string;
+  contactEmail: string;
+  projectValue: number;
+  marginPercent: number;
+  leadTimeWeeks: number;
+  status: string;
+  items: any[];
+  currency: string;
+  vatRate: number;
+  paymentTerms: string;
+  notes: string;
+}
 
 interface OrderModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (orderData: any) => void;
-  orderToEdit?: any;
+  onSubmit: (orderData: OrderData) => void;
+  orderToEdit?: Partial<OrderData>;
 }
 
 // ✅ CLEAN: Only Order statuses - no Job statuses
@@ -21,7 +40,7 @@ const ORDER_STATUSES = [
 ];
 
 export default function OrderModal({ isOpen, onClose, onSubmit, orderToEdit }: OrderModalProps) {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<OrderData>({
     projectTitle: '',
     quoteRef: '',
     customerName: '',
@@ -39,7 +58,7 @@ export default function OrderModal({ isOpen, onClose, onSubmit, orderToEdit }: O
     notes: ''
   });
 
-  const [customers, setCustomers] = useState([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -68,9 +87,21 @@ export default function OrderModal({ isOpen, onClose, onSubmit, orderToEdit }: O
       const response = await axios.get('http://localhost:4000/api/customers', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
+      
       console.log('Customers fetched:', response.data);
-      const customersArray = Array.isArray(response.data) ? response.data : 
-                            (response.data.customers && Array.isArray(response.data.customers) ? response.data.customers : []);
+      
+      // Type assertion for customers response
+      const customersData = response.data as CustomersResponse | Customer[];
+      
+      // Handle different response structures
+      let customersArray: Customer[] = [];
+      
+      if (Array.isArray(customersData)) {
+        customersArray = customersData;
+      } else if (customersData && typeof customersData === 'object' && 'customers' in customersData) {
+        customersArray = customersData.customers || [];
+      }
+      
       setCustomers(customersArray);
     } catch (err) {
       setError('Failed to load customers');
@@ -86,7 +117,7 @@ export default function OrderModal({ isOpen, onClose, onSubmit, orderToEdit }: O
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    const submitData = {
+    const submitData: OrderData = {
       ...formData,
       projectValue: Number(formData.projectValue),
       marginPercent: Number(formData.marginPercent),
@@ -97,6 +128,17 @@ export default function OrderModal({ isOpen, onClose, onSubmit, orderToEdit }: O
 
     console.log('Submitting order data:', submitData);
     onSubmit(submitData);
+  };
+
+  const handleCustomerChange = (customerName: string) => {
+    const customer = customers.find(c => c.name === customerName);
+    setFormData({
+      ...formData,
+      customerName: customerName,
+      contactPerson: customer?.contactPerson || '',
+      contactEmail: customer?.email || '',
+      contactPhone: customer?.phone || ''
+    });
   };
 
   return (
@@ -154,16 +196,7 @@ export default function OrderModal({ isOpen, onClose, onSubmit, orderToEdit }: O
               <select
                 required
                 value={formData.customerName}
-                onChange={(e) => {
-                  const customer = customers.find(c => c.name === e.target.value);
-                  setFormData({
-                    ...formData,
-                    customerName: e.target.value,
-                    contactPerson: customer?.contactPerson || '',
-                    contactEmail: customer?.email || '',
-                    contactPhone: customer?.phone || ''
-                  });
-                }}
+                onChange={(e) => handleCustomerChange(e.target.value)}
                 className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Select Customer</option>

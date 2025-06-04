@@ -1,8 +1,8 @@
 // SupplierDetailModal.tsx
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { X, Star, Package, TrendingUp, Mail, Phone, MapPin, Edit, Save, XCircle } from 'lucide-react';
-
+import { X, Mail, Phone, MapPin, Edit, Save, XCircle } from 'lucide-react';
+// Local Supplier interface with all required properties
 interface Supplier {
   id: string;
   name: string;
@@ -11,10 +11,10 @@ interface Supplier {
   address?: string;
   status: string;
   rating: number;
-  materials: any[];
-  totalOrders: number;
-  completedOrders: number;
-  averageDeliveryTime: number;
+  materials?: any[];
+  totalOrders?: number;
+  completedOrders?: number;
+  averageDeliveryTime?: number;
 }
 
 interface SupplierDetailModalProps {
@@ -30,7 +30,6 @@ const SupplierDetailModal: React.FC<SupplierDetailModalProps> = ({
 }) => {
   const [supplier, setSupplier] = useState<Supplier | null>(null);
   const [editedSupplier, setEditedSupplier] = useState<Partial<Supplier>>({});
-  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
 
@@ -43,13 +42,11 @@ const SupplierDetailModal: React.FC<SupplierDetailModalProps> = ({
         const response = await axios.get(`http://localhost:4000/api/suppliers/${supplierId}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
-        setSupplier(response.data);
-        setEditedSupplier(response.data);
-        setIsLoading(false);
+        setSupplier(response.data as Supplier);
+        setEditedSupplier(response.data as Supplier);
       } catch (err) {
         console.error('Error fetching supplier details:', err);
         setError('Failed to load supplier details');
-        setIsLoading(false);
       }
     };
 
@@ -92,7 +89,7 @@ const SupplierDetailModal: React.FC<SupplierDetailModalProps> = ({
       );
 
       // Update successful
-      setSupplier(response.data);
+      setSupplier(response.data as Supplier);
       setIsEditing(false);
       onUpdate(); // Refresh the supplier list
       setError(null);
@@ -109,8 +106,39 @@ const SupplierDetailModal: React.FC<SupplierDetailModalProps> = ({
     }));
   };
 
-  // Rendering logic remains similar to previous implementation
-  // Add conditional rendering for edit mode
+  if (!supplier && !error) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg p-8 max-w-2xl w-full">
+          <p className="text-center">Loading supplier details...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !supplier) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg p-8 max-w-2xl w-full">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold text-red-600">Error</h2>
+            <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
+              <X className="h-6 w-6" />
+            </button>
+          </div>
+          <p className="text-center">{error || 'Failed to load supplier details'}</p>
+          <div className="flex justify-end mt-6">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -222,14 +250,53 @@ const SupplierDetailModal: React.FC<SupplierDetailModalProps> = ({
               </div>
             </div>
 
-            {/* Performance Metrics section remains the same */}
+            {/* Performance Metrics section */}
             <div>
               <h3 className="text-lg font-semibold mb-4">Performance Metrics</h3>
               <div className="space-y-3">
-                {/* Existing performance metrics rendering */}
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Rating:</span>
+                  <span className="font-medium">{supplier?.rating}/5</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Total Orders:</span>
+                  <span className="font-medium">{supplier?.totalOrders || 0}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Completed Orders:</span>
+                  <span className="font-medium">{supplier?.completedOrders || 0}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Avg Delivery Time:</span>
+                  <span className="font-medium">{supplier?.averageDeliveryTime || 0} days</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Status:</span>
+                  <span className={`font-medium ${
+                    supplier?.status === 'ACTIVE' ? 'text-green-600' : 'text-red-600'
+                  }`}>
+                    {supplier?.status}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
+
+          {/* Materials section */}
+          {supplier?.materials && supplier.materials.length > 0 && (
+            <div className="mt-6">
+              <h3 className="text-lg font-semibold mb-4">Supplied Materials</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {supplier.materials.map((material: any, index: number) => (
+                  <div key={index} className="border rounded-lg p-3">
+                    <div className="font-medium">{material.name}</div>
+                    <div className="text-sm text-gray-600">{material.category}</div>
+                    <div className="text-sm text-gray-600">£{material.unitPrice}/unit</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

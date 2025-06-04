@@ -1,10 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { User, LogOut, Info, X, Settings, Activity, Shield, Building, Upload, Image } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { apiClient as api } from '../../utils/api';
+import { User as UserType } from '../../types/api';
 import SystemFlowDiagram from '../dashboard/SystemFlowDiagram'; // Assuming this component exists
 import { Button, Input, Alert } from '../ui'; // Assuming these UI components exist
+
+type AlertType = 'info' | 'success' | 'warning' | 'error';
+
+interface MessageState {
+  type: AlertType | '';
+  text: string;
+}
 
 /*
 This component handles the user profile dropdown menu, profile settings modal,
@@ -14,7 +21,6 @@ The quote lifecycle documentation has also been added to the System Overview mod
 */
 
 const UserProfile = () => {
-  const navigate = useNavigate();
   const { user, logout, updateUser } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
@@ -27,8 +33,8 @@ const UserProfile = () => {
     newPassword: '',
     confirmPassword: ''
   });
-  const [passwordMessage, setPasswordMessage] = useState({ type: '', text: '' });
-  const [profileMessage, setProfileMessage] = useState({ type: '', text: '' });
+  const [passwordMessage, setPasswordMessage] = useState<MessageState>({ type: '', text: '' });
+  const [profileMessage, setProfileMessage] = useState<MessageState>({ type: '', text: '' });
   const [logoPreview, setLogoPreview] = useState(user?.companyLogo || '');
 
   // Company details state
@@ -90,7 +96,7 @@ const UserProfile = () => {
   };
 
   // Handle password change submission
-  const handlePasswordChange = async (e) => {
+  const handlePasswordChange = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setPasswordMessage({ type: '', text: '' }); // Clear previous messages
 
@@ -115,7 +121,6 @@ const UserProfile = () => {
       await new Promise(resolve => setTimeout(resolve, 750)); // Simulate API delay
       console.log('Password changed successfully (simulated).');
 
-
       setPasswordMessage({ type: 'success', text: 'Password updated successfully' });
       setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' }); // Reset form
 
@@ -132,13 +137,13 @@ const UserProfile = () => {
   };
 
   // Handle input changes for the password form
-  const handleInputChange = (e) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setPasswordData(prev => ({ ...prev, [name]: value }));
   };
 
   // Handle input changes for the company details form
-  const handleCompanyDetailsChange = (e) => {
+  const handleCompanyDetailsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
     setCompanyDetails(prev => ({
       ...prev,
@@ -147,7 +152,7 @@ const UserProfile = () => {
   };
 
   // Handle company logo file selection
-  const handleLogoUpload = (e) => {
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     setProfileMessage({ type: '', text: '' }); // Clear previous messages
     if (!file) return;
@@ -187,14 +192,14 @@ const UserProfile = () => {
   };
 
   // Handle saving company details to the backend
-  const handleSaveCompanyDetails = async (e) => {
+  const handleSaveCompanyDetails = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setProfileMessage({ type: '', text: '' }); // Clear previous messages
 
     try {
       console.log('Saving company details:', companyDetails);
       const response = await api.put('/auth/profile', companyDetails); // Send entire companyDetails object
-      updateUser(response.data); // Update context with potentially merged/updated data from backend
+      updateUser(response.data as Partial<UserType>); // Update context with potentially merged/updated data from backend
       setProfileMessage({ type: 'success', text: 'Company details updated successfully!' });
       setTimeout(() => setProfileMessage({ type: '', text: '' }), 3000);
     } catch (error: any) {
@@ -380,8 +385,12 @@ const UserProfile = () => {
                    {/* Panel for Company Details */}
                     <div id="tab-panel-company" role="tabpanel" tabIndex={0} hidden={activeTab !== 'company'}>
                         <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Company Details</h2>
-                        {profileMessage.text && (
-                            <Alert type={profileMessage.type} message={profileMessage.text} className="mb-4" onDismiss={() => setProfileMessage({ type: '', text: '' })} />
+                        {profileMessage.text && profileMessage.type && (
+                            <Alert 
+                              type={profileMessage.type as AlertType} 
+                              message={profileMessage.text} 
+                              className="mb-4" 
+                            />
                         )}
                         <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
                             Manage your company information used for branding documents like quotes.
@@ -432,7 +441,13 @@ const UserProfile = () => {
                      {/* Panel for Security */}
                     <div id="tab-panel-security" role="tabpanel" tabIndex={0} hidden={activeTab !== 'security'}>
                         <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Security Settings</h2>
-                         {passwordMessage.text && ( <Alert type={passwordMessage.type} message={passwordMessage.text} className="mb-6" onDismiss={() => setPasswordMessage({ type: '', text: '' })} />)}
+                         {passwordMessage.text && passwordMessage.type && (
+                           <Alert 
+                             type={passwordMessage.type as AlertType} 
+                             message={passwordMessage.text} 
+                             className="mb-6" 
+                           />
+                         )}
                          <h3 className="text-base font-medium mb-3 text-gray-800 dark:text-gray-200">Change Your Password</h3>
                          <form onSubmit={handlePasswordChange} className="space-y-4 max-w-md">
                              <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Current Password</label><Input type="password" name="currentPassword" value={passwordData.currentPassword} onChange={handleInputChange} required autoComplete="current-password"/></div>
@@ -581,7 +596,6 @@ const UserProfile = () => {
                    </div>
                 </section>
                 {/* --- END: Added Quote Lifecycle Section --- */}
-
 
                {/* System Status & Info (optional) */}
                 <div className="mt-8 pt-6 border-t dark:border-gray-700">

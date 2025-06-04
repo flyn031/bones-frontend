@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 
@@ -23,6 +23,25 @@ interface DashboardData {
   };
 }
 
+interface ChurnRiskData {
+  low: number;
+  medium: number;
+  high: number;
+}
+
+interface ChurnRiskDonutProps {
+  data: ChurnRiskData;
+}
+
+interface CustomerHealthScoreTableProps {
+  scores: CustomerHealthScore[];
+  totalCustomers: number;
+}
+
+interface InsightPanelProps {
+  insights?: string[];
+}
+
 export function CustomerHealthDashboard() {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -36,7 +55,7 @@ export function CustomerHealthDashboard() {
             'Authorization': `Bearer ${localStorage.getItem('token')}`
           }
         });
-        setDashboardData(response.data);
+        setDashboardData(response.data as DashboardData);
       } catch (error) {
         console.error('Failed to fetch dashboard', error);
         setError('Failed to load dashboard data');
@@ -74,7 +93,7 @@ export function CustomerHealthDashboard() {
 }
 
 // Churn Risk Donut Chart Component
-function ChurnRiskDonut({ data }) {
+function ChurnRiskDonut({ data }: ChurnRiskDonutProps) {
   const chartData = [
     { name: 'Low Risk', value: data.low },
     { name: 'Medium Risk', value: data.medium },
@@ -109,7 +128,7 @@ function ChurnRiskDonut({ data }) {
 }
 
 // Customer Health Score Table Component
-function CustomerHealthScoreTable({ scores, totalCustomers }) {
+function CustomerHealthScoreTable({ scores, totalCustomers }: CustomerHealthScoreTableProps) {
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
       <h2 className="text-xl font-semibold mb-4">Top Customer Health Scores</h2>
@@ -123,9 +142,9 @@ function CustomerHealthScoreTable({ scores, totalCustomers }) {
         </thead>
         <tbody>
           {scores
-            .sort((a, b) => b.overallScore - a.overallScore)
+            .sort((a: CustomerHealthScore, b: CustomerHealthScore) => b.overallScore - a.overallScore)
             .slice(0, 5)
-            .map(score => (
+            .map((score: CustomerHealthScore) => (
               <tr key={score.customerId} className="border-b">
                 <td className="p-2">{score.name}</td>
                 <td className="p-2 text-right">{score.overallScore.toFixed(2)}</td>
@@ -139,7 +158,7 @@ function CustomerHealthScoreTable({ scores, totalCustomers }) {
 }
 
 // Insights Panel Component
-function InsightPanel({ insights = [] }) {
+function InsightPanel({ insights = [] }: InsightPanelProps) {
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
       <h2 className="text-xl font-semibold mb-4">Key Insights</h2>

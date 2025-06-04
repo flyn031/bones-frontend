@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { API_URL } from '../config/constants'; // Adjust this import based on your project structure
+import { JobsResponse } from '../types/api';
 
 // Define the job types
 export interface Job {
@@ -73,7 +74,7 @@ export const fetchJobStats = async (): Promise<JobStats> => {
     });
     
     console.log("Job stats response data:", response.data);
-    return response.data;
+    return response.data as JobStats;
   } catch (error) {
     console.error('Error fetching job stats:', error);
     throw error;
@@ -93,10 +94,11 @@ export const jobApi = {
         }
       });
       
-      // Transform the response to match what the component expects
+      // Type assertion and transform the response to match what the component expects
+      const jobsData = response.data as JobsResponse;
       return {
-        data: response.data.jobs || [],
-        pagination: response.data.pagination
+        data: jobsData.jobs || jobsData.data || [],
+        pagination: jobsData.pagination
       };
     } catch (error) {
       console.error('Error fetching jobs:', error);
@@ -113,7 +115,7 @@ export const jobApi = {
         }
       });
       return {
-        data: response.data
+        data: response.data as JobStats
       };
     } catch (error) {
       console.error('Error fetching job stats:', error);
@@ -131,7 +133,7 @@ export const jobApi = {
         }
       });
       return {
-        data: response.data || []
+        data: response.data as AtRiskJob[] || []
       };
     } catch (error) {
       console.error('Error fetching at-risk jobs:', error);
@@ -148,7 +150,7 @@ export const jobApi = {
         }
       });
       return {
-        data: response.data
+        data: response.data as Job
       };
     } catch (error) {
       console.error(`Error fetching job ${id}:`, error);
@@ -175,7 +177,7 @@ export const jobApi = {
         }
       });
       return {
-        data: response.data
+        data: response.data as Job
       };
     } catch (error) {
       console.error('Error creating job:', error);
@@ -199,7 +201,7 @@ export const jobApi = {
         }
       });
       return {
-        data: response.data
+        data: response.data as Job
       };
     } catch (error) {
       console.error(`Error updating job ${id}:`, error);
@@ -231,7 +233,7 @@ export const jobApi = {
         }
       });
       return {
-        data: response.data
+        data: response.data as JobPerformanceMetrics
       };
     } catch (error) {
       console.error(`Error fetching metrics for job ${jobId}:`, error);
@@ -248,7 +250,7 @@ export const jobApi = {
         }
       });
       return {
-        data: response.data
+        data: response.data as any[]
       };
     } catch (error) {
       console.error('Error fetching available orders:', error);
@@ -265,7 +267,7 @@ export const jobApi = {
         }
       });
       return {
-        data: response.data
+        data: response.data as any[]
       };
     } catch (error) {
       console.error('Error fetching available users:', error);
@@ -283,7 +285,7 @@ export const jobApi = {
         }
       });
       return {
-        data: response.data
+        data: response.data as any
       };
     } catch (error) {
       console.error(`Error adding note to job ${jobId}:`, error);
@@ -300,7 +302,7 @@ export const jobApi = {
         }
       });
       return {
-        data: response.data
+        data: response.data as any
       };
     } catch (error) {
       console.error(`Error fetching progress report for job ${jobId}:`, error);
@@ -317,7 +319,7 @@ export const jobApi = {
         }
       });
       return {
-        data: response.data
+        data: response.data as any
       };
     } catch (error) {
       console.error(`Error fetching resource recommendations for job ${jobId}:`, error);
@@ -339,7 +341,7 @@ export const jobApi = {
         }
       });
       return {
-        data: response.data
+        data: response.data as any
       };
     } catch (error) {
       console.error(`Error adding material to job ${jobId}:`, error);
@@ -357,7 +359,7 @@ export const jobApi = {
         }
       });
       return {
-        data: response.data
+        data: response.data as Job
       };
     } catch (error) {
       console.error(`Error updating status for job ${jobId}:`, error);

@@ -325,3 +325,6 @@ export const TimeEntriesList: React.FC<TimeEntriesListProps> = ({
     </div>
   );
 };
+
+// Add default export
+export default TimeEntriesList;

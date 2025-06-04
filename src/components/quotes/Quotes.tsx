@@ -1,5 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import axios, { AxiosError } from 'axios'; // Keep axios for non-apiClient calls if needed elsewhere
+import { useState, useEffect, useCallback } from 'react';
 import { Search, Plus, FileText, ArrowRight, Link as LinkIcon, Copy, Calendar, History as HistoryIcon, RefreshCw, X, Edit3, MoreVertical } from "lucide-react"; 
 import NewQuoteModal from './NewQuoteModal';
 import { generateQuotePDF } from './pdf/QuotePDF'; // Assuming this path and function exist
@@ -138,7 +137,6 @@ interface MockOrderData {
   paymentTerms?: string;
 }
 
-
 const QUOTE_STATUSES_DISPLAY: Record<QuoteStatusEnum, string> = { 
     [QuoteStatusEnum.DRAFT]: "Draft", 
     [QuoteStatusEnum.SENT]: "Sent", 
@@ -173,7 +171,6 @@ export default function Quotes() {
  const [customers, setCustomers] = useState<Customer[]>([]);
  const [refreshKey, setRefreshKey] = useState(0);
  const [loading, setLoading] = useState(true); 
- const { user } = useAuth(); // Assuming useAuth provides user object with id
  const [quoteHistory, setQuoteHistory] = useState<QuoteVersion[]>([]);
  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
  const [historyLoading, setHistoryLoading] = useState(false);
@@ -193,7 +190,7 @@ export default function Quotes() {
         // Log the exact URL and params being used
         console.log('[API DEBUG] Making request to API with params:', { all: 'true' });
         
-        const response = await apiClient.get<any[]>('/quotes', { 
+        const response = await apiClient.get('/quotes', { 
             headers: { 'Authorization': `Bearer ${token}` },
             params: { all: 'true' } 
         });
@@ -207,9 +204,10 @@ export default function Quotes() {
         
         console.log("[API DEBUG] Full response.data:", response.data);
         
-        if (Array.isArray(response.data)) {
+        const data = response.data as any;
+        if (Array.isArray(data)) {
             console.log('[API DEBUG] Processing array of quotes...');
-            const processed: QuoteVersion[] = response.data.map((q): QuoteVersion => ({
+            const processed: QuoteVersion[] = data.map((q: any): QuoteVersion => ({
                 id: q.id,
                 quoteReference: q.quoteReference,
                 versionNumber: q.versionNumber,
@@ -243,16 +241,16 @@ export default function Quotes() {
             setQuotes(processed);
             console.log('[API DEBUG] State updated with quotes:', processed.length);
         } else {
-            console.warn('[API DEBUG] Quotes API response was not an array:', response.data);
+            console.warn('[API DEBUG] Quotes API response was not an array:', data);
             setQuotes([]);
         }
     } catch (error) {
         console.error('[API DEBUG] Error in fetchQuotes:', error);
         // Include full error details
-        if (error.response) {
+        if ((error as any).response) {
             console.error('[API DEBUG] Error response:', {
-                status: error.response.status,
-                data: error.response.data
+                status: (error as any).response.status,
+                data: (error as any).response.data
             });
         }
         setQuotes([]); 
@@ -268,21 +266,21 @@ export default function Quotes() {
         setCustomers([]);
         throw new Error("Auth token not found."); 
       }
-      const response = await apiClient.get<PaginatedCustomersResponse>('/customers', { 
+      const response = await apiClient.get('/customers', { 
           headers: { 'Authorization': `Bearer ${token}` } 
       });
 
       console.log("[Quotes.tsx] fetchCustomers RAW RESPONSE.DATA:", response.data);
-      if (response.data && Array.isArray(response.data.customers)) {
-        setCustomers(response.data.customers);
-        console.log("[Quotes.tsx] fetchCustomers SUCCESS. Number of customers:", response.data.customers.length);
+      const data = response.data as PaginatedCustomersResponse;
+      if (data && Array.isArray(data.customers)) {
+        setCustomers(data.customers);
+        console.log("[Quotes.tsx] fetchCustomers SUCCESS. Number of customers:", data.customers.length);
       } else {
-        console.warn("[Quotes.tsx] fetchCustomers response.data.customers is NOT an array or response.data is malformed:", response.data);
+        console.warn("[Quotes.tsx] fetchCustomers response.data.customers is NOT an array or response.data is malformed:", data);
         setCustomers([]); 
       }
     } catch (error) {
-      const err = error as AxiosError;
-      console.error('[Quotes.tsx] fetchCustomers ERROR:', err.response?.data || err.message);
+      console.error('[Quotes.tsx] fetchCustomers ERROR:', (error as any).response?.data || (error as any).message);
       setCustomers([]);
     } 
   }, []);
@@ -392,9 +390,8 @@ useEffect(() => {
         alert("Quote saved successfully!"); 
 
     } catch (error) {
-        const err = error as AxiosError<{ message?: string; error?: string; }>;
-        console.error("[Quotes.tsx] API Save FAILED:", err.response?.data || err.message);
-        const errorMsg = err.response?.data?.message || err.response?.data?.error || err.message || "Unknown error";
+        console.error("[Quotes.tsx] API Save FAILED:", (error as any).response?.data || (error as any).message);
+        const errorMsg = (error as any).response?.data?.message || (error as any).response?.data?.error || (error as any).message || "Unknown error";
         alert(`Failed to save quote: ${errorMsg}`);
         // Decide whether to keep modal open on error
         // setIsNewQuoteModalOpen(false); 
@@ -402,11 +399,10 @@ useEffect(() => {
          // if (setIsLoading) setIsLoading(false); // Turn off loading state if used
     }
 
- }, [apiClient, setIsNewQuoteModalOpen, setQuoteToEdit, setRefreshKey]); // Added dependencies
+ }, [setIsNewQuoteModalOpen, setQuoteToEdit, setRefreshKey]); // Added dependencies
 // ============================================================
 // END OF MODIFIED handleModalSaveSuccess FUNCTION
 // ============================================================
-
 
  const handleOpenNewQuoteModal = () => { 
     console.log("--- [Quotes.tsx] handleOpenNewQuoteModal START ---"); 
@@ -442,14 +438,14 @@ useEffect(() => {
      const token = localStorage.getItem('token');
      if (!token) throw new Error("Auth token not found.");
      
-     const response = await apiClient.post<QuoteVersion>(`/quotes/${quoteId}/clone`);
+     const response = await apiClient.post(`/quotes/${quoteId}/clone`);
+     const data = response.data as QuoteVersion;
      
-     alert(`Quote cloned! New Ref: ${response.data.quoteReference || 'N/A'}`);
+     alert(`Quote cloned! New Ref: ${data.quoteReference || 'N/A'}`);
      loadData(); // Refresh data after successful clone
    } catch (error) {
-     const err = error as AxiosError<{ message?: string }>;
-     console.error('Error cloning quote:', err.response?.data || err.message);
-     alert(`Failed to clone quote: ${err.response?.data?.message || err.message}`);
+     console.error('Error cloning quote:', (error as any).response?.data || (error as any).message);
+     alert(`Failed to clone quote: ${(error as any).response?.data?.message || (error as any).message}`);
    } finally {
      setLoading(false);
    }
@@ -472,7 +468,8 @@ useEffect(() => {
      if (!token) throw new Error("Auth token not found.");
      
      const response = await apiClient.post(`/orders/from-quote/${quoteId}`);
-     const newOrderId = response.data.order?.id || response.data.id; 
+     const data = response.data as any;
+     const newOrderId = data.order?.id || data.id; 
      
      if (!newOrderId) {
         throw new Error("Order ID not found in API response.");
@@ -566,19 +563,19 @@ useEffect(() => {
      const token = localStorage.getItem('token');
      if (!token) throw new Error("Auth token not found.");
      
-     const response = await apiClient.get<QuoteVersion[]>(`/quotes/history/${quoteReference}`);
+     const response = await apiClient.get(`/quotes/history/${quoteReference}`);
+     const data = response.data as QuoteVersion[];
      
-     if (Array.isArray(response.data)) {
-       setQuoteHistory(response.data);
+     if (Array.isArray(data)) {
+       setQuoteHistory(data);
      } else {
-       console.warn("Quote history API response is not an array:", response.data);
+       console.warn("Quote history API response is not an array:", data);
        setQuoteHistory([]);
      }
      setIsHistoryModalOpen(true);
    } catch (error) {
-     const err = error as AxiosError<{ message?: string }>;
-     console.error('Error fetching quote history:', err.response?.data || err.message);
-     alert(`Failed to fetch quote history: ${err.response?.data?.message || err.message}`);
+     console.error('Error fetching quote history:', (error as any).response?.data || (error as any).message);
+     alert(`Failed to fetch quote history: ${(error as any).response?.data?.message || (error as any).message}`);
      setHistoryTargetRef(null);
    } finally {
      setHistoryLoading(false);
@@ -611,9 +608,9 @@ useEffect(() => {
      const token = localStorage.getItem('token');
      if (!token) throw new Error("Authentication token not found.");
      
-     const response = await apiClient.patch<QuoteVersion>(`/quotes/${quoteId}/status`, { status: newStatus });
+     const response = await apiClient.patch(`/quotes/${quoteId}/status`, { status: newStatus });
      
-     const updatedQuoteFromServer = response.data;
+     const updatedQuoteFromServer = response.data as QuoteVersion;
      const serverStatus = (updatedQuoteFromServer.status as string)?.toUpperCase() as QuoteStatusEnum;
      
      setQuotes(prevQuotes => prevQuotes.map(q => 
@@ -623,9 +620,8 @@ useEffect(() => {
      console.log(`[Quotes.tsx] Status for quote ${quoteId} updated successfully to ${newStatus}.`);
      
    } catch (error) {
-     const err = error as AxiosError<{ message?: string }>;
-     console.error(`[Quotes.tsx] Error updating status for quote ${quoteId}:`, err.response?.data || err.message);
-     alert(`Failed to update status: ${err.response?.data?.message || err.message}`);
+     console.error(`[Quotes.tsx] Error updating status for quote ${quoteId}:`, (error as any).response?.data || (error as any).message);
+     alert(`Failed to update status: ${(error as any).response?.data?.message || (error as any).message}`);
    } finally {
      setUpdatingStatusId(null);
    }
@@ -638,13 +634,13 @@ useEffect(() => {
      const token = localStorage.getItem('token');
      if (!token) throw new Error("Auth token not found.");
      
-     const response = await apiClient.get<QuoteVersion>(`/quotes/${quoteId}`);
+     const response = await apiClient.get(`/quotes/${quoteId}`);
+     const data = response.data as any;
      
-     generateQuotePDF(response.data); // Ensure generateQuotePDF accepts QuoteVersion
+     generateQuotePDF(data); // Ensure generateQuotePDF accepts QuoteVersion
    } catch (error) {
-     const err = error as AxiosError<{ message?: string }>;
-     console.error('Error generating PDF:', err.response?.data || err.message);
-     alert(`Failed to generate PDF: ${err.response?.data?.message || err.message}`);
+     console.error('Error generating PDF:', (error as any).response?.data || (error as any).message);
+     alert(`Failed to generate PDF: ${(error as any).response?.data?.message || (error as any).message}`);
    }
  };
 

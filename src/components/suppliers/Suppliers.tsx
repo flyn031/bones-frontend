@@ -1,6 +1,6 @@
 // Suppliers.tsx
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, Plus, Star, Package, TrendingUp, Grid, List } from "lucide-react";
 import AddSupplierModal from './AddSupplierModal';
 import SupplierDetailModal from './SupplierDetailModal';
@@ -49,7 +49,7 @@ export default function Suppliers() {
         status: statusFilter !== 'all' ? statusFilter : undefined
       });
       console.log('Suppliers Response:', response.data);
-      setSuppliers(response.data);
+      setSuppliers(response.data as Supplier[]);
       console.log('Updated Suppliers State:', response.data);
     } catch (error) {
       console.error('Error fetching suppliers:', error);

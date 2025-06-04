@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { X, User, Search, UserPlus, Plus, Trash, History, Clock, Save, RefreshCw, Check, Clock3, X as XIcon, AlertTriangle, MessageSquare } from "lucide-react";
+import { X, Search, UserPlus, Plus, History, Clock, Save, RefreshCw, Check, Clock3, X as XIcon, AlertTriangle } from "lucide-react";
 import axios from "axios";
 import FrequentItemSelector from "./FrequentItemSelector";
 import BundleSelector from "./BundleSelector";
 import PriceHistoryDisplay from "./PriceHistoryDisplay";
 import SaveTemplateModal from "./SaveTemplateModal";
+import { JobsResponse, MaterialPriceResponse, CreateCustomerResponse, ApiErrorResponse } from "../../types/api";
 
 // Customer data
 interface Customer {
@@ -259,12 +260,12 @@ const inventoryCatalog: Item[] = [
 
 // Enhanced mock data for jobs - includes 6 jobs
 const mockJobs = [
-  { id: "J2024-001", title: "Acme Factory Installation" },
-  { id: "J2024-002", title: "BuildCo Maintenance" },
-  { id: "J2024-003", title: "Steel Supply Project" },
-  { id: "J2024-004", title: "Conveyor Belt Replacement" },
-  { id: "J2024-005", title: "Warehouse Automation" },
-  { id: "J2024-006", title: "Machine Servicing" }
+  { id: "J2024-001", title: "Acme Factory Installation", projectTitle: "Acme Factory Installation" },
+  { id: "J2024-002", title: "BuildCo Maintenance", projectTitle: "BuildCo Maintenance" },
+  { id: "J2024-003", title: "Steel Supply Project", projectTitle: "Steel Supply Project" },
+  { id: "J2024-004", title: "Conveyor Belt Replacement", projectTitle: "Conveyor Belt Replacement" },
+  { id: "J2024-005", title: "Warehouse Automation", projectTitle: "Warehouse Automation" },
+  { id: "J2024-006", title: "Machine Servicing", projectTitle: "Machine Servicing" }
 ];
 
 export default function NewQuoteModal({
@@ -399,6 +400,9 @@ export default function NewQuoteModal({
         
         console.log("Raw jobs API response:", response.data);
         
+        // Type assertion for jobs response
+        const jobsData = response.data as JobsResponse;
+        
         // Check if we got an array of jobs directly
         if (Array.isArray(response.data)) {
           console.log("Found jobs array in response:", response.data.length);
@@ -407,22 +411,22 @@ export default function NewQuoteModal({
         }
         
         // If not an array, check for nested jobs
-        if (response.data && typeof response.data === 'object') {
+        if (jobsData && typeof jobsData === 'object') {
           // Try common nested structures
-          if (response.data.jobs && Array.isArray(response.data.jobs)) {
-            setJobs(response.data.jobs);
+          if (jobsData.jobs && Array.isArray(jobsData.jobs)) {
+            setJobs(jobsData.jobs);
             return;
           }
           
-          if (response.data.data && Array.isArray(response.data.data)) {
-            setJobs(response.data.data);
+          if (jobsData.data && Array.isArray(jobsData.data)) {
+            setJobs(jobsData.data);
             return;
           }
           
           // Look for the first array property
-          for (const key in response.data) {
-            if (Array.isArray(response.data[key])) {
-              setJobs(response.data[key]);
+          for (const key in jobsData) {
+            if (Array.isArray((jobsData as any)[key])) {
+              setJobs((jobsData as any)[key]);
               return;
             }
           }
@@ -558,8 +562,11 @@ export default function NewQuoteModal({
         }
       );
       
-      if (response.data && response.data.unitPrice) {
-        return response.data.unitPrice;
+      // Type assertion for material price response
+      const priceData = response.data as MaterialPriceResponse;
+      
+      if (priceData && priceData.unitPrice) {
+        return priceData.unitPrice;
       }
       
       return null;
@@ -689,7 +696,7 @@ export default function NewQuoteModal({
     // Calculate discounted price for each item
     const discountMultiplier = 1 - (bundle.discount / 100);
     
-    const bundleItems = bundle.items.map(item => ({
+    const bundleItems = bundle.items.map((item: any) => ({
       id: item.materialId,
       name: item.materialName,
       description: item.description || item.materialName,
@@ -785,17 +792,20 @@ export default function NewQuoteModal({
 
       console.log("Customer creation response:", response.data);
 
+      // Type assertion for customer creation response
+      const customerData = response.data as CreateCustomerResponse;
+
       // Use the returned customer or create a fallback if API response is unexpected
       const createdCustomer: Customer =
-        response.data && typeof response.data === "object"
+        customerData && typeof customerData === "object"
           ? {
-              id: response.data.id || `cust${Date.now()}`,
-              name: response.data.name || newCustomer.name || "",
-              email: response.data.email || newCustomer.email || "",
-              phone: response.data.phone || newCustomer.phone || "",
-              address: response.data.address || newCustomer.address || "",
+              id: customerData.id || `cust${Date.now()}`,
+              name: customerData.name || newCustomer.name || "",
+              email: customerData.email || newCustomer.email || "",
+              phone: customerData.phone || newCustomer.phone || "",
+              address: customerData.address || newCustomer.address || "",
               contactPerson:
-                response.data.contactPerson || newCustomer.contactPerson || "",
+                customerData.contactPerson || newCustomer.contactPerson || "",
             }
           : {
               id: `cust${Date.now()}`,
@@ -818,11 +828,14 @@ export default function NewQuoteModal({
         contactPerson: "",
       });
       setShowNewCustomerForm(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating customer:", error);
-      if (error.response) {
-        console.error("Error response:", error.response.data);
-        console.error("Status code:", error.response.status);
+      
+      // Type assertion for error handling
+      const errorData = error as { response?: { data?: ApiErrorResponse; status?: number } };
+      if (errorData.response) {
+        console.error("Error response:", errorData.response.data);
+        console.error("Status code:", errorData.response.status);
       }
 
       // Even on error, create a temporary customer for the quote

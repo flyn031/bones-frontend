@@ -1,6 +1,4 @@
-// frontend/src/components/orders/Orders.tsx
-
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Plus, LayoutGrid, Table, Search, Filter, AlertTriangle, Clock, CheckCircle, Edit, MoreVertical, Briefcase } from "lucide-react";
 import OrderModal from './OrderModal';
 import OrdersTableView from './OrdersTableView';
@@ -15,7 +13,7 @@ const statusColors: Record<string, string> = {
   COMPLETED: "bg-gray-100 text-gray-700",
 };
 
-const priorityIcons: Record<string, JSX.Element> = {
+const priorityIconsMap: Record<string, JSX.Element> = {
   HIGH: <AlertTriangle className="h-4 w-4 text-red-500" />,
   MEDIUM: <Clock className="h-4 w-4 text-yellow-500" />,
   LOW: <CheckCircle className="h-4 w-4 text-green-500" />
@@ -107,13 +105,14 @@ export default function Orders() {
     let apiOrders: Order[] = [];
     
     try {
-      const response = await apiClient.get<Order[] | { orders: Order[] }>('/orders'); 
+      const response = await apiClient.get('/orders'); 
       console.log('[Orders.tsx] Fetched orders from API:', response.data);
       
-      if (Array.isArray(response.data)) {
-        apiOrders = response.data;
-      } else if (response.data && Array.isArray((response.data as any).orders)) {
-        apiOrders = (response.data as any).orders;
+      const data = response.data as any;
+      if (Array.isArray(data)) {
+        apiOrders = data;
+      } else if (data && Array.isArray(data.orders)) {
+        apiOrders = data.orders;
       } else {
         console.warn('[Orders.tsx] API response for orders was not an array or expected object.');
         apiOrders = [];
@@ -154,15 +153,15 @@ export default function Orders() {
   const handleOrderSubmit = async (orderData: Omit<Order, 'id' | 'createdAt' | 'updatedAt'> | Partial<Order>) => {
     setIsLoading(true);
     try {
-      let response;
+      let response: any;
       if (editingOrder && editingOrder.id) {
         console.log('[Orders.tsx] Updating order:', editingOrder.id, orderData);
         const { id, createdAt, updatedAt, ...updatePayload } = orderData as Order;
-        response = await apiClient.patch<Order>(`/orders/${editingOrder.id}`, updatePayload);
+        response = await apiClient.patch(`/orders/${editingOrder.id}`, updatePayload);
         setOrders(prevOrders => prevOrders.map(o => o.id === editingOrder.id ? response.data : o));
       } else {
         console.log('[Orders.tsx] Creating order:', orderData);
-        response = await apiClient.post<Order>('/orders', orderData);
+        response = await apiClient.post('/orders', orderData);
         setOrders(prevOrders => [response.data, ...prevOrders]
           .sort((a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime()));
       }
@@ -187,20 +186,21 @@ export default function Orders() {
     const orderIdToUpdate = selectedOrderForStatusUpdate.id;
     setIsLoading(true);
     try {
-      const response = await apiClient.patch<any>(`/orders/${orderIdToUpdate}/status`, { status: newStatus });
+      const response = await apiClient.patch(`/orders/${orderIdToUpdate}/status`, { status: newStatus });
       
       // Handle the enhanced response from orderController
-      if (response.data.order) {
+      const data = response.data as any;
+      if (data.order) {
         setOrders(prevOrders => prevOrders.map(order => 
-            order.id === orderIdToUpdate ? response.data.order : order
+            order.id === orderIdToUpdate ? data.order : order
         ));
         
         // Show feedback if a job was auto-created
-        if (response.data.jobCreated && response.data.jobId) {
-          alert(`✅ Order ready for delivery!\n🏭 Job automatically created: ${response.data.jobId}\n\nThe job is now ACTIVE and ready for work to begin.`);
+        if (data.jobCreated && data.jobId) {
+          alert(`✅ Order ready for delivery!\n🏭 Job automatically created: ${data.jobId}\n\nThe job is now ACTIVE and ready for work to begin.`);
         }
         
-        console.log(`[Orders.tsx] Status updated for order ${orderIdToUpdate} to ${newStatus}. Job created: ${response.data.jobCreated}`);
+        console.log(`[Orders.tsx] Status updated for order ${orderIdToUpdate} to ${newStatus}. Job created: ${data.jobCreated}`);
       } else {
         // Fallback for simpler response format
         setOrders(prevOrders => prevOrders.map(order => 
@@ -318,7 +318,7 @@ export default function Orders() {
           onEdit={handleEdit}
           onUpdateStatus={openStatusUpdateModal}
           statusColors={statusColors}
-          priorityIcons={priorityIcons}
+          priorityIcons={priorityIconsMap}
           formatDate={formatDate}
         />
       ) : ( // Grid View
@@ -356,7 +356,7 @@ export default function Orders() {
                     <div className="text-sm space-y-1.5 text-gray-700 border-t border-gray-200 pt-3 mt-3">
                       <p><strong>Value:</strong> {order.projectValue?.toLocaleString('en-GB', { style: 'currency', currency: 'GBP' }) ?? 'N/A'}</p>
                       <p><strong>Lead Time:</strong> {order.leadTimeWeeks ?? 'N/A'} weeks</p>
-                      <div className="flex items-center"><strong>Priority:</strong> <span className="ml-2 flex items-center">{priorityIcons[order.priority?.toUpperCase() as keyof typeof priorityIcons] || order.priority || 'N/A'}</span></div>
+                      <div className="flex items-center"><strong>Priority:</strong> <span className="ml-2 flex items-center">{priorityIconsMap[order.priority?.toUpperCase() as keyof typeof priorityIconsMap] || order.priority || 'N/A'}</span></div>
                       <p><strong>Created:</strong> {formatDate(order.createdAt)}</p>
                       <p><strong>Deadline:</strong> {formatDate(order.deadline)}</p>
                       {/* ✅ NEW: Show job status if linked */}

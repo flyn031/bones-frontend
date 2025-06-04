@@ -456,3 +456,4 @@ export const HmrcDashboard: React.FC = () => {
     </div>
   );
 };
+export default HmrcDashboard;

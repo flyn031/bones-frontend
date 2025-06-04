@@ -1,8 +1,18 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Button, Input, Alert } from '../components/ui';
 import { Mail, Lock, User, Building2 } from 'lucide-react';
+
+interface SignupResponse {
+  token?: string;
+  user?: {
+    id: string;
+    name: string;
+    email: string;
+  };
+  message?: string;
+}
 
 export default function Signup() {
   const navigate = useNavigate();
@@ -28,11 +38,18 @@ export default function Signup() {
 
     try {
       const response = await axios.post('http://localhost:4000/api/auth/signup', formData);
-      localStorage.setItem('token', response.data.token);
-      localStorage.setItem('companyName', formData.companyName); // Store company name
-      navigate('/dashboard'); // Redirect after signup
-    } catch (err) {
-      setError('Signup failed. Please try again.');
+      const data = response.data as SignupResponse;
+      
+      if (data.token) {
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('companyName', formData.companyName); // Store company name
+        navigate('/dashboard'); // Redirect after signup
+      } else {
+        setError('Signup failed: No token received');
+      }
+    } catch (err: any) {
+      const errorMessage = err.response?.data?.message || err.message || 'Signup failed. Please try again.';
+      setError(errorMessage);
     }
   };
 
