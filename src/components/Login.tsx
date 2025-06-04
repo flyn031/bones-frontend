@@ -129,7 +129,6 @@ function Login() {
             type="error"
             message={error}
             className="mb-4"
-            {/* FIX 4: Remove onDismiss prop if it doesn't exist on Alert component */}
           />
         )}
 
