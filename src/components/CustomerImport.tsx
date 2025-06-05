@@ -1,6 +1,14 @@
-import React, { useState } from 'react';
+// FIX 1: Remove unused React import (React 17+ doesn't need it for JSX)
+import { useState } from 'react';
 import axios from 'axios';
 import { Upload } from 'lucide-react';
+
+// FIX 2: Define interface for API response to fix 'unknown' type error
+interface CustomerImportResponse {
+  message: string;
+  imported?: number;
+  errors?: string[];
+}
 
 const CustomerImport: React.FC = () => {
   const [file, setFile] = useState<File | null>(null);
@@ -24,12 +32,15 @@ const CustomerImport: React.FC = () => {
     formData.append('customers', file);
 
     try {
-      const response = await axios.post('http://localhost:4000/api/customers/import', formData, {
+      // FIX 3: Update API URL to use Railway backend instead of localhost
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://bonesbackend-production.up.railway.app';
+      const response = await axios.post<CustomerImportResponse>(`${apiUrl}/api/customers/import`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
       });
+      // FIX 4: Now response.data is properly typed as CustomerImportResponse
       setMessage(response.data.message);
       setError('');
     } catch (err) {
