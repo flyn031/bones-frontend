@@ -1,7 +1,5 @@
 // src/components/ui/NotFound.tsx
 
-import React from 'react';
-
 const NotFound = () => {
   return (
     <div>

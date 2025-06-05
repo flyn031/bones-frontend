@@ -1,7 +1,7 @@
 // src/components/audit/AuditDashboard.tsx
 import React, { useState, useEffect } from 'react';
 import { auditApi, AuditHistory, AuditStatistics } from '../../utils/auditApi';
-import { Calendar, Search, Filter, Download, AlertTriangle, FileText, PieChart, Briefcase, ShoppingCart, Clock } from 'lucide-react';
+import { Calendar, Search, Filter, Download, AlertTriangle, FileText, Briefcase, ShoppingCart, Clock } from 'lucide-react';
 import { Button } from '../ui/Button';
 import AuditTimeline from './AuditTimeline';
 import LegalEvidenceModal from './LegalEvidenceModal';

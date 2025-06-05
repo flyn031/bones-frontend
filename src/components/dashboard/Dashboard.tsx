@@ -5,9 +5,8 @@ import {
   BarChart, Bar, PieChart, Pie, Cell, Legend, ResponsiveContainer, CartesianGrid, XAxis, YAxis, Tooltip
 } from 'recharts';
 import {
-  Activity, Box, Users, AlertTriangle, TrendingUp, RefreshCcw,
-  UserCircle, FileText, ShoppingCart, Briefcase,
-  DollarSign, Info, LayoutDashboard, Brain
+  Activity, Users, AlertTriangle, TrendingUp, RefreshCcw,
+  UserCircle, DollarSign, Info, LayoutDashboard, Brain
 } from "lucide-react";
 
 // --- UI Component Imports ---
@@ -15,7 +14,6 @@ import { Button } from '@/components/ui/Button'; // Adjust path if necessary
 import { Alert } from '@/components/ui/Alert';   // Adjust path if necessary
 
 // --- Dashboard Specific Component Imports ---
-import { CustomerHealthDashboard } from "./CustomerHealthDashboard"; // Assuming this exists
 import EnhancedCustomerHealthDashboard from "./EnhancedCustomerHealthDashboard"; // Assuming this exists
 import RecentActivitySection from './RecentActivitySection'; // Original
 import JobStatusOverview from './JobStatusOverview'; // Original
