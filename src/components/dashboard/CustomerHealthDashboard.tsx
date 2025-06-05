@@ -35,7 +35,6 @@ interface ChurnRiskDonutProps {
 
 interface CustomerHealthScoreTableProps {
   scores: CustomerHealthScore[];
-  totalCustomers: number;
 }
 
 interface InsightPanelProps {
@@ -78,9 +77,8 @@ export function CustomerHealthDashboard() {
       <div className="grid grid-cols-3 gap-6">
         <ChurnRiskDonut data={dashboardData.churnRiskBreakdown} />
         <CustomerHealthScoreTable 
-          scores={dashboardData.healthScores} 
-          totalCustomers={dashboardData.totalCustomers}
-        />
+  scores={dashboardData.healthScores} 
+/>
         <InsightPanel 
           insights={dashboardData.healthScores
             .flatMap(score => score.insights)
@@ -128,7 +126,7 @@ function ChurnRiskDonut({ data }: ChurnRiskDonutProps) {
 }
 
 // Customer Health Score Table Component
-function CustomerHealthScoreTable({ scores, totalCustomers }: CustomerHealthScoreTableProps) {
+function CustomerHealthScoreTable({ scores }: CustomerHealthScoreTableProps) {
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
       <h2 className="text-xl font-semibold mb-4">Top Customer Health Scores</h2>

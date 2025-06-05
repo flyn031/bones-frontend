@@ -4,7 +4,6 @@ import React, { useState, useEffect } from 'react';
 import { 
   FileText, 
   Download, 
-  Calendar, 
   TrendingUp, 
   Users, 
   Clock, 
@@ -62,7 +61,6 @@ interface HmrcReport {
 export const HmrcDashboard: React.FC = () => {
   const [summary, setSummary] = useState<RdSummary | null>(null);
   const [generatedReport, setGeneratedReport] = useState<HmrcReport | null>(null);
-  const [loading, setLoading] = useState(false);
   const [reportLoading, setReportLoading] = useState(false);
   const [dateRange, setDateRange] = useState({
     startDate: new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0], // Start of current year
@@ -74,7 +72,6 @@ export const HmrcDashboard: React.FC = () => {
   }, [dateRange]);
 
   const loadSummary = async () => {
-    setLoading(true);
     try {
       const params = new URLSearchParams({
         startDate: dateRange.startDate,
@@ -94,7 +91,6 @@ export const HmrcDashboard: React.FC = () => {
     } catch (error) {
       console.error('Error loading R&D summary:', error);
     } finally {
-      setLoading(false);
     }
   };
 

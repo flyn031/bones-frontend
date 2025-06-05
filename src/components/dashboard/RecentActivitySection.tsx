@@ -86,20 +86,7 @@ const RecentActivitySection: React.FC<RecentActivitySectionProps> = ({
   };
 
   const getActivityIcon = (activity: RecentActivity) => {
-    const type = getActivityType(activity);
-    
-    const icons = {
-      'quote': FileText,
-      'order': ShoppingCart,
-      'job': Briefcase,
-      'customer': UserCircle,
-      'supplier': Users,
-      'inventory': Box
-    };
-    
-    // @ts-ignore - We know this is safe
-    return icons[type] || Box;
-  };
+    const type = getActivityType(activity)
 
   const navigateToActivity = (activity: RecentActivity) => {
     const type = getActivityType(activity);

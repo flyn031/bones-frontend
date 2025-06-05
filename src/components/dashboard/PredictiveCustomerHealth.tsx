@@ -5,7 +5,7 @@ import {
   BarChart, Bar
 } from 'recharts';
 import { 
-  Users, TrendingUp, ArrowUp, ArrowDown, ChevronsUp, Phone, 
+  Users, ChevronsUp, Phone, 
   Calendar, AlertTriangle, Info, Filter, FileText
 } from "lucide-react";
 import { fetchPredictiveHealth } from '../../utils/customerHealthApi';
