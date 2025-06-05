@@ -28,12 +28,7 @@ interface RegisterResponse {
   message?: string;
 }
 
-// FIX 2: Define Alert props interface to ensure type safety
-interface AlertProps {
-  type: "error" | "success" | "warning" | "info";
-  message: string;
-  className?: string;
-}
+// FIX 2: REMOVED - AlertProps interface was declared but never used
 
 function Login() {
   const { login } = useAuth();
