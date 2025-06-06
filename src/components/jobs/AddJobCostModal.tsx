@@ -39,7 +39,7 @@ const AddJobCostModal: React.FC<AddJobCostModalProps> = ({ jobId, onClose, onSub
           const materialsData = materialsResponse.data;
           console.log("Materials data:", materialsData);
           if (materialsData && materialsData.length > 0) {
-            setMaterials(materialsData.map(m => ({
+            setMaterials(materialsData.map((m: any) => ({
               id: m.id,
               name: m.name
             })));
@@ -61,7 +61,7 @@ const AddJobCostModal: React.FC<AddJobCostModalProps> = ({ jobId, onClose, onSub
           const suppliersData = suppliersResponse.data;
           console.log("Suppliers data:", suppliersData);
           if (suppliersData && suppliersData.length > 0) {
-            setSuppliers(suppliersData.map(s => ({
+            setSuppliers(suppliersData.map((s: any) => ({
               id: s.id,
               name: s.name
             })));
@@ -105,7 +105,7 @@ const AddJobCostModal: React.FC<AddJobCostModalProps> = ({ jobId, onClose, onSub
     }
     
     try {
-      // Format the cost data
+      // Format the cost data - FIXED: Include materialId and supplierId conditionally in the initial object
       const costData = {
         description,
         amount: parseFloat(amount),
@@ -113,18 +113,11 @@ const AddJobCostModal: React.FC<AddJobCostModalProps> = ({ jobId, onClose, onSub
         category,
         invoiced,
         notes: notes || undefined,
-        attachmentFile: attachment
+        attachmentFile: attachment,
+        // Include materialId and supplierId conditionally in the initial object
+        ...(materialId && materials.length > 0 && { materialId }),
+        ...(supplierId && suppliers.length > 0 && { supplierId })
       };
-      
-      // Only include materialId if it's selected and materials are available
-      if (materialId && materials.length > 0) {
-        costData.materialId = materialId;
-      }
-      
-      // Only include supplierId if it's selected and suppliers are available
-      if (supplierId && suppliers.length > 0) {
-        costData.supplierId = supplierId;
-      }
       
       // Submit the data
       await onSubmit(costData);

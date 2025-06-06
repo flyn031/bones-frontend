@@ -18,7 +18,7 @@ const SystemFlowDiagram = () => {
     financialOverview: false
   });
 
-  const toggleSection = (section) => {
+  const toggleSection = (section: 'inventoryAlerts' | 'customerHealth' | 'financialOverview') => {
     setExpandedSections(prev => ({
       ...prev,
       [section]: !prev[section]

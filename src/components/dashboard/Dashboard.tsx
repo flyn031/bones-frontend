@@ -47,7 +47,7 @@ interface RecentActivity {
   title: string;
   time: string;
   status: string;
-  type: 'quote' | 'order' | 'job' | 'customer' | 'supplier' | 'inventory' | 'unknown';
+  type: 'quote' | 'order' | 'job' | 'customer' | 'supplier' | 'inventory';
   entityId?: string;
   description?: string;
   quoteRef?: string;
@@ -177,7 +177,7 @@ export default function Dashboard() {
 
       // Process results safely with proper type guards
       if (results[0].status === 'fulfilled' && results[0].value?.data) {
-        setStats(prev => ({ ...prev, ...(results[0].value as any).data }));
+        setStats(prev => ({ ...prev, ...results[0].value.data }));
       } else {
         console.warn('Failed fetch stats');
       }
@@ -209,7 +209,7 @@ export default function Dashboard() {
       
       if (results[4].status === 'fulfilled' && (results[4].value as FinancialMetricsResponse)?.monthlyTrends) {
          const financialMetricsData = results[4].value as FinancialMetricsResponse;
-         const formattedData = financialMetricsData.monthlyTrends.map((item: any) => ({
+         const formattedData = (financialMetricsData.monthlyTrends || []).map((item: any) => ({
             period: item.month || 'N/A', revenue: item.revenue || 0, costs: item.costs || 0, profit: item.profit || 0
          }));
          setFinancialData(formattedData);
@@ -266,15 +266,7 @@ export default function Dashboard() {
 
 
   // --- Other Helpers ---
-  const navigateToActivity = (activity: RecentActivity) => {
-     if (!activity.entityId) return;
-     const routes: { [key in RecentActivity['type']]?: string } = {
-       'quote': `/quotes/${activity.entityId}`, 'order': `/orders/${activity.entityId}`, 'job': `/jobs/${activity.entityId}`,
-       'customer': `/customers/${activity.entityId}`, 'supplier': `/suppliers/${activity.entityId}`, 'inventory': `/inventory`
-     };
-     const path = routes[activity.type];
-     if (path) navigate(path); else console.warn(`Nav path undefined for type: ${activity.type}`);
-  };
+  
   const LoadingState = () => (
     <div className="p-8 flex justify-center items-center min-h-screen">
       <div className="text-center"><RefreshCcw className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-500" /><p className="text-neutral-600 dark:text-neutral-400">Loading dashboard...</p></div>

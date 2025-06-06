@@ -406,7 +406,10 @@ export default function NewQuoteModal({
         // Check if we got an array of jobs directly
         if (Array.isArray(response.data)) {
           console.log("Found jobs array in response:", response.data.length);
-          setJobs(response.data);
+          setJobs(response.data.map(job => ({
+            ...job,
+            projectTitle: job.projectTitle || job.title || `Job ${job.id}`
+          })));
           return;
         }
         
@@ -414,7 +417,10 @@ export default function NewQuoteModal({
         if (jobsData && typeof jobsData === 'object') {
           // Try common nested structures
           if (jobsData.jobs && Array.isArray(jobsData.jobs)) {
-            setJobs(jobsData.jobs);
+            setJobs(jobsData.jobs.map(job => ({
+              ...job,
+              projectTitle: job.projectTitle || job.title || `Job ${job.id}`
+            })));
             return;
           }
           
