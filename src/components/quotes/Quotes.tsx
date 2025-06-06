@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { Search, Plus, FileText, ArrowRight, Link as LinkIcon, Copy, Calendar, History as HistoryIcon, RefreshCw, X, Edit3, MoreVertical } from "lucide-react"; 
 import NewQuoteModal from './NewQuoteModal';
 import { generateQuotePDF } from './pdf/QuotePDF'; // Assuming this path and function exist
-import { useAuth } from '../../context/AuthContext';
 import { apiClient } from '../../utils/api'; // Assuming this path and function exist
 
 // --- Interfaces ---
@@ -19,7 +18,7 @@ enum QuoteStatusEnum {
 interface Customer {
   id: string;
   name: string;
-  email?: string | null;
+  email: string; // Fixed: removed null/undefined to match expected type
   phone?: string | null;
   address?: string | null;
   contactPerson?: string | null;
@@ -71,6 +70,37 @@ interface QuoteVersion {
     notes?: string | null;
     customerReference?: string | null;
     value?: number; 
+}
+
+// Fixed: Added QuoteData interface to match NewQuoteModal expectations
+interface QuoteData {
+    id?: string;
+    title: string;
+    customerId: string;
+    contactPerson?: string;
+    contactEmail?: string;
+    contactPhone?: string;
+    jobId?: string;
+    validityDays: number;
+    terms: string;
+    notes?: string;
+    customerReference?: string;
+    status: QuoteStatusEnum;
+    description?: string | null;
+    quoteNumber?: string | null;
+    quoteReference?: string | null;
+    versionNumber?: number | null;
+    items: Array<{
+        description: string;
+        quantity: number;
+        unitPrice: number;
+        materialId: string | null;
+        id?: string;
+    }>;
+    totalAmount: number;
+    parentQuoteId?: string | null;
+    changeReason?: string;
+    validUntil?: string | null;
 }
 
 // This interface matches the payload definition expected by handleModalSaveSuccess
@@ -363,11 +393,15 @@ useEffect(() => {
     console.log('[API DEBUG] filteredQuotes calculation completed, length:', filteredQuotes.length);
 }, [filteredQuotes.length]);
 
-// ============================================================
-// START OF MODIFIED handleModalSaveSuccess FUNCTION
-// ============================================================
- const handleModalSaveSuccess = useCallback(async (savedQuotePayload: MockSavedQuotePayload) => { 
-    console.log("[Quotes.tsx] handleModalSaveSuccess received payload:", savedQuotePayload); 
+// Fixed: Type-safe wrapper for handleModalSaveSuccess
+const handleModalSaveSuccess = useCallback((data: QuoteData) => {
+    console.log("[Quotes.tsx] handleModalSaveSuccess received data:", data);
+    
+    // Convert QuoteData to MockSavedQuotePayload format
+    const savedQuotePayload: MockSavedQuotePayload = {
+        ...data,
+        totalAmount: data.totalAmount
+    };
     
     const isUpdatingDraft = !!savedQuotePayload.id && !savedQuotePayload.parentQuoteId; 
     const apiUrl = isUpdatingDraft 
@@ -377,32 +411,25 @@ useEffect(() => {
 
     console.log(`[Quotes.tsx] Attempting to save quote. isUpdatingDraft: ${isUpdatingDraft}, URL: ${apiUrl}, Method: ${isUpdatingDraft ? 'PATCH' : 'POST'}`);
 
-    try {
-        // Consider setting a saving state if you have one: setIsLoading(true); 
-        
-        const response = await apiMethod(apiUrl, savedQuotePayload); 
-        console.log("[Quotes.tsx] API Save Response:", response.data);
-        
-        setIsNewQuoteModalOpen(false); 
-        setQuoteToEdit(null); 
-        setRefreshKey(prev => prev + 1); // Trigger refresh AFTER successful save
-        console.log("[Quotes.tsx] API Save success. Triggering data refresh.");
-        alert("Quote saved successfully!"); 
+    // Make the API call async
+    (async () => {
+        try {
+            const response = await apiMethod(apiUrl, savedQuotePayload); 
+            console.log("[Quotes.tsx] API Save Response:", response.data);
+            
+            setIsNewQuoteModalOpen(false); 
+            setQuoteToEdit(null); 
+            setRefreshKey(prev => prev + 1); // Trigger refresh AFTER successful save
+            console.log("[Quotes.tsx] API Save success. Triggering data refresh.");
+            alert("Quote saved successfully!"); 
 
-    } catch (error) {
-        console.error("[Quotes.tsx] API Save FAILED:", (error as any).response?.data || (error as any).message);
-        const errorMsg = (error as any).response?.data?.message || (error as any).response?.data?.error || (error as any).message || "Unknown error";
-        alert(`Failed to save quote: ${errorMsg}`);
-        // Decide whether to keep modal open on error
-        // setIsNewQuoteModalOpen(false); 
-    } finally {
-         // if (setIsLoading) setIsLoading(false); // Turn off loading state if used
-    }
-
- }, [setIsNewQuoteModalOpen, setQuoteToEdit, setRefreshKey]); // Added dependencies
-// ============================================================
-// END OF MODIFIED handleModalSaveSuccess FUNCTION
-// ============================================================
+        } catch (error) {
+            console.error("[Quotes.tsx] API Save FAILED:", (error as any).response?.data || (error as any).message);
+            const errorMsg = (error as any).response?.data?.message || (error as any).response?.data?.error || (error as any).message || "Unknown error";
+            alert(`Failed to save quote: ${errorMsg}`);
+        }
+    })();
+}, [setIsNewQuoteModalOpen, setQuoteToEdit, setRefreshKey]);
 
  const handleOpenNewQuoteModal = () => { 
     console.log("--- [Quotes.tsx] handleOpenNewQuoteModal START ---"); 
@@ -644,6 +671,37 @@ useEffect(() => {
    }
  };
 
+ // Fixed: Convert QuoteVersion to QuoteData for modal compatibility
+ const convertQuoteVersionToQuoteData = (quote: QuoteVersion): QuoteData => ({
+    id: quote.id,
+    title: quote.title,
+    customerId: quote.customerId,
+    contactPerson: quote.contactPerson || '',
+    contactEmail: quote.contactEmail || '',
+    contactPhone: quote.contactPhone || '',
+    jobId: quote.jobId || '',
+    validityDays: 30, // Default value
+    terms: '', // Default value
+    notes: quote.notes || '',
+    customerReference: quote.customerReference || '',
+    status: quote.status,
+    description: quote.description,
+    quoteNumber: quote.quoteNumber,
+    quoteReference: quote.quoteReference,
+    versionNumber: quote.versionNumber,
+    items: quote.lineItems.map(item => ({
+        description: item.description,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        materialId: item.materialId,
+        id: item.id
+    })),
+    totalAmount: quote.totalAmount,
+    parentQuoteId: quote.parentQuoteId,
+    changeReason: quote.changeReason,
+    validUntil: quote.validUntil
+ });
+
  console.log(`%c[Quotes.tsx] Component Render. Loading: ${loading}, Modal Open: ${isNewQuoteModalOpen}. Filtered Quotes: ${filteredQuotes.length}`, 'color: blue; font-weight: bold;');
 
  return (
@@ -786,7 +844,7 @@ useEffect(() => {
                     setQuoteToEdit(null); 
                 }}
                 onSubmit={handleModalSaveSuccess}
-                editQuote={quoteToEdit}
+                editQuote={quoteToEdit ? convertQuoteVersionToQuoteData(quoteToEdit) : null}
                 customers={customers || []}
             />
         </>

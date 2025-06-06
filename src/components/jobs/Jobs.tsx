@@ -23,7 +23,7 @@ import CreateJobModal from './CreateJobModal'; // Verify path
 import JobDetails from './JobDetails';       // Verify path
 import { format } from 'date-fns';         // Or your date library
 import { AuditButton } from '../audit';    // Import audit button
-import { JobsResponse, JobStats } from '../../types/api';
+import { JobsResponse } from '../../types/api';
 
 // --- Type Definitions ---
 // Main Job structure (from GET /jobs)
@@ -34,7 +34,7 @@ interface Job {
   createdAt: string;
   expectedEndDate: string;
   estimatedCost: number;
-  status: 'DRAFT' | 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELED' | 'ACTIVE' | 'PENDING_APPROVAL' | 'APPROVED' | 'DECLINED' | 'IN_PRODUCTION' | 'ON_HOLD' | 'READY_FOR_DELIVERY' | 'DELIVERED' | 'CANCELLED'; // All possible statuses
+  status: 'DRAFT' | 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELED' | 'ACTIVE' | 'PENDING_APPROVAL' | 'APPROVED' | 'DECLINED' | 'IN_PRODUCTION' | 'ON_HOLD' | 'READY_FOR_DELIVERY' | 'DELIVERED'; // Fixed: removed 'CANCELLED', kept only 'CANCELED'
   customer: {
     id: string;
     name: string;
@@ -49,7 +49,7 @@ interface Job {
 interface AtRiskJob {
     id: string;
     title: string;
-    status: 'DRAFT' | 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELED' | 'ACTIVE' | 'PENDING_APPROVAL' | 'APPROVED' | 'DECLINED' | 'IN_PRODUCTION' | 'ON_HOLD' | 'READY_FOR_DELIVERY' | 'DELIVERED' | 'CANCELLED';
+    status: 'DRAFT' | 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELED' | 'ACTIVE' | 'PENDING_APPROVAL' | 'APPROVED' | 'DECLINED' | 'IN_PRODUCTION' | 'ON_HOLD' | 'READY_FOR_DELIVERY' | 'DELIVERED';
     expectedEndDate: string; // Comes as Date, format needed
     customer: string; // Customer Name (string)
     assignedUsers: string[]; // Array of user names (strings)
@@ -162,7 +162,21 @@ export default function Jobs() {
           console.log(`✅ Loaded ${jobs.length} jobs + ${ordersData.length} orders = ${combinedData.length} total items`);
           
           setJobs(combinedData);
-          setPagination(jobsData.pagination || { currentPage: 1, totalPages: 1, totalJobs: combinedData.length, pageSize: pagination.pageSize });
+          
+          // Fixed: Map API pagination response to match state structure
+          const apiPagination = jobsData.pagination;
+          if (apiPagination && 'page' in apiPagination) {
+            // API returns { page, total, pages } format
+            setPagination({
+              currentPage: apiPagination.page,
+              totalPages: apiPagination.pages,
+              totalJobs: apiPagination.total,
+              pageSize: pagination.pageSize
+            });
+          } else {
+            // Use existing format or fallback
+            setPagination(apiPagination || { currentPage: 1, totalPages: 1, totalJobs: combinedData.length, pageSize: pagination.pageSize });
+          }
           
       } catch (err: any) {
           console.error('Error fetching job list:', err);
@@ -387,7 +401,6 @@ export default function Jobs() {
       'ON_HOLD': 'bg-orange-100 text-orange-800',
       'READY_FOR_DELIVERY': 'bg-indigo-100 text-indigo-800',
       'DELIVERED': 'bg-purple-100 text-purple-800',
-      'CANCELLED': 'bg-red-100 text-red-700',
     };
 
     const style = statusStyles[status] || 'bg-gray-200 text-gray-900';

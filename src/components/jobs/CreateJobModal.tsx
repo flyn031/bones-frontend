@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Users, DollarSign } from 'lucide-react'; // Added DollarSign
+import { X, Users, DollarSign } from 'lucide-react'; // Added DollarSign
 // Corrected: Import BOTH from the same central api file
 import { jobApi, customerApi } from '../../utils/api'; // <<< CORRECTED IMPORT PATH
 

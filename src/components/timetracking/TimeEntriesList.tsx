@@ -301,12 +301,12 @@ export const TimeEntriesList: React.FC<TimeEntriesListProps> = ({
 
                   <div className="flex items-center gap-2 ml-4">
                   <button
-  onClick={() => {/* TODO: Implement edit functionality */}}
-  className="p-1 text-blue-600 hover:bg-blue-50 rounded"
-  title="Edit entry"
+                    onClick={() => {/* TODO: Implement edit functionality */}}
+                    className="p-1 text-blue-600 hover:bg-blue-50 rounded"
+                    title="Edit entry"
 >
-  <Edit2 className="h-4 w-4" />
-</button>
+                  <Edit2 className="h-4 w-4" />
+                  </button>
                     <button
                       onClick={() => handleDeleteEntry(entry.id)}
                       className="p-1 text-red-600 hover:bg-red-50 rounded"

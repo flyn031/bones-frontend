@@ -1,9 +1,9 @@
 // src/components/jobs/JobDetails.tsx (amended with audit trail)
 import React, { useState, useEffect } from 'react';
 import {
-  X, Edit, Save, ArrowLeft,
+  X, Edit, Save,
   FileText, DollarSign, BarChart2,
-  Calendar, User, Clock, Link as LinkIcon, Package, History // Added History icon
+  User, Package, History // Added History icon
 } from 'lucide-react';
 // Corrected: Ensure jobApi import is from your central api file
 import { jobApi } from '../../utils/api'; // <<< Verify/Correct this path
