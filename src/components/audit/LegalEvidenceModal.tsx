@@ -59,7 +59,7 @@ const LegalEvidenceModal: React.FC<LegalEvidenceModalProps> = ({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="lg">
+    <Modal isOpen={isOpen} onClose={onClose}>
       <div className="p-6">
         <h2 className="text-2xl font-bold mb-4">Legal Evidence Package</h2>
         

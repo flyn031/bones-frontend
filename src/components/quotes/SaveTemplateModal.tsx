@@ -75,10 +75,15 @@ const SaveTemplateModal: React.FC<SaveTemplateModalProps> = ({
       }
     } catch (error) {
       console.error('Error saving template:', error);
-      setErrorMessage(
-        error.response?.data?.message || 
-        'Failed to save template. Please try again.'
-      );
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as any;
+        setErrorMessage(
+          axiosError.response?.data?.message || 
+          'Failed to save template. Please try again.'
+        );
+      } else {
+        setErrorMessage('Failed to save template. Please try again.');
+      }
     } finally {
       setIsSaving(false);
     }

@@ -94,7 +94,7 @@ const AuditHistory: React.FC<AuditHistoryProps> = ({
 
   return (
     <>
-      <Modal isOpen={isOpen} onClose={onClose} size="xl">
+      <Modal isOpen={isOpen} onClose={onClose}>
         <div className="p-6">
           <div className="flex justify-between items-center mb-6">
             <div>
@@ -217,10 +217,9 @@ const AuditHistory: React.FC<AuditHistoryProps> = ({
       {/* Entry Detail Modal */}
       {selectedEntry && (
         <Modal 
-          isOpen={!!selectedEntry} 
-          onClose={() => setSelectedEntry(null)}
-          size="lg"
-        >
+        isOpen={!!selectedEntry} 
+        onClose={() => setSelectedEntry(null)}
+      >
           <div className="p-6">
             <h3 className="text-xl font-bold mb-4">
               Change Details - Version {selectedEntry.version}

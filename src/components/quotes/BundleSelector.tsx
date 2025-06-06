@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Package, Search, Loader, ChevronRight } from 'lucide-react';
+import { Package, Search, Loader } from 'lucide-react';
 import axios from 'axios';
 
 interface BundleItem {
