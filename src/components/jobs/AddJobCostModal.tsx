@@ -8,7 +8,7 @@ interface AddJobCostModalProps {
   onSubmit: (data: any) => void;
 }
 
-const AddJobCostModal: React.FC<AddJobCostModalProps> = ({ jobId, onClose, onSubmit }) => {
+const AddJobCostModal: React.FC<AddJobCostModalProps> = ({ onClose, onSubmit }) => {
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);

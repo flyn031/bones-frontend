@@ -171,12 +171,6 @@ const JobDetails: React.FC<JobDetailsProps> = ({ job, onClose, onUpdate }) => {
     onUpdate();
   };
 
-  // Handle material changes (called from JobMaterials component)
-  const handleMaterialChange = () => {
-    fetchJobDetails(); // Refetch job details to update material totals
-    onUpdate();
-  };
-
   // Utility functions (keep formatDate, formatCurrency)
     const formatDate = (dateString?: string | Date | null) => {
         if (!dateString) return 'Not set';

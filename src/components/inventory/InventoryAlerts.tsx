@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { AlertTriangle, Package, ArrowRight } from 'lucide-react';
-import { fetchInventoryAlerts, InventoryAlert, InventoryAlertsResponse } from '../../utils/inventoryApi';
+import { fetchInventoryAlerts, InventoryAlertsResponse } from '../../utils/inventoryApi';
 import { Link } from 'react-router-dom';
 
 interface InventoryAlertsProps {

@@ -318,7 +318,6 @@ export default function Orders() {
           onEdit={handleEdit}
           onUpdateStatus={openStatusUpdateModal}
           statusColors={statusColors}
-          priorityIcons={priorityIconsMap}
           formatDate={formatDate}
         />
       ) : ( // Grid View
