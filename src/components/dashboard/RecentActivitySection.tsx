@@ -85,9 +85,6 @@ const RecentActivitySection: React.FC<RecentActivitySectionProps> = ({
     return 'order';
   };
 
-  const getActivityIcon = (activity: RecentActivity) => {
-    const type = getActivityType(activity)
-
   const navigateToActivity = (activity: RecentActivity) => {
     const type = getActivityType(activity);
     console.log(`Activity type determined as: ${type}`, activity);
