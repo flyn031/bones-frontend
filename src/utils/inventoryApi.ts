@@ -9,12 +9,27 @@ export interface InventoryAlert {
   thresholdLevel: number;
   unit: string;
   createdAt: string;
+  // Additional properties that component expects
+  name: string;
+  alertMessage: string;
+  currentStockLevel: number;
+  minStockLevel: number;
+  daysToRestock: number;
 }
 
-// Local interface to avoid conflicts
-interface InventoryAlertsResponse {
+// Export the interface and update structure to match component expectations
+export interface InventoryAlertsResponse {
   alerts: InventoryAlert[];
-  totalAlerts: number;
+  alertsByCategory: {
+    critical: InventoryAlert[];
+    lowStock: InventoryAlert[];
+    reorder: InventoryAlert[];
+  };
+  summary: {
+    totalAlerts: number;
+    criticalCount: number;
+    lowStockCount: number;
+  };
 }
 
 export const fetchInventoryAlerts = async () => {

@@ -36,9 +36,9 @@ const AddJobCostModal: React.FC<AddJobCostModalProps> = ({ onClose, onSubmit }) 
         try {
           console.log("Fetching materials using materialApi");
           const materialsResponse = await materialApi.getMaterials();
-          const materialsData = materialsResponse.data;
+          const materialsData = materialsResponse.data as any[];
           console.log("Materials data:", materialsData);
-          if (materialsData && materialsData.length > 0) {
+          if (Array.isArray(materialsData) && materialsData.length > 0) {
             setMaterials(materialsData.map((m: any) => ({
               id: m.id,
               name: m.name
@@ -58,9 +58,9 @@ const AddJobCostModal: React.FC<AddJobCostModalProps> = ({ onClose, onSubmit }) 
         try {
           console.log("Fetching suppliers using supplierApi");
           const suppliersResponse = await supplierApi.getSuppliers();
-          const suppliersData = suppliersResponse.data;
+          const suppliersData = suppliersResponse.data as any[];
           console.log("Suppliers data:", suppliersData);
-          if (suppliersData && suppliersData.length > 0) {
+          if (Array.isArray(suppliersData) && suppliersData.length > 0) {
             setSuppliers(suppliersData.map((s: any) => ({
               id: s.id,
               name: s.name
