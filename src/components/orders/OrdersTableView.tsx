@@ -1,6 +1,5 @@
 // frontend/src/components/orders/OrdersTableView.tsx
 
-import React from 'react';
 import { ChevronLeft, ChevronRight, Briefcase } from 'lucide-react';
 
 interface OrdersTableViewProps {
@@ -13,7 +12,6 @@ interface OrdersTableViewProps {
   onEdit: (order: any) => void;
   onUpdateStatus: (order: any) => void;
   statusColors: Record<string, string>;
-  priorityIcons: Record<string, JSX.Element>;
   formatDate: (date: string | Date | null | undefined) => string;
 }
 
@@ -27,7 +25,6 @@ export default function OrdersTableView({
   onEdit,
   onUpdateStatus,
   statusColors,
-  priorityIcons,
   formatDate
 }: OrdersTableViewProps) {
 
