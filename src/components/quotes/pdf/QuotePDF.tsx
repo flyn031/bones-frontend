@@ -1,9 +1,9 @@
 import pdfMake from "pdfmake/build/pdfmake";
 import pdfFonts from "pdfmake/build/vfs_fonts";
 
-// Initialize pdfMake fonts
+// Initialize pdfMake fonts - Fixed type assertion
 if (pdfMake.vfs === undefined) {
-    pdfMake.vfs = pdfFonts.pdfMake ? pdfFonts.pdfMake.vfs : pdfFonts;
+    pdfMake.vfs = (pdfFonts as any).pdfMake ? (pdfFonts as any).pdfMake.vfs : pdfFonts;
 }
 
 interface QuoteItem {
@@ -203,29 +203,29 @@ export const generateQuotePDF = (quote: QuoteData, userProfile?: UserProfile) =>
               { text: 'Unit Price', style: 'tableHeader', alignment: 'right' },
               { text: 'Total', style: 'tableHeader', alignment: 'right' }
             ],
-            ...quote.items.map(item => [
-              { text: item.description || 'No description', style: 'tableCell' },
-              { text: (item.quantity || 0).toString(), style: 'tableCell', alignment: 'center' },
+            ...quote.items.map((_item, i) => [
+              { text: _item.description || 'No description', style: 'tableCell' },
+              { text: (_item.quantity || 0).toString(), style: 'tableCell', alignment: 'center' },
               { text: 'Unit', style: 'tableCell', alignment: 'center' },
-              { text: `£${(item.unitPrice || 0).toLocaleString('en-GB', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`, style: 'tableCell', alignment: 'right' },
-              { text: `£${((item.total !== undefined ? item.total : item.quantity * item.unitPrice) || 0).toLocaleString('en-GB', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`, style: 'tableCell', alignment: 'right' }
+              { text: `£${(_item.unitPrice || 0).toLocaleString('en-GB', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`, style: 'tableCell', alignment: 'right' },
+              { text: `£${((_item.total !== undefined ? _item.total : _item.quantity * _item.unitPrice) || 0).toLocaleString('en-GB', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`, style: 'tableCell', alignment: 'right' }
             ])
           ]
         },
         layout: {
-          hLineWidth: function(i, node) {
-            return (i === 0 || i === 1 || i === node.table.body.length) ? 1 : 0.5;
+          hLineWidth: function(_i: any, _node: any) {
+            return (_i === 0 || _i === 1 || _i === _node.table.body.length) ? 1 : 0.5;
           },
-          vLineWidth: function(i, node) {
+          vLineWidth: function(_i: any, _node: any) {
             return 0;
           },
-          hLineColor: function(i, node) {
-            return (i === 0 || i === 1) ? '#aaaaaa' : '#dddddd';
+          hLineColor: function(_i: any, _node: any) {
+            return (_i === 0 || _i === 1) ? '#aaaaaa' : '#dddddd';
           },
-          paddingTop: function(i) {
+          paddingTop: function(_i: any) {
             return 8;
           },
-          paddingBottom: function(i) {
+          paddingBottom: function(_i: any) {
             return 8;
           }
         }
@@ -254,8 +254,8 @@ export const generateQuotePDF = (quote: QuoteData, userProfile?: UserProfile) =>
               ]
             },
             layout: {
-              hLineWidth: function(i, node) {
-                return (i === node.table.body.length - 1) ? 1 : 0;
+              hLineWidth: function(_i: any, _node: any) {
+                return (_i === _node.table.body.length - 1) ? 1 : 0;
               },
               vLineWidth: function() {
                 return 0;
@@ -363,7 +363,7 @@ export const generateQuotePDF = (quote: QuoteData, userProfile?: UserProfile) =>
       fontSize: 10,
       color: '#1f2937'
     },
-    footer: function(currentPage, pageCount) {
+    footer: function(currentPage: any, pageCount: any) {
       if (!useCompanyDetails) return null;
       
       // Enhanced footer with company details
@@ -411,8 +411,8 @@ export const generateQuotePDF = (quote: QuoteData, userProfile?: UserProfile) =>
               ]
             },
             layout: {
-              hLineWidth: function(i, node) {
-                return (i === 0) ? 0.5 : 0;
+              hLineWidth: function(_i: any, _node: any) {
+                return (_i === 0) ? 0.5 : 0;
               },
               vLineWidth: function() {
                 return 0;
@@ -428,19 +428,22 @@ export const generateQuotePDF = (quote: QuoteData, userProfile?: UserProfile) =>
     }
   };
 
-  // Create and return the PDF
+  // Create and return the PDF - Fixed type assertion
   try {
-    return pdfMake.createPdf(documentDefinition);
+    return pdfMake.createPdf(documentDefinition as any);
   } catch (error) {
     console.error("PDF: Error creating PDF document:", error);
     // Try to create a simpler version without the logo if there's an error
     if (useCompanyDetails && companyDetails.logo) {
       console.log("PDF: Attempting to create PDF without logo as fallback");
-      // Create a new version without the logo
-      documentDefinition.content[0].columns[0].stack = [
-        { text: companyDetails.name, style: 'header' }
-      ];
-      return pdfMake.createPdf(documentDefinition);
+      // Create a new version without the logo - Fixed with proper type checking
+      const content = documentDefinition.content as any[];
+      if (content && content[0] && content[0].columns && content[0].columns[0] && content[0].columns[0].stack) {
+        content[0].columns[0].stack = [
+          { text: companyDetails.name, style: 'header' }
+        ];
+      }
+      return pdfMake.createPdf(documentDefinition as any);
     }
     throw error; // Re-throw the error if we can't fix it
   }

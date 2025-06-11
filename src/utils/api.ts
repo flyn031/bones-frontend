@@ -1,6 +1,6 @@
 // frontend/src/utils/api.ts (or your file path)
 
-import axios from 'axios';
+import axios, { isAxiosError } from 'axios'; // ✅ FIXED - Import isAxiosError properly
 
 // ✅ FIXED - Import from constants:
 import { API_URL } from '../config/constants';
@@ -63,8 +63,8 @@ apiClient.interceptors.response.use(
     return response;
   },
   (error) => {
-    // ✅ FIXED - Use axios.isAxiosError for better compatibility
-    if (axios.isAxiosError && axios.isAxiosError(error)) {
+    // ✅ FIXED - Use imported isAxiosError function
+    if (isAxiosError(error)) {
       if (error.response) {
         console.error(`[API Interceptor] Response Error Status: ${error.response.status} for ${error.config?.url}`, 'Data:', error.response.data);
         if (error.response.status === 401) {
@@ -83,9 +83,9 @@ apiClient.interceptors.response.use(
   }
 );
 
-// ✅ FIXED - Use axios.isAxiosError for better compatibility
+// ✅ FIXED - Use imported isAxiosError function
 export const isAxiosErrorUtil = (error: unknown): error is AxiosErrorType => {
-  return axios.isAxiosError && axios.isAxiosError(error);
+  return isAxiosError(error);
 };
 
 // ✅ ADDED - Generic API response type
