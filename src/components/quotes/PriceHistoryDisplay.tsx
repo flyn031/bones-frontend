@@ -39,8 +39,8 @@ const PriceHistoryDisplay: React.FC<PriceHistoryDisplayProps> = ({ materialId, c
         );
         
         // Format the data for the chart
-        if (response.data && Array.isArray(response.data.priceHistory)) {
-          const formattedData = response.data.priceHistory.map((point: any) => ({
+        if (response.data && Array.isArray((response.data as any).priceHistory)) {
+          const formattedData = (response.data as any).priceHistory.map((point: any) => ({
             date: new Date(point.effectiveFrom).toISOString(),
             price: point.unitPrice,
             formattedDate: new Date(point.effectiveFrom).toLocaleDateString(),
@@ -48,7 +48,7 @@ const PriceHistoryDisplay: React.FC<PriceHistoryDisplayProps> = ({ materialId, c
           }));
           
           setPriceHistory(formattedData);
-          setMaterialName(response.data.materialName || 'Selected Item');
+          setMaterialName((response.data as any).materialName || 'Selected Item');
         } else {
           // Use mock data if the API response isn't as expected
           const mockData = generateMockPriceHistory();

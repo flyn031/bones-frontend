@@ -124,7 +124,7 @@ export default function Dashboard() {
   const transformActivityData = useCallback((rawData: any[]): RecentActivity[] => {
     if (!Array.isArray(rawData)) return [];
     return rawData.map(item => {
-        let type: RecentActivity['type'] = 'unknown';
+        let type: RecentActivity['type'] = 'inventory';
         let title = item.title || 'Activity';
         if (item.type === 'order' || (item.projectTitle !== undefined && item.status !== undefined)) { type = 'order'; title = `Order: ${item.projectTitle || item.id || 'N/A'}`; }
         else if (item.type === 'customer' || (item.email !== undefined && item.status === 'Added')) { type = 'customer'; title = `Customer: ${item.name || item.id}`; }

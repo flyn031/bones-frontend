@@ -416,7 +416,7 @@ export default function Orders() {
           isOpen={isOrderModalOpen}
           onClose={() => { setIsOrderModalOpen(false); setEditingOrder(null); }}
           onSubmit={handleOrderSubmit}
-          orderToEdit={editingOrder}
+          orderToEdit={editingOrder || undefined}
         />
       )}
     </div>

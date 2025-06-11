@@ -140,7 +140,7 @@ const AuditTimeline: React.FC<AuditTimelineProps> = ({ history, entityTitle }) =
                    <div className="mt-2 text-xs text-gray-700">
                      <span className="font-medium">Material Changes:</span>
                      <pre className="mt-1 bg-gray-50 p-2 rounded text-xs overflow-auto max-h-24">
-                     {JSON.stringify(entry.data, null, 2) as string}
+                     {JSON.stringify(entry.data, null, 2) || 'No data available'}
                      </pre>
                    </div>
                  )}
