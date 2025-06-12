@@ -1,10 +1,15 @@
 // src/components/inventory/Inventory.tsx
 import { useState, useEffect } from 'react';
-import axios, { isAxiosError } from 'axios';
+import axios from 'axios'; // ✅ FIXED - Remove isAxiosError import
 import { Search, Plus, Grid, List, ChevronLeft, ChevronRight, Filter, Briefcase, X } from 'lucide-react';
 import CreateItemModal, { MaterialCategory } from './CreateItemModal';
 import MaterialDetailModal from './MaterialDetailModal';
 import { useAuth } from '../../context/AuthContext';
+
+// ✅ FIXED - Custom isAxiosError function for compatibility
+const isAxiosError = (error: any): error is any => {
+  return error && error.isAxiosError === true;
+};
 
 interface InventoryItem {
   id: string;
@@ -171,7 +176,7 @@ export default function Inventory() {
     } catch (error) {
       console.error('Error fetching inventory:', error);
 
-      // ✅ FIXED - Use axios.isAxiosError instead of instanceof
+      // ✅ FIXED - Use custom isAxiosError function
       if (isAxiosError(error)) {
         const errorMsg = error.response?.data?.message ||
                          error.response?.data?.error ||
@@ -353,26 +358,26 @@ export default function Inventory() {
        if (failedResults.length > 0) {
             console.error('Failed to add some materials:', failedResults);
              // Provide user feedback about failed items
-             const failedMaterialNames = failedResults.map(failed => {
+             const failedMaterialNames = failedResults.map(failedResult => {
                   // Attempt to find the material name from assignmentItems
                   const assignmentItem = assignmentItems.find(item =>
                       // Need to parse the request body string from the config to find the materialId
-                      isAxiosError(failed.reason) &&
-                      failed.reason.config &&
-                      typeof failed.reason.config.data === 'string' &&
-                      failed.reason.config.data.includes(item.materialId)
+                      isAxiosError(failedResult.reason) &&
+                      failedResult.reason.config &&
+                      typeof failedResult.reason.config.data === 'string' &&
+                      failedResult.reason.config.data.includes(item.materialId)
                   );
                   return assignmentItem?.material.name || 'Unknown Material';
              });
              alert(`Failed to add material(s): ${failedMaterialNames.join(', ')}. Check console for details.`);
 
              // Log details from the failed result
-             failedResults.forEach(failed => {
-                 console.error("Failure reason:", failed.reason);
-                 if (isAxiosError(error)) {
-                     console.error("Failed request backend response data:", failed.reason.response?.data);
-                     console.error("Failed request backend response status:", failed.reason.response?.status);
-                     console.error("Failed request config:", failed.reason.config); // Log config to see the payload sent
+             failedResults.forEach(failedResult => {
+                 console.error("Failure reason:", failedResult.reason);
+                 if (isAxiosError(failedResult.reason)) {
+                     console.error("Failed request backend response data:", failedResult.reason.response?.data);
+                     console.error("Failed request backend response status:", failedResult.reason.response?.status);
+                     console.error("Failed request config:", failedResult.reason.config); // Log config to see the payload sent
                  }
              });
        }
@@ -411,11 +416,11 @@ export default function Inventory() {
       fetchInventory();
     } catch (error) {
       console.error('Error adding item:', error);
-      // ✅ FIXED - Use axios.isAxiosError instead of instanceof
-      if (isAxiosError(failed.reason)) {
-        console.error("Error status:", failed.reason.response?.status);
-        console.error("Error details:", failed.reason.response?.data);
-        if (failed.reason.response?.status === 400 && failed.reason.response?.data?.errors) {
+      // ✅ FIXED - Use custom isAxiosError function and fix variable references
+      if (isAxiosError(error)) {
+        console.error("Error status:", error.response?.status);
+        console.error("Error details:", error.response?.data);
+        if (error.response?.status === 400 && error.response?.data?.errors) {
           console.error("Validation errors:", error.response.data.errors);
           const errorFields = Object.keys(error.response.data.errors).join(', ');
           alert(`Validation failed for fields: ${errorFields}`);
@@ -617,7 +622,7 @@ export default function Inventory() {
                 id="max-price-filter"
                 type="number"
                 placeholder="Maximum unit price"
-                className="w-full border rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500"
                 value={maxPriceFilter}
                 onChange={(e) => { setMaxPriceFilter(e.target.value); setPage(1); }}
                 min="0"

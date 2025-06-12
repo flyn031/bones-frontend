@@ -62,6 +62,36 @@ export interface Order {
   } | null;
 }
 
+// ✅ ADDED: OrderData interface to match expected modal prop types
+interface OrderData {
+  id?: string;
+  projectTitle: string;
+  customerName: string;
+  status: string;
+  priority?: string;
+  projectValue: number;
+  leadTimeWeeks?: number;
+  createdAt?: string;
+  updatedAt?: string;
+  items: OrderItem[];
+  notes?: string;
+  currency?: string;
+  vatRate?: number;
+  paymentTerms?: string;
+  quoteRef: string;
+  customerId?: string;
+  contactPerson?: string; // ✅ FIXED: string | undefined instead of string | null
+  contactEmail?: string;
+  contactPhone?: string;
+  marginPercent?: number;
+  progress?: number;
+  deadline?: string;
+  sourceQuoteId?: string;
+  jobId?: string;
+  projectOwnerId?: string;
+  createdById?: string;
+}
+
 export default function Orders() {
   // Inline formatDate function to avoid import issues
   const formatDate = (date: string | Date | null | undefined): string => {
@@ -150,13 +180,13 @@ export default function Orders() {
     fetchOrders();
   }, [fetchOrders]);
 
-  const handleOrderSubmit = async (orderData: Omit<Order, 'id' | 'createdAt' | 'updatedAt'> | Partial<Order>) => {
+  const handleOrderSubmit = async (orderData: Omit<OrderData, 'id' | 'createdAt' | 'updatedAt'> | Partial<OrderData>) => {
     setIsLoading(true);
     try {
       let response: any;
       if (editingOrder && editingOrder.id) {
         console.log('[Orders.tsx] Updating order:', editingOrder.id, orderData);
-        const { id, createdAt, updatedAt, ...updatePayload } = orderData as Order;
+        const { id, createdAt, updatedAt, ...updatePayload } = orderData as OrderData;
         response = await apiClient.patch(`/orders/${editingOrder.id}`, updatePayload);
         setOrders(prevOrders => prevOrders.map(o => o.id === editingOrder.id ? response.data : o));
       } else {
@@ -225,6 +255,28 @@ export default function Orders() {
   const handlePageChange = (newPage: number) => { 
     setCurrentPage(newPage);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // ✅ ADDED: Helper function to convert Order to OrderData (null to undefined)
+  const convertOrderToOrderData = (order: Order): Partial<OrderData> => {
+    return {
+      ...order,
+      contactPerson: order.contactPerson ?? undefined,
+      contactEmail: order.contactEmail ?? undefined,
+      contactPhone: order.contactPhone ?? undefined,
+      notes: order.notes ?? undefined,
+      currency: order.currency ?? undefined,
+      vatRate: order.vatRate ?? undefined,
+      paymentTerms: order.paymentTerms ?? undefined,
+      customerId: order.customerId ?? undefined,
+      leadTimeWeeks: order.leadTimeWeeks ?? undefined,
+      marginPercent: order.marginPercent ?? undefined,
+      progress: order.progress ?? undefined,
+      deadline: order.deadline ?? undefined,
+      sourceQuoteId: order.sourceQuoteId ?? undefined,
+      jobId: order.jobId ?? undefined,
+      priority: order.priority ?? undefined,
+    };
   };
 
   const filteredOrders = orders.filter(order => {
@@ -410,13 +462,13 @@ export default function Orders() {
         </div>
       )}
 
-      {/* Order Create/Edit Modal */}
+      {/* Order Create/Edit Modal - ✅ FIXED: Line 419 - Convert Order to OrderData */}
       {isOrderModalOpen && (
         <OrderModal
           isOpen={isOrderModalOpen}
           onClose={() => { setIsOrderModalOpen(false); setEditingOrder(null); }}
           onSubmit={handleOrderSubmit}
-          orderToEdit={editingOrder || undefined}
+          orderToEdit={editingOrder ? convertOrderToOrderData(editingOrder) : undefined}
         />
       )}
     </div>

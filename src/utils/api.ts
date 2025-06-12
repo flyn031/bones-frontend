@@ -1,11 +1,16 @@
 // frontend/src/utils/api.ts (or your file path)
 
-import axios, { isAxiosError } from 'axios'; // ✅ FIXED - Import isAxiosError properly
+import axios from 'axios'; // ✅ FIXED - Remove isAxiosError import for compatibility
 
 // ✅ FIXED - Import from constants:
 import { API_URL } from '../config/constants';
 
 const BASE_URL = API_URL; // Now uses environment-aware URL
+
+// ✅ FIXED - Custom isAxiosError function for compatibility
+const isAxiosError = (error: any): error is any => {
+  return error && error.isAxiosError === true;
+};
 
 // ✅ FIXED - Define types manually for better compatibility
 interface AxiosErrorType extends Error {
@@ -63,7 +68,7 @@ apiClient.interceptors.response.use(
     return response;
   },
   (error) => {
-    // ✅ FIXED - Use imported isAxiosError function
+    // ✅ FIXED - Use custom isAxiosError function
     if (isAxiosError(error)) {
       if (error.response) {
         console.error(`[API Interceptor] Response Error Status: ${error.response.status} for ${error.config?.url}`, 'Data:', error.response.data);
@@ -83,7 +88,7 @@ apiClient.interceptors.response.use(
   }
 );
 
-// ✅ FIXED - Use imported isAxiosError function
+// ✅ FIXED - Use custom isAxiosError function
 export const isAxiosErrorUtil = (error: unknown): error is AxiosErrorType => {
   return isAxiosError(error);
 };

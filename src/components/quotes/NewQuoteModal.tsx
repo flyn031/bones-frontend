@@ -408,7 +408,7 @@ export default function NewQuoteModal({
           console.log("Found jobs array in response:", response.data.length);
           setJobs(response.data.map(job => ({
             ...job,
-            projectTitle: job.projectTitle || job.title || `Job ${job.id}`
+            projectTitle: job.projectTitle || job.title || `Job ${job.id}` || 'Untitled Job'
           })));
           return;
         }
@@ -644,7 +644,7 @@ export default function NewQuoteModal({
     setQuoteData({
       ...quoteData,
       customer: customer.name || "",
-      customerId: customer.id || "",
+      customerId: customer.id ?? undefined,  // ✅ FIXED: null becomes undefined
       contactPerson: customer.contactPerson || "",
       contactEmail: customer.email || "",
       contactPhone: customer.phone || "",
