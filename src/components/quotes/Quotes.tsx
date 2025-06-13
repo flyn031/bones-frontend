@@ -19,7 +19,7 @@ interface Customer {
   id: string;
   name: string;
   email: string; // Fixed: removed null/undefined to match expected type
-  phone?: string | null;
+  phone?: string; // Fixed: removed null to match expected string type
   address?: string | null;
   contactPerson?: string | null;
   paymentTerms?: any; 
@@ -72,7 +72,7 @@ interface QuoteVersion {
     value?: number; 
 }
 
-// Fixed: Added QuoteData interface to match NewQuoteModal expectations
+// Fixed: Added customer property and ensured all required fields are present
 interface QuoteData {
     id?: string;
     title: string;
@@ -86,10 +86,10 @@ interface QuoteData {
     notes?: string;
     customerReference?: string;
     status: QuoteStatusEnum;
-    description?: string | null;
-    quoteNumber?: string | null;
-    quoteReference?: string | null;
-    versionNumber?: number | null;
+    description?: string;
+    quoteNumber?: string;
+    quoteReference?: string;
+    versionNumber?: number;
     items: Array<{
         description: string;
         quantity: number;
@@ -98,6 +98,7 @@ interface QuoteData {
         id?: string;
     }>;
     totalAmount: number;
+    customer?: Customer; // Added missing customer property
     parentQuoteId?: string | null;
     changeReason?: string;
     validUntil?: string | null;
@@ -303,8 +304,13 @@ export default function Quotes() {
       console.log("[Quotes.tsx] fetchCustomers RAW RESPONSE.DATA:", response.data);
       const data = response.data as PaginatedCustomersResponse;
       if (data && Array.isArray(data.customers)) {
-        setCustomers(data.customers);
-        console.log("[Quotes.tsx] fetchCustomers SUCCESS. Number of customers:", data.customers.length);
+        // Fixed: Handle phone null conversion for customers
+        const processedCustomers = data.customers.map(customer => ({
+          ...customer,
+          phone: customer.phone || undefined
+        }));
+        setCustomers(processedCustomers);
+        console.log("[Quotes.tsx] fetchCustomers SUCCESS. Number of customers:", processedCustomers.length);
       } else {
         console.warn("[Quotes.tsx] fetchCustomers response.data.customers is NOT an array or response.data is malformed:", data);
         setCustomers([]); 
@@ -685,10 +691,10 @@ const handleModalSaveSuccess = useCallback((data: QuoteData) => {
     notes: quote.notes || '',
     customerReference: quote.customerReference || '',
     status: quote.status,
-    description: quote.description,
-    quoteNumber: quote.quoteNumber,
-    quoteReference: quote.quoteReference,
-    versionNumber: quote.versionNumber,
+    description: quote.description ?? undefined,
+    quoteNumber: quote.quoteNumber ?? undefined,
+    quoteReference: quote.quoteReference ?? undefined,
+    versionNumber: quote.versionNumber ?? undefined,
     items: quote.lineItems.map(item => ({
         description: item.description,
         quantity: item.quantity,
@@ -696,7 +702,8 @@ const handleModalSaveSuccess = useCallback((data: QuoteData) => {
         materialId: item.materialId,
         id: item.id
     })),
-    totalAmount: quote.totalAmount,
+    totalAmount: quote.totalAmount, // Fixed: Ensure totalAmount is included
+    customer: quote.customer || undefined, // Fixed: Include customer property
     parentQuoteId: quote.parentQuoteId,
     changeReason: quote.changeReason,
     validUntil: quote.validUntil
