@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Search, Plus, FileText, ArrowRight, Link as LinkIcon, Copy, Calendar, History as HistoryIcon, RefreshCw, X, Edit3, MoreVertical } from "lucide-react"; 
 import NewQuoteModal from './NewQuoteModal';
-import { generateQuotePDF } from './pdf/QuotePDF'; // Assuming this path and function exist
-import { apiClient } from '../../utils/api'; // Assuming this path and function exist
+import { generateQuotePDF } from './pdf/QuotePDF';
+import { apiClient } from '../../utils/api';
+import { Customer, QuoteData, QuoteVersion, QuoteLineItem } from '../../types/quote';
 
 // --- Interfaces ---
 enum QuoteStatusEnum {
@@ -15,16 +16,6 @@ enum QuoteStatusEnum {
   CONVERTED = 'CONVERTED'
 }
 
-interface Customer {
-  id: string;
-  name: string;
-  email: string; // Fixed: removed null/undefined to match expected type
-  phone?: string; // Fixed: removed null to match expected string type
-  address?: string | null;
-  contactPerson?: string | null;
-  paymentTerms?: any; 
-}
-
 interface PaginatedCustomersResponse {
   customers: Customer[];
   currentPage: number;
@@ -32,83 +23,11 @@ interface PaginatedCustomersResponse {
   totalCustomers: number;
 }
 
-interface QuoteLineItem {
-    id: string; 
-    description: string;
-    quantity: number;
-    unitPrice: number;
-    materialId: string | null; 
-    quoteId?: string;
-}
-
-interface QuoteVersion { 
-    id: string; 
-    quoteReference: string;
-    versionNumber: number;
-    isLatestVersion: boolean;
-    status: QuoteStatusEnum; 
-    title: string;
-    description?: string | null;
-    customerId: string;
-    customerName?: string;
-    customer?: Customer | null;
-    quoteNumber?: string | null;
-    totalAmount: number;
-    createdAt: string;
-    updatedAt: string;
-    validUntil?: string | null;
-    contactPerson?: string | null;
-    contactEmail?: string | null;
-    contactPhone?: string | null;
-    changeReason?: string | null;
-    parentQuoteId?: string | null;
-    createdById: string;
-    lineItems: QuoteLineItem[];
-    orderId?: string | null;
-    jobId?: string | null;
-    sentDate?: string | null;
-    notes?: string | null;
-    customerReference?: string | null;
-    value?: number; 
-}
-
-// Fixed: Added customer property and ensured all required fields are present
-interface QuoteData {
-    id?: string;
-    title: string;
-    customerId: string;
-    contactPerson?: string;
-    contactEmail?: string;
-    contactPhone?: string;
-    jobId?: string;
-    validityDays: number;
-    terms: string;
-    notes?: string;
-    customerReference?: string;
-    status: QuoteStatusEnum;
-    description?: string;
-    quoteNumber?: string;
-    quoteReference?: string;
-    versionNumber?: number;
-    items: Array<{
-        description: string;
-        quantity: number;
-        unitPrice: number;
-        materialId: string | null;
-        id?: string;
-    }>;
-    totalAmount: number;
-    customer?: Customer; // Added missing customer property
-    parentQuoteId?: string | null;
-    changeReason?: string;
-    validUntil?: string | null;
-}
-
 // This interface matches the payload definition expected by handleModalSaveSuccess
 interface MockSavedQuotePayload { 
     id?: string;
     title: string;
-    customerId: string; // Ensure this is always a string when passed
+    customerId: string;
     contactPerson?: string;
     contactEmail?: string;
     contactPhone?: string;
@@ -127,7 +46,7 @@ interface MockSavedQuotePayload {
         quantity: number;
         unitPrice: number;
         materialId: string | null;
-        id?: string; // lineItem ID (placeholder or actual)
+        id?: string;
     }>;
     totalAmount: number;
     parentQuoteId?: string | null;
@@ -136,7 +55,6 @@ interface MockSavedQuotePayload {
 }
 
 // Define the structure for the mock order saved to localStorage
-// Ensure it matches the fields expected by the Orders component
 interface MockOrderData {
   id: string;
   projectTitle: string;
@@ -149,13 +67,13 @@ interface MockOrderData {
   projectValue: number;
   marginPercent?: number;
   leadTimeWeeks?: number;
-  status: string; // e.g., 'PENDING_APPROVAL'
+  status: string;
   createdAt: string;
-  priority?: string; // e.g., 'MEDIUM'
+  priority?: string;
   progress?: number;
   value?: number;
   deadline?: string;
-  customer?: string; // Might just be name
+  customer?: string;
   items?: Array<{
     description: string;
     quantity: number;
@@ -218,9 +136,6 @@ export default function Quotes() {
         }
         console.log('[API DEBUG] Token found, proceeding with API call');
         
-        // Log the exact URL and params being used
-        console.log('[API DEBUG] Making request to API with params:', { all: 'true' });
-        
         const response = await apiClient.get('/quotes', { 
             headers: { 'Authorization': `Bearer ${token}` },
             params: { all: 'true' } 
@@ -247,7 +162,7 @@ export default function Quotes() {
                 title: q.title,
                 description: q.description,
                 customerId: q.customerId ?? undefined,
-                customerName: q.customer?.name || q.customerName || 'Unknown', // Prefer nested customer name
+                customerName: q.customer?.name || q.customerName || 'Unknown',
                 customer: q.customer, 
                 quoteNumber: q.quoteNumber,
                 totalAmount: Number(q.value ?? q.totalAmount ?? 0),
@@ -277,7 +192,6 @@ export default function Quotes() {
         }
     } catch (error) {
         console.error('[API DEBUG] Error in fetchQuotes:', error);
-        // Include full error details
         if ((error as any).response) {
             console.error('[API DEBUG] Error response:', {
                 status: (error as any).response.status,
@@ -339,7 +253,6 @@ export default function Quotes() {
  useEffect(() => {
      console.log("[Quotes.tsx] Initial mount: Calling loadData.");
      loadData();
-     // eslint-disable-next-line react-hooks/exhaustive-deps
  }, []); 
 
  useEffect(() => {
@@ -347,10 +260,8 @@ export default function Quotes() {
          console.log("[Quotes.tsx] refreshKey changed: Calling loadData. New key:", refreshKey);
          loadData();
      }
- // eslint-disable-next-line react-hooks/exhaustive-deps
  }, [refreshKey]); 
 
- // Debug output right after quotes state update
  useEffect(() => {
      console.log('[API DEBUG] quotes state changed, new length:', quotes.length);
      console.log('[API DEBUG] quotes content:', quotes);
@@ -394,7 +305,6 @@ export default function Quotes() {
     return (b.versionNumber || 0) - (a.versionNumber || 0); 
  });
 
-// Debug output after filtering
 useEffect(() => {
     console.log('[API DEBUG] filteredQuotes calculation completed, length:', filteredQuotes.length);
 }, [filteredQuotes.length]);
@@ -417,7 +327,6 @@ const handleModalSaveSuccess = useCallback((data: QuoteData) => {
 
     console.log(`[Quotes.tsx] Attempting to save quote. isUpdatingDraft: ${isUpdatingDraft}, URL: ${apiUrl}, Method: ${isUpdatingDraft ? 'PATCH' : 'POST'}`);
 
-    // Make the API call async
     (async () => {
         try {
             const response = await apiMethod(apiUrl, savedQuotePayload); 
@@ -425,7 +334,7 @@ const handleModalSaveSuccess = useCallback((data: QuoteData) => {
             
             setIsNewQuoteModalOpen(false); 
             setQuoteToEdit(null); 
-            setRefreshKey(prev => prev + 1); // Trigger refresh AFTER successful save
+            setRefreshKey(prev => prev + 1);
             console.log("[Quotes.tsx] API Save success. Triggering data refresh.");
             alert("Quote saved successfully!"); 
 
@@ -475,7 +384,7 @@ const handleModalSaveSuccess = useCallback((data: QuoteData) => {
      const data = response.data as QuoteVersion;
      
      alert(`Quote cloned! New Ref: ${data.quoteReference || 'N/A'}`);
-     loadData(); // Refresh data after successful clone
+     loadData();
    } catch (error) {
      console.error('Error cloning quote:', (error as any).response?.data || (error as any).message);
      alert(`Failed to clone quote: ${(error as any).response?.data?.message || (error as any).message}`);
@@ -484,9 +393,6 @@ const handleModalSaveSuccess = useCallback((data: QuoteData) => {
    }
  };
  
- // ============================================================
- // START OF handleConvertToOrder FUNCTION (with localStorage logic in catch)
- // ============================================================
  const handleConvertToOrder = async (quoteId: string) => {
    const quote = quotes.find(q => q.id === quoteId);
    if (!quote) { alert("Quote not found."); return; }
@@ -496,7 +402,6 @@ const handleModalSaveSuccess = useCallback((data: QuoteData) => {
    setLoading(true);
    
    try {
-     // Attempt API conversion first
      const token = localStorage.getItem('token');
      if (!token) throw new Error("Auth token not found.");
      
@@ -515,11 +420,9 @@ const handleModalSaveSuccess = useCallback((data: QuoteData) => {
        window.location.href = `/jobs/new?orderId=${newOrderId}`; 
      }
 
-   } catch (error) { // <-- Catch block starts here
-     // --- API Conversion Failed - Fallback to Mock Order ---
+   } catch (error) {
      console.error("Failed to create order via API:", error); 
      
-     // Construct the mock order data - Ensure it has necessary fields for Orders page
      const mockOrderId = `mock-order-${Date.now()}`;
      const orderData: MockOrderData = { 
        id: mockOrderId, 
@@ -552,42 +455,34 @@ const handleModalSaveSuccess = useCallback((data: QuoteData) => {
        paymentTerms: 'THIRTY_DAYS' 
      };
 
-     alert(`API conversion failed. Creating a mock order locally with ID: ${orderData.id}`); // Use orderData.id
+     alert(`API conversion failed. Creating a mock order locally with ID: ${orderData.id}`);
 
-     // *** MODIFICATION 1: Store the mock order in localStorage ***
      try {
         const existingMockOrders = JSON.parse(localStorage.getItem('mockOrders') || '[]');
-        existingMockOrders.push(orderData); // Push the constructed mock order data
+        existingMockOrders.push(orderData);
         localStorage.setItem('mockOrders', JSON.stringify(existingMockOrders));
         console.log("[Quotes.tsx] Mock order saved to localStorage:", orderData);
      } catch (storageError) {
          console.error("Error saving mock order to localStorage:", storageError);
          alert("Could not save mock order to local storage. It will only appear temporarily.");
      }
-     // *** END MODIFICATION 1 ***
      
-     // Update the quote status locally to CONVERTED and link to the mock order ID
      setQuotes(prevQuotes => prevQuotes.map(q => 
-       q.id === quoteId ? { ...q, status: QuoteStatusEnum.CONVERTED, orderId: orderData.id } : q // Use orderData.id
+       q.id === quoteId ? { ...q, status: QuoteStatusEnum.CONVERTED, orderId: orderData.id } : q
      ));
 
      alert(`Mock order created locally. Order ID: ${orderData.id}. It has been saved to local storage and should appear on the Orders page.`);
 
-     // *** MODIFICATION 2: Add navigation prompt ***
      if (window.confirm(`Would you like to go to Orders page to see your new order?`)) {
        window.location.href = '/orders';
      } else if (window.confirm(`Would you like to create a job from this order now?`)) {
-       window.location.href = `/jobs/new?orderId=${orderData.id}`; // Use orderData.id
+       window.location.href = `/jobs/new?orderId=${orderData.id}`;
      }
-     // *** END MODIFICATION 2 ***
 
    } finally {
      setLoading(false);
    }
  };
-// ============================================================
-// END OF handleConvertToOrder FUNCTION
-// ============================================================
  
  const handleViewHistory = async (quoteReference: string) => {
    setHistoryLoading(true);
@@ -670,7 +565,7 @@ const handleModalSaveSuccess = useCallback((data: QuoteData) => {
      const response = await apiClient.get(`/quotes/${quoteId}`);
      const data = response.data as any;
      
-     generateQuotePDF(data); // Ensure generateQuotePDF accepts QuoteVersion
+     generateQuotePDF(data);
    } catch (error) {
      console.error('Error generating PDF:', (error as any).response?.data || (error as any).message);
      alert(`Failed to generate PDF: ${(error as any).response?.data?.message || (error as any).message}`);
@@ -681,32 +576,31 @@ const handleModalSaveSuccess = useCallback((data: QuoteData) => {
  const convertQuoteVersionToQuoteData = (quote: QuoteVersion): QuoteData => ({
     id: quote.id,
     title: quote.title,
+    customer: quote.customerName || '',
     customerId: quote.customerId ?? undefined,
-    contactPerson: quote.contactPerson || '',
-    contactEmail: quote.contactEmail || '',
-    contactPhone: quote.contactPhone || '',
-    jobId: quote.jobId || '',
-    validityDays: 30, // Default value
-    terms: '', // Default value
-    notes: quote.notes || '',
-    customerReference: quote.customerReference || '',
+    contactPerson: quote.contactPerson ?? undefined,
+    contactEmail: quote.contactEmail ?? undefined,
+    contactPhone: quote.contactPhone ?? undefined,
+    jobId: quote.jobId ?? undefined,
+    validityDays: 30,
+    terms: '',
+    notes: quote.notes ?? undefined,
+    customerReference: quote.customerReference ?? undefined,
     status: quote.status,
-    description: quote.description ?? undefined,
     quoteNumber: quote.quoteNumber ?? undefined,
     quoteReference: quote.quoteReference ?? undefined,
     versionNumber: quote.versionNumber ?? undefined,
     items: quote.lineItems.map(item => ({
+        id: item.id,
         description: item.description,
         quantity: item.quantity,
         unitPrice: item.unitPrice,
-        materialId: item.materialId,
-        id: item.id
+        total: item.quantity * item.unitPrice
     })),
-    totalAmount: quote.totalAmount, // Fixed: Ensure totalAmount is included
-    customer: quote.customer || undefined, // Fixed: Include customer property
-    parentQuoteId: quote.parentQuoteId,
-    changeReason: quote.changeReason,
-    validUntil: quote.validUntil
+    totalAmount: quote.totalAmount,
+    parentQuoteId: quote.parentQuoteId ?? undefined,
+    changeReason: quote.changeReason ?? undefined,
+    validUntil: quote.validUntil ?? undefined
  });
 
  console.log(`%c[Quotes.tsx] Component Render. Loading: ${loading}, Modal Open: ${isNewQuoteModalOpen}. Filtered Quotes: ${filteredQuotes.length}`, 'color: blue; font-weight: bold;');
@@ -872,7 +766,7 @@ const handleModalSaveSuccess = useCallback((data: QuoteData) => {
               <p className="text-center text-gray-500 dark:text-gray-400 py-4">Loading history...</p> 
             ) : quoteHistory.length > 0 ? ( 
               <ul className="space-y-3"> 
-                {quoteHistory.sort((a, b) => (b.versionNumber || 0) - (a.versionNumber || 0)).map(version => { // Sort history by version descending
+                {quoteHistory.sort((a, b) => (b.versionNumber || 0) - (a.versionNumber || 0)).map(version => {
                    const style = statusStyles[version.status as keyof typeof statusStyles] || statusStyles.UNKNOWN; 
                    return ( 
                     <li key={version.id} className="border dark:border-gray-700 rounded p-3 bg-gray-50 dark:bg-gray-700/50 shadow-sm"> 

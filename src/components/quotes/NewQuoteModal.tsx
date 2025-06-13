@@ -6,16 +6,7 @@ import BundleSelector from "./BundleSelector";
 import PriceHistoryDisplay from "./PriceHistoryDisplay";
 import SaveTemplateModal from "./SaveTemplateModal";
 import { JobsResponse, MaterialPriceResponse, CreateCustomerResponse, ApiErrorResponse } from "../../types/api";
-
-// Customer data
-interface Customer {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  address?: string;
-  contactPerson?: string;
-}
+import { Customer, QuoteData, QuoteItem } from "../../types/quote";
 
 // Define conveyors and materials
 interface Item {
@@ -31,36 +22,6 @@ interface Item {
 interface SelectedItem extends Item {
   quantity: number;
   total: number;
-}
-
-interface QuoteItem {
-  id: string;
-  description: string;
-  quantity: number;
-  unitPrice: number;
-  total: number;
-}
-
-interface QuoteData {
-  id?: string;
-  title: string;
-  customer: string;
-  customerId?: string;
-  contactPerson: string;
-  contactEmail: string;
-  contactPhone: string;
-  jobId: string;
-  date?: string;
-  validUntil?: string;
-  validityDays: number;
-  terms: string;
-  notes: string;
-  items: QuoteItem[];
-  lineItems?: QuoteItem[]; // Added to handle backend responses
-  value?: number;
-  status?: string;
-  quoteNumber?: string; // Added for system-generated quote number
-  customerReference?: string; // Added for customer's reference number
 }
 
 interface NewQuoteModalProps {
@@ -816,18 +777,18 @@ export default function NewQuoteModal({
               id: customerData.id || `cust${Date.now()}`,
               name: customerData.name || newCustomer.name || "",
               email: customerData.email || newCustomer.email || "",
-              phone: customerData.phone || newCustomer.phone || "",
-              address: customerData.address || newCustomer.address || "",
+              phone: customerData.phone || newCustomer.phone || undefined,
+              address: customerData.address || newCustomer.address || undefined,
               contactPerson:
-                customerData.contactPerson || newCustomer.contactPerson || "",
+                customerData.contactPerson || newCustomer.contactPerson || undefined,
             }
           : {
               id: `cust${Date.now()}`,
               name: newCustomer.name || "",
               email: newCustomer.email || "",
-              phone: newCustomer.phone || "",
-              address: newCustomer.address || "",
-              contactPerson: newCustomer.contactPerson || "",
+              phone: newCustomer.phone || undefined,
+              address: newCustomer.address || undefined,
+              contactPerson: newCustomer.contactPerson || undefined,
             };
 
       // Select the new customer
@@ -858,9 +819,9 @@ export default function NewQuoteModal({
         id: `temp_${Date.now()}`,
         name: newCustomer.name || "",
         email: newCustomer.email || "",
-        phone: newCustomer.phone || "",
-        address: newCustomer.address || "",
-        contactPerson: newCustomer.contactPerson || "",
+        phone: newCustomer.phone || undefined,
+        address: newCustomer.address || undefined,
+        contactPerson: newCustomer.contactPerson || undefined,
       };
 
       handleSelectCustomer(tempCustomer);
@@ -889,7 +850,7 @@ export default function NewQuoteModal({
     const totalValue = calculateTotal();
 
     // Format items for submission
-    const formattedItems = selectedItems.map((item) => ({
+    const formattedItems: QuoteItem[] = selectedItems.map((item) => ({
       id: item.id,
       description: item.name,
       quantity: item.quantity,
@@ -901,7 +862,7 @@ export default function NewQuoteModal({
     const completeQuoteData: QuoteData = {
       ...(quoteData as QuoteData),
       items: formattedItems,
-      value: totalValue,
+      totalAmount: totalValue, // Fixed: Use totalAmount instead of value
       date: new Date().toISOString().split("T")[0],
       validUntil: new Date(
         Date.now() + (quoteData.validityDays || 30) * 24 * 60 * 60 * 1000
