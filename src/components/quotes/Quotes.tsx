@@ -158,7 +158,7 @@ export default function Quotes() {
                 quoteReference: q.quoteReference,
                 versionNumber: q.versionNumber,
                 isLatestVersion: q.isLatestVersion,
-                status: (q.status || 'DRAFT').toUpperCase() as QuoteStatusEnum,
+                status: (q.status || 'DRAFT').toUpperCase(),
                 title: q.title,
                 description: q.description,
                 customerId: q.customerId ?? undefined,
@@ -317,7 +317,15 @@ const handleModalSaveSuccess = useCallback((data: QuoteData) => {
     const savedQuotePayload: MockSavedQuotePayload = {
         ...data,
         totalAmount: data.totalAmount,
-        status: (data.status as string).toUpperCase() as QuoteStatusEnum // Fixed: Proper enum conversion
+        status: (data.status as string).toUpperCase() as QuoteStatusEnum, // Fixed: Proper enum conversion
+        // Fixed: Convert items to expected format
+        items: data.items.map(item => ({
+            description: item.description,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            materialId: null, // Default value since QuoteItem doesn't have materialId
+            id: item.id
+        }))
     };
     
     const isUpdatingDraft = !!savedQuotePayload.id && !savedQuotePayload.parentQuoteId; 
@@ -540,7 +548,7 @@ const handleModalSaveSuccess = useCallback((data: QuoteData) => {
      const response = await apiClient.patch(`/quotes/${quoteId}/status`, { status: newStatus });
      
      const updatedQuoteFromServer = response.data as QuoteVersion;
-     const serverStatus = (updatedQuoteFromServer.status as string)?.toUpperCase() as QuoteStatusEnum;
+     const serverStatus = (updatedQuoteFromServer.status as string)?.toUpperCase();
      
      setQuotes(prevQuotes => prevQuotes.map(q => 
        q.id === quoteId ? { ...q, ...updatedQuoteFromServer, status: serverStatus } : q

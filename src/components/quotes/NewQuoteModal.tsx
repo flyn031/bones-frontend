@@ -856,6 +856,7 @@ export default function NewQuoteModal({
       quantity: item.quantity,
       unitPrice: item.unitPrice,
       total: item.total,
+      materialId: item.id, // Use item.id as materialId
     }));
 
     // Create complete quote data
