@@ -24,42 +24,7 @@ import JobDetails from './JobDetails';       // Verify path
 import { format } from 'date-fns';         // Or your date library
 import { AuditButton } from '../audit';    // Import audit button
 import { JobsResponse } from '../../types/api';
-
-// --- Type Definitions ---
-// Main Job structure (from GET /jobs)
-interface Job {
-  id: string;
-  title: string;
-  description: string | null;
-  createdAt: string;
-  expectedEndDate: string;
-  estimatedCost: number;
-  status: 'DRAFT' | 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELED' | 'ACTIVE' | 'PENDING_APPROVAL' | 'APPROVED' | 'DECLINED' | 'IN_PRODUCTION' | 'ON_HOLD' | 'READY_FOR_DELIVERY' | 'DELIVERED'; // Fixed: removed 'CANCELLED', kept only 'CANCELED'
-  customer: {
-    id: string;
-    name: string;
-  };
-  // New fields for orders displayed as jobs
-  isFromOrder?: boolean;
-  originalOrderId?: string;
-  quoteRef?: string;
-}
-
-// At Risk Job structure (from GET /jobs/at-risk) - match backend service response
-interface AtRiskJob {
-    id: string;
-    title: string;
-    status: 'DRAFT' | 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELED' | 'ACTIVE' | 'PENDING_APPROVAL' | 'APPROVED' | 'DECLINED' | 'IN_PRODUCTION' | 'ON_HOLD' | 'READY_FOR_DELIVERY' | 'DELIVERED';
-    expectedEndDate: string; // Comes as Date, format needed
-    customer: string; // Customer Name (string)
-    assignedUsers: string[]; // Array of user names (strings)
-    projectTitle: string | null; // Can be null if no linked order
-    // Add other fields if your backend returns them (e.g., totalCosts placeholder?)
-}
-
-// Combined type for rendering flexibility
-type DisplayJob = Job | AtRiskJob;
-
+import { ExtendedJob, AtRiskJob, DisplayJob, BaseJob, toBaseJob } from '../../types/job';
 
 // --- Utility Functions (Keep formatDate, formatCurrency) ---
 const formatCurrency = (amount: number | null | undefined): string => {
@@ -78,19 +43,19 @@ const formatDate = (dateString: string | null | undefined): string => {
 
 // --- Component ---
 export default function Jobs() {
-  // State
-  const [jobs, setJobs] = useState<Job[]>([]);
+  // State - Updated to use new types
+  const [jobs, setJobs] = useState<ExtendedJob[]>([]);
   const [atRiskJobs, setAtRiskJobs] = useState<AtRiskJob[]>([]);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null); // Store ID to fetch full details
-  const [selectedJobData, setSelectedJobData] = useState<Job | null>(null); // For JobDetails modal
+  const [selectedJobData, setSelectedJobData] = useState<ExtendedJob | null>(null); // For JobDetails modal
   const [isDetailsLoading, setIsDetailsLoading] = useState(false);
   const [filter, setFilter] = useState<string>('ALL');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeView, setActiveView] = useState<'list' | 'atRisk'>('list'); // State for view toggle
   const [pagination, setPagination] = useState({ currentPage: 1, totalPages: 1, totalJobs: 0, pageSize: 10 });
-  const [sortConfig, setSortConfig] = useState<{ key: keyof Job | 'customer.name'; direction: 'asc' | 'desc' }>({ key: 'expectedEndDate', direction: 'asc' });
+  const [sortConfig, setSortConfig] = useState<{ key: keyof ExtendedJob | 'customer.name'; direction: 'asc' | 'desc' }>({ key: 'expectedEndDate', direction: 'asc' });
   const [refreshing, setRefreshing] = useState(false);
   
   // Add dropdown state
@@ -138,7 +103,7 @@ export default function Jobs() {
               const allOrders = await ordersResponse.json();
               ordersData = allOrders
                   .filter((order: any) => order.status === 'IN_PRODUCTION')
-                  .map((order: any) => ({
+                  .map((order: any): ExtendedJob => ({
                       id: order.id,
                       title: order.projectTitle + ' (Order)',
                       description: `Order converted to job: ${order.quoteRef || order.id}`,
@@ -257,7 +222,7 @@ export default function Jobs() {
         const response = await jobApi.getJobById(selectedJobId);
         
         // Type assertion for job details response
-        const jobData = response.data as Job;
+        const jobData = response.data as ExtendedJob;
         setSelectedJobData(jobData);
       } catch (err) {
         console.error("Failed to fetch job details:", err);
@@ -315,7 +280,7 @@ export default function Jobs() {
       }
   };
 
-  const handleSort = (key: keyof Job | 'customer.name') => {
+  const handleSort = (key: keyof ExtendedJob | 'customer.name') => {
        if (activeView !== 'list') return; // Sorting only applies to list view
 
        let direction: 'asc' | 'desc' = 'asc';
@@ -375,7 +340,7 @@ export default function Jobs() {
    };
 
   // --- Enhanced Status Badge Rendering ---
-  const renderStatusBadge = (status: Job['status'] | AtRiskJob['status'] | undefined) => {
+  const renderStatusBadge = (status: ExtendedJob['status'] | AtRiskJob['status'] | undefined) => {
     // Handle undefined/null status
     if (!status) {
       return (
@@ -467,7 +432,7 @@ export default function Jobs() {
                   key={header.label}
                   scope="col"
                   className={`px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap ${header.sortable ? 'cursor-pointer hover:bg-gray-100' : ''}`}
-                  onClick={() => header.sortable && header.key && handleSort(header.key as keyof Job | 'customer.name')}
+                  onClick={() => header.sortable && header.key && handleSort(header.key as keyof ExtendedJob | 'customer.name')}
                 >
                   <div className="flex items-center">
                      {header.label}
@@ -483,24 +448,24 @@ export default function Jobs() {
             {displayData.map((job) => {
                // Adapt data access based on view/type
                const isAtRiskView = activeView === 'atRisk';
-               const customerName = isAtRiskView ? (job as AtRiskJob).customer : (job as Job).customer?.name;
+               const customerName = isAtRiskView ? (job as AtRiskJob).customer : (job as ExtendedJob).customer?.name;
                // Value only exists in Job type
-               const value = isAtRiskView ? 'N/A' : formatCurrency((job as Job).estimatedCost);
+               const value = isAtRiskView ? 'N/A' : formatCurrency((job as ExtendedJob).estimatedCost);
 
                return (
                   <tr key={job.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
                       <div className="flex items-center">
                         {job.title}
-                        {(job as Job).isFromOrder && (
+                        {(job as ExtendedJob).isFromOrder && (
                           <span className="ml-2 px-2 py-0.5 text-xs bg-blue-100 text-blue-800 rounded-full">
                             From Order
                           </span>
                         )}
                       </div>
-                      {(job as Job).quoteRef && (
+                      {(job as ExtendedJob).quoteRef && (
                         <div className="text-xs text-gray-500 mt-1">
-                          Quote: {(job as Job).quoteRef}
+                          Quote: {(job as ExtendedJob).quoteRef}
                         </div>
                       )}
                     </td>
@@ -519,7 +484,7 @@ export default function Jobs() {
                         </button>
                         
                         {/* Show different actions for orders vs real jobs */}
-                        {(job as Job).isFromOrder ? (
+                        {(job as ExtendedJob).isFromOrder ? (
                           <button
                             onClick={() => {
                               // Navigate to the original order
@@ -753,10 +718,10 @@ export default function Jobs() {
         />
       )}
 
-      {/* Job Details Modal */}
+      {/* Job Details Modal - Fixed: Convert ExtendedJob to BaseJob using helper function */}
       {selectedJobData && !isDetailsLoading && (
         <JobDetails
-          job={selectedJobData} // Pass the full fetched job data
+          job={toBaseJob(selectedJobData)} // Fixed: Convert to BaseJob type
           onClose={handleCloseDetails}
           onUpdate={handleJobUpdated}
         />

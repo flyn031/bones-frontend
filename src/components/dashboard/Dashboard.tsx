@@ -84,7 +84,8 @@ interface FinancialData {
   profit: number;
 }
 
-interface FinancialMetricsResponse {
+// Fixed: Create local interface to avoid conflicts with imported types
+interface DashboardFinancialMetrics {
   monthlyTrends: Array<{
     month: string;
     revenue: number;
@@ -92,6 +93,11 @@ interface FinancialMetricsResponse {
     profit: number;
   }>;
 }
+
+// Helper type guards for Promise results
+const isPromiseFulfilled = <T>(result: PromiseSettledResult<T>): result is PromiseFulfilledResult<T> => {
+  return result.status === 'fulfilled';
+};
 
 // Default empty/mock states
 const defaultJobStats: JobStats = { draft: 0, pending: 0, inProgress: 0, completed: 0, cancelled: 0 };
@@ -175,28 +181,28 @@ export default function Dashboard() {
 
       let lowStockCount = 0; // Temporary variable for stats update
 
-      // Process results safely with proper type guards
-      if (results[0].status === 'fulfilled' && results[0].value?.data) {
+      // Fixed: Process results safely with proper type guards
+      if (isPromiseFulfilled(results[0]) && results[0].value?.data) {
         setStats(prev => ({ ...prev, ...results[0].value.data }));
       } else {
         console.warn('Failed fetch stats');
       }
       
-      if (results[1].status === 'fulfilled' && Array.isArray((results[1].value as any)?.data)) {
-        setRecentActivity(transformActivityData((results[1].value as any).data));
+      if (isPromiseFulfilled(results[1]) && Array.isArray(results[1].value?.data)) {
+        setRecentActivity(transformActivityData(results[1].value.data));
       } else {
         console.warn('Failed fetch activity');
         setRecentActivity([]);
       }
       
-      if (results[2].status === 'fulfilled' && (results[2].value as any)?.data) {
-        setJobStats((results[2].value as any).data as JobStats);
+      if (isPromiseFulfilled(results[2]) && results[2].value?.data) {
+        setJobStats(results[2].value.data as JobStats);
       } else {
         console.warn('Failed fetch job stats');
         setJobStats(defaultJobStats);
       }
       
-      if (results[3].status === 'fulfilled' && Array.isArray(results[3].value)) {
+      if (isPromiseFulfilled(results[3]) && Array.isArray(results[3].value)) {
         const d = results[3].value as InventoryAlert[];
         setInventoryAlerts(d.slice(0, 5));
         lowStockCount = d.length;
@@ -207,19 +213,28 @@ export default function Dashboard() {
       
       setStats(prev => ({ ...prev, lowStock: lowStockCount })); // Update lowStock count
       
-      if (results[4].status === 'fulfilled' && (results[4].value as FinancialMetricsResponse)?.monthlyTrends) {
-         const financialMetricsData = results[4].value as FinancialMetricsResponse;
-         const formattedData = (financialMetricsData.monthlyTrends || []).map((item: any) => ({
-            period: item.month || 'N/A', revenue: item.revenue || 0, costs: item.costs || 0, profit: item.profit || 0
-         }));
-         setFinancialData(formattedData);
+      // Fixed: Use local interface and proper type checking
+      if (isPromiseFulfilled(results[4])) {
+        const financialMetricsData = results[4].value as DashboardFinancialMetrics;
+        if (financialMetricsData?.monthlyTrends) {
+          const formattedData = (financialMetricsData.monthlyTrends || []).map((item: any) => ({
+            period: item.month || 'N/A', 
+            revenue: item.revenue || 0, 
+            costs: item.costs || 0, 
+            profit: item.profit || 0
+          }));
+          setFinancialData(formattedData);
+        } else {
+          console.warn('Failed fetch financial metrics - no monthlyTrends');
+          setFinancialData(defaultFinancialData);
+        }
       } else {
         console.warn('Failed fetch financial metrics');
         setFinancialData(defaultFinancialData);
       }
       
-      if (results[5].status === 'fulfilled' && (results[5].value as any)?.data) {
-        setCustomerHealth((results[5].value as any).data as CustomerHealth);
+      if (isPromiseFulfilled(results[5]) && results[5].value?.data) {
+        setCustomerHealth(results[5].value.data as CustomerHealth);
       } else {
         console.warn('Failed fetch customer health');
         setCustomerHealth(null);

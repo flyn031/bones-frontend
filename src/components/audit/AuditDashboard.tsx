@@ -1,7 +1,7 @@
 // src/components/audit/AuditDashboard.tsx
 import React, { useState, useEffect } from 'react';
-import { auditApi } from '../../utils/auditApi';
-import { AuditHistory, AuditStatistics, AuditEntityType, AuditSearchResponse } from '../../types/audit';
+import { auditApi, AuditHistory, AuditStatistics } from '../../utils/auditApi';
+import { AuditEntityType } from '../../types/audit';
 import { Calendar, Search, Filter, Download, AlertTriangle, FileText, Briefcase, ShoppingCart, Clock } from 'lucide-react';
 import { Button } from '../ui/Button';
 import AuditTimeline from './AuditTimeline';
@@ -45,8 +45,9 @@ const AuditDashboard: React.FC = () => {
         entityType: searchParams.entityType ? (searchParams.entityType as AuditEntityType) : undefined
       };
       
-      const response = await auditApi.searchAuditHistory(apiParams) as { data: AuditSearchResponse };
-      setAuditHistory(response.data.results || []);
+      const response = await auditApi.searchAuditHistory(apiParams);
+      // API returns AuditHistory[] directly, not wrapped in results
+      setAuditHistory(response.data || []);
     } catch (err) {
       setError('Failed to load audit history');
       console.error('Error fetching audit history:', err);
@@ -144,11 +145,23 @@ const AuditDashboard: React.FC = () => {
     setShowLegalEvidence(true);
   };
 
-  // Group by entity for timeline view
+  // Group by entity for timeline view - work with existing API structure
   const groupedByEntity = auditHistory.reduce((groups: Record<string, AuditHistory[]>, item) => {
-    // Use the entity-specific IDs from the AuditHistory interface
-    const entityId = item.quoteId || item.orderId || item.jobId || item.entityId;
-    const entityType = item.quoteId ? 'QUOTE' : item.orderId ? 'ORDER' : item.jobId ? 'JOB' : item.entityType;
+    // Try to extract entity info from the data property or use a generic approach
+    let entityId = '';
+    let entityType = 'UNKNOWN';
+    
+    // Check if data contains entity-specific information
+    if (item.data && typeof item.data === 'object') {
+      entityId = item.data.quoteId || item.data.orderId || item.data.jobId || item.data.id || item.id;
+      if (item.data.quoteId) entityType = 'QUOTE';
+      else if (item.data.orderId) entityType = 'ORDER';
+      else if (item.data.jobId) entityType = 'JOB';
+    }
+    
+    // Fallback to item ID if no specific entity ID found
+    if (!entityId) entityId = item.id;
+    
     const key = `${entityId}-${entityType}`;
     
     if (!groups[key]) {
@@ -410,20 +423,22 @@ const AuditDashboard: React.FC = () => {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {auditHistory.map((entry) => {
-                    // Determine entity type and ID with proper type handling
-                    let entityType: AuditEntityType = entry.entityType;
-                    let entityId: string = entry.entityId;
+                    // Determine entity type and ID with existing API structure
+                    let entityType: AuditEntityType = 'JOB';
+                    let entityId: string = entry.id;
                     
-                    // Use specific IDs if available, with type safety
-                    if (entry.quoteId) {
-                      entityType = 'QUOTE';
-                      entityId = String(entry.quoteId);
-                    } else if (entry.orderId) {
-                      entityType = 'ORDER';
-                      entityId = String(entry.orderId);
-                    } else if (entry.jobId) {
-                      entityType = 'JOB';
-                      entityId = String(entry.jobId);
+                    // Try to extract from data property
+                    if (entry.data && typeof entry.data === 'object') {
+                      if (entry.data.quoteId) {
+                        entityType = 'QUOTE';
+                        entityId = String(entry.data.quoteId);
+                      } else if (entry.data.orderId) {
+                        entityType = 'ORDER';
+                        entityId = String(entry.data.orderId);
+                      } else if (entry.data.jobId) {
+                        entityType = 'JOB';
+                        entityId = String(entry.data.jobId);
+                      }
                     }
                     
                     return (

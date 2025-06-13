@@ -71,6 +71,15 @@ const AuditTimeline: React.FC<AuditTimelineProps> = ({ history, entityTitle }) =
     return entityTitle || 'Unknown Entity';
   };
 
+  // Helper function to safely stringify JSON data
+  const safeJsonStringify = (data: any): string => {
+    try {
+      const result = JSON.stringify(data, null, 2);
+      return result ?? 'No data available';
+    } catch (error) {
+      return 'Invalid data format';
+    }
+  };
 
   // Toggle detail visibility - Added from the second version
   const toggleEntryDetails = (entryId: string) => {
@@ -140,7 +149,7 @@ const AuditTimeline: React.FC<AuditTimelineProps> = ({ history, entityTitle }) =
                    <div className="mt-2 text-xs text-gray-700">
                      <span className="font-medium">Material Changes:</span>
                      <pre className="mt-1 bg-gray-50 p-2 rounded text-xs overflow-auto max-h-24">
-                     {JSON.stringify(entry.data, null, 2) || 'No data available'}
+                       {safeJsonStringify(entry.data)}
                      </pre>
                    </div>
                  )}
@@ -172,7 +181,7 @@ const AuditTimeline: React.FC<AuditTimelineProps> = ({ history, entityTitle }) =
                     {/* Check if entry.data is an object or array before stringifying */}
                     {typeof entry.data === 'object' && entry.data !== null ? (
                       <pre className="bg-gray-50 p-2 rounded text-xs overflow-auto max-h-64">
-                        {JSON.stringify(entry.data, null, 2)}
+                        {safeJsonStringify(entry.data)}
                       </pre>
                     ) : (
                        <p className="bg-gray-50 p-2 rounded text-xs">No detailed data available.</p>
