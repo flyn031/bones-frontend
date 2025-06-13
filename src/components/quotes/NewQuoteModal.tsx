@@ -1138,7 +1138,7 @@ export default function NewQuoteModal({
                           <input
                             type="text"
                             required
-                            value={newCustomer.name}
+                            value={newCustomer.name || ""}
                             onChange={(e) =>
                               setNewCustomer({
                                 ...newCustomer,
@@ -1187,7 +1187,7 @@ export default function NewQuoteModal({
                             </label>
                             <input
                               type="tel"
-                              value={newCustomer.phone}
+                              value={newCustomer.phone || ""}
                               onChange={(e) =>
                                 setNewCustomer({
                                   ...newCustomer,
@@ -1203,7 +1203,7 @@ export default function NewQuoteModal({
                             Address
                           </label>
                           <textarea
-                            value={newCustomer.address}
+                            value={newCustomer.address || ""}
                             onChange={(e) =>
                               setNewCustomer({
                                 ...newCustomer,

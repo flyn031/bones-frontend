@@ -3,7 +3,7 @@ import { Search, Plus, FileText, ArrowRight, Link as LinkIcon, Copy, Calendar, H
 import NewQuoteModal from './NewQuoteModal';
 import { generateQuotePDF } from './pdf/QuotePDF';
 import { apiClient } from '../../utils/api';
-import { Customer, QuoteData, QuoteVersion, QuoteLineItem } from '../../types/quote';
+import { Customer, QuoteData, QuoteVersion } from '../../types/quote';
 
 // --- Interfaces ---
 enum QuoteStatusEnum {
@@ -27,7 +27,7 @@ interface PaginatedCustomersResponse {
 interface MockSavedQuotePayload { 
     id?: string;
     title: string;
-    customerId: string;
+    customerId?: string; // Fixed: Made optional to match QuoteData
     contactPerson?: string;
     contactEmail?: string;
     contactPhone?: string;
@@ -316,7 +316,8 @@ const handleModalSaveSuccess = useCallback((data: QuoteData) => {
     // Convert QuoteData to MockSavedQuotePayload format
     const savedQuotePayload: MockSavedQuotePayload = {
         ...data,
-        totalAmount: data.totalAmount
+        totalAmount: data.totalAmount,
+        status: (data.status as string).toUpperCase() as QuoteStatusEnum // Fixed: Proper enum conversion
     };
     
     const isUpdatingDraft = !!savedQuotePayload.id && !savedQuotePayload.parentQuoteId; 
@@ -684,7 +685,7 @@ const handleModalSaveSuccess = useCallback((data: QuoteData) => {
                                     onChange={(e) => handleUpdateStatus(quote.id, e.target.value as QuoteStatusEnum)}
                                     disabled={updatingStatusId === quote.id || isTerminalStatus}
                                     className={`text-xs font-semibold appearance-none py-1 pl-2 pr-7 border rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-500 ${style.bg} ${style.text} ${style.border} ${(updatingStatusId === quote.id || isTerminalStatus) ? 'opacity-70 cursor-not-allowed' : 'hover:opacity-80'}`}
-                                    title={isTerminalStatus ? `Status is final: ${QUOTE_STATUSES_DISPLAY[quote.status]}` : "Change Status"}
+                                    title={isTerminalStatus ? `Status is final: ${QUOTE_STATUSES_DISPLAY[quote.status as QuoteStatusEnum] || quote.status}` : "Change Status"}
                                 >
                                     {Object.values(QuoteStatusEnum).map(s => (
                                         <option 
@@ -772,7 +773,7 @@ const handleModalSaveSuccess = useCallback((data: QuoteData) => {
                     <li key={version.id} className="border dark:border-gray-700 rounded p-3 bg-gray-50 dark:bg-gray-700/50 shadow-sm"> 
                       <div className="flex justify-between items-center mb-1"> 
                         <span className="font-semibold text-gray-800 dark:text-gray-100">Version {version.versionNumber}</span> 
-                        <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${style.bg} ${style.text}`}>{QUOTE_STATUSES_DISPLAY[version.status as QuoteStatusEnum]}</span> 
+                        <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${style.bg} ${style.text}`}>{QUOTE_STATUSES_DISPLAY[version.status as QuoteStatusEnum] || version.status}</span> 
                       </div> 
                       <p className="text-sm text-gray-700 dark:text-gray-300 mb-1">{version.title}</p> 
                       <p className="text-xs text-gray-500 dark:text-gray-400"> {formatDate(version.createdAt)} {version.changeReason && `- ${version.changeReason}`} </p> 
