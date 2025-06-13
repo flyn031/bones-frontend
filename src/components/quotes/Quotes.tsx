@@ -47,6 +47,7 @@ interface MockSavedQuotePayload {
         unitPrice: number;
         materialId: string | null;
         id?: string;
+        total?: number; // Added to match QuoteItem
     }>;
     totalAmount: number;
     parentQuoteId?: string | null;
@@ -86,7 +87,7 @@ interface MockOrderData {
   paymentTerms?: string;
 }
 
-const QUOTE_STATUSES_DISPLAY: Record<QuoteStatusEnum, string> = { 
+const QUOTE_STATUSES_DISPLAY: Record<string, string> = { 
     [QuoteStatusEnum.DRAFT]: "Draft", 
     [QuoteStatusEnum.SENT]: "Sent", 
     [QuoteStatusEnum.PENDING]: "Pending", 
@@ -96,7 +97,7 @@ const QUOTE_STATUSES_DISPLAY: Record<QuoteStatusEnum, string> = {
     [QuoteStatusEnum.CONVERTED]: "Converted" 
 };
 
-const statusStyles: Record<QuoteStatusEnum | 'UNKNOWN', { bg: string; text: string; border: string }> = { 
+const statusStyles: Record<string, { bg: string; text: string; border: string }> = { 
     [QuoteStatusEnum.DRAFT]: { bg: "bg-red-100", text: "text-red-800", border: "border-red-200" }, 
     [QuoteStatusEnum.SENT]: { bg: "bg-orange-100", text: "text-orange-800", border: "border-orange-200" }, 
     [QuoteStatusEnum.PENDING]: { bg: "bg-yellow-100", text: "text-yellow-800", border: "border-yellow-200" }, 
@@ -113,7 +114,7 @@ const formatDate = (dateString: string | null | undefined): string => { if (!dat
 export default function Quotes() {
  const [quotes, setQuotes] = useState<QuoteVersion[]>([]);
  const [searchTerm, setSearchTerm] = useState('');
- const [selectedStatusFilter, setSelectedStatusFilter] = useState<QuoteStatusEnum | 'all'>('all');
+ const [selectedStatusFilter, setSelectedStatusFilter] = useState<string | 'all'>('all');
  const [hideConverted, setHideConverted] = useState(true);
  const [isNewQuoteModalOpen, setIsNewQuoteModalOpen] = useState(false);
  const [quoteToEdit, setQuoteToEdit] = useState<QuoteVersion | null>(null);
@@ -276,7 +277,7 @@ export default function Quotes() {
         selectedStatusFilter: selectedStatusFilter 
     });
     
-    if (hideConverted && currentStatus === QuoteStatusEnum.CONVERTED) {
+    if (hideConverted && currentStatus === 'CONVERTED') {
         console.log('[API DEBUG] Quote filtered out due to CONVERTED status');
         return false;
     }
@@ -317,14 +318,15 @@ const handleModalSaveSuccess = useCallback((data: QuoteData) => {
     const savedQuotePayload: MockSavedQuotePayload = {
         ...data,
         totalAmount: data.totalAmount,
-        status: (data.status as string).toUpperCase() as QuoteStatusEnum, // Fixed: Proper enum conversion
-        // Fixed: Convert items to expected format
+        status: (data.status as string)?.toUpperCase() || 'DRAFT', // Fixed: Use string directly
+        // Fixed: Convert items to expected format with all required properties
         items: data.items.map(item => ({
             description: item.description,
             quantity: item.quantity,
             unitPrice: item.unitPrice,
-            materialId: null, // Default value since QuoteItem doesn't have materialId
-            id: item.id
+            materialId: item.materialId || null, // Use materialId from item if available
+            id: item.id,
+            total: item.total
         }))
     };
     
@@ -368,12 +370,12 @@ const handleModalSaveSuccess = useCallback((data: QuoteData) => {
     console.log(`[Quotes.tsx] Edit/Version button clicked for quote ID: ${quoteId}`); 
     const quote = quotes.find(q => q.id === quoteId); 
     if (quote) { 
-        if ([QuoteStatusEnum.DRAFT, QuoteStatusEnum.SENT, QuoteStatusEnum.PENDING].includes(quote.status)) { 
+        if (['DRAFT', 'SENT', 'PENDING'].includes(quote.status)) { 
             console.log("[Quotes.tsx] Setting quoteToEdit for editing/versioning:", quote); 
             setQuoteToEdit(quote); 
             setIsNewQuoteModalOpen(true); 
         } else { 
-            alert(`Quotes with status '${QUOTE_STATUSES_DISPLAY[quote.status]}' cannot be directly edited or versioned. Consider cloning for a new draft.`); 
+            alert(`Quotes with status '${QUOTE_STATUSES_DISPLAY[quote.status] || quote.status}' cannot be directly edited or versioned. Consider cloning for a new draft.`); 
         } 
     } else { 
         alert("Quote not found."); 
@@ -405,7 +407,7 @@ const handleModalSaveSuccess = useCallback((data: QuoteData) => {
  const handleConvertToOrder = async (quoteId: string) => {
    const quote = quotes.find(q => q.id === quoteId);
    if (!quote) { alert("Quote not found."); return; }
-   if (quote.status !== QuoteStatusEnum.APPROVED) { alert("Only APPROVED quotes can be converted."); return; }
+   if (quote.status !== 'APPROVED') { alert("Only APPROVED quotes can be converted."); return; }
    if (!window.confirm(`Convert Quote ${quote.quoteNumber || quote.id} (v${quote.versionNumber}) to an Order?`)) return;
    
    setLoading(true);
@@ -477,7 +479,7 @@ const handleModalSaveSuccess = useCallback((data: QuoteData) => {
      }
      
      setQuotes(prevQuotes => prevQuotes.map(q => 
-       q.id === quoteId ? { ...q, status: QuoteStatusEnum.CONVERTED, orderId: orderData.id } : q
+       q.id === quoteId ? { ...q, status: 'CONVERTED', orderId: orderData.id } : q
      ));
 
      alert(`Mock order created locally. Order ID: ${orderData.id}. It has been saved to local storage and should appear on the Orders page.`);
@@ -525,7 +527,7 @@ const handleModalSaveSuccess = useCallback((data: QuoteData) => {
     else { console.log("[Quotes.tsx] Refresh prevented: Already loading."); } 
  };
  
- const handleUpdateStatus = async (quoteId: string, newStatus: QuoteStatusEnum) => {
+ const handleUpdateStatus = async (quoteId: string, newStatus: string) => {
    console.log(`[Quotes.tsx] Attempting to update status for quote ${quoteId} to ${newStatus}`);
    const originalQuote = quotes.find(q => q.id === quoteId);
    if (!originalQuote) {
@@ -595,7 +597,7 @@ const handleModalSaveSuccess = useCallback((data: QuoteData) => {
     terms: '',
     notes: quote.notes ?? undefined,
     customerReference: quote.customerReference ?? undefined,
-    status: quote.status,
+    status: quote.status || 'DRAFT', // Fixed: Use string directly
     quoteNumber: quote.quoteNumber ?? undefined,
     quoteReference: quote.quoteReference ?? undefined,
     versionNumber: quote.versionNumber ?? undefined,
@@ -604,7 +606,8 @@ const handleModalSaveSuccess = useCallback((data: QuoteData) => {
         description: item.description,
         quantity: item.quantity,
         unitPrice: item.unitPrice,
-        total: item.quantity * item.unitPrice
+        total: item.quantity * item.unitPrice,
+        materialId: item.materialId
     })),
     totalAmount: quote.totalAmount,
     parentQuoteId: quote.parentQuoteId ?? undefined,
@@ -639,7 +642,7 @@ const handleModalSaveSuccess = useCallback((data: QuoteData) => {
                 <input type="text" placeholder="Search Ref, Ver ID, Title, Customer..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"/>
             </div>
             <div className="flex flex-wrap items-center gap-4">
-                <select value={selectedStatusFilter} onChange={(e) => setSelectedStatusFilter(e.target.value as QuoteStatusEnum | 'all')} className="border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 rounded-lg px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm">
+                <select value={selectedStatusFilter} onChange={(e) => setSelectedStatusFilter(e.target.value as string | 'all')} className="border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 rounded-lg px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm">
                     <option value="all">All Statuses</option>
                     {Object.values(QuoteStatusEnum).map((statusVal) => (
                         <option key={statusVal} value={statusVal}>{QUOTE_STATUSES_DISPLAY[statusVal] || statusVal}</option>
@@ -665,11 +668,11 @@ const handleModalSaveSuccess = useCallback((data: QuoteData) => {
        ) : (
          filteredQuotes.map((quote) => {
             const currentStatusKey = quote.status || 'UNKNOWN';
-            const style = statusStyles[currentStatusKey as keyof typeof statusStyles] || statusStyles.UNKNOWN;
-            const isDraftEditable = quote.status === QuoteStatusEnum.DRAFT;
-            const isEditableForNewVersion = [QuoteStatusEnum.SENT, QuoteStatusEnum.PENDING].includes(quote.status);
-            const canConvertToOrder = quote.status === QuoteStatusEnum.APPROVED;
-            const isTerminalStatus = [QuoteStatusEnum.CONVERTED, QuoteStatusEnum.EXPIRED, QuoteStatusEnum.DECLINED].includes(quote.status);
+            const style = statusStyles[currentStatusKey] || statusStyles.UNKNOWN;
+            const isDraftEditable = quote.status === 'DRAFT';
+            const isEditableForNewVersion = ['SENT', 'PENDING'].includes(quote.status);
+            const canConvertToOrder = quote.status === 'APPROVED';
+            const isTerminalStatus = ['CONVERTED', 'EXPIRED', 'DECLINED'].includes(quote.status);
 
             return (
              <div key={quote.id} className="bg-white dark:bg-gray-800 rounded-lg shadow hover:shadow-lg transition-shadow duration-200 ease-in-out">
@@ -690,10 +693,10 @@ const handleModalSaveSuccess = useCallback((data: QuoteData) => {
                             <div className="relative">
                                 <select
                                     value={quote.status}
-                                    onChange={(e) => handleUpdateStatus(quote.id, e.target.value as QuoteStatusEnum)}
+                                    onChange={(e) => handleUpdateStatus(quote.id, e.target.value)}
                                     disabled={updatingStatusId === quote.id || isTerminalStatus}
                                     className={`text-xs font-semibold appearance-none py-1 pl-2 pr-7 border rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-500 ${style.bg} ${style.text} ${style.border} ${(updatingStatusId === quote.id || isTerminalStatus) ? 'opacity-70 cursor-not-allowed' : 'hover:opacity-80'}`}
-                                    title={isTerminalStatus ? `Status is final: ${QUOTE_STATUSES_DISPLAY[quote.status as QuoteStatusEnum] || quote.status}` : "Change Status"}
+                                    title={isTerminalStatus ? `Status is final: ${QUOTE_STATUSES_DISPLAY[quote.status] || quote.status}` : "Change Status"}
                                 >
                                     {Object.values(QuoteStatusEnum).map(s => (
                                         <option 
@@ -701,7 +704,7 @@ const handleModalSaveSuccess = useCallback((data: QuoteData) => {
                                             value={s} 
                                             disabled={
                                                 (isTerminalStatus && s !== quote.status) ||
-                                                (s === QuoteStatusEnum.CONVERTED && quote.status !== QuoteStatusEnum.CONVERTED)
+                                                (s === 'CONVERTED' && quote.status !== 'CONVERTED')
                                             }
                                         >
                                             {QUOTE_STATUSES_DISPLAY[s]}
@@ -712,7 +715,7 @@ const handleModalSaveSuccess = useCallback((data: QuoteData) => {
                                     {updatingStatusId === quote.id ? <RefreshCw className="h-3 w-3 animate-spin" /> : <MoreVertical className="h-3 w-3" />}
                                 </div>
                             </div>
-                             {quote.status === QuoteStatusEnum.SENT && quote.sentDate && (
+                             {quote.status === 'SENT' && quote.sentDate && (
                                 <span className={`hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${style.bg} ${style.text} bg-opacity-0 border-none`} title={`Sent on ${formatDate(quote.sentDate)}`}>
                                     <span className="ml-1 flex items-center opacity-80"> <Calendar className="h-3 w-3 mr-0.5" /> {formatDate(quote.sentDate)} </span>
                                 </span>
@@ -730,7 +733,7 @@ const handleModalSaveSuccess = useCallback((data: QuoteData) => {
                     {/* Action Buttons */}
                     <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 flex flex-wrap items-center justify-end gap-2 sm:gap-3">
                         <button onClick={() => handleViewHistory(quote.quoteReference)} disabled={historyLoading && historyTargetRef === quote.quoteReference} className="flex items-center space-x-1 px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50" title={`View history for ${quote.quoteReference}`}> <HistoryIcon className="h-4 w-4" /> <span className="hidden sm:inline">History</span> </button>
-                        <button onClick={() => handleEditQuote(quote.id)} disabled={!(isDraftEditable || isEditableForNewVersion)} className="flex items-center space-x-1 px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed" title={isDraftEditable ? "Edit Draft" : (isEditableForNewVersion ? "Create New Version" : "Cannot edit/version this quote...")}> <Edit3 className="h-3 w-3 mr-1" /> {quote.status === QuoteStatusEnum.DRAFT ? "Edit" : "New Ver."} </button>
+                        <button onClick={() => handleEditQuote(quote.id)} disabled={!(isDraftEditable || isEditableForNewVersion)} className="flex items-center space-x-1 px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed" title={isDraftEditable ? "Edit Draft" : (isEditableForNewVersion ? "Create New Version" : "Cannot edit/version this quote...")}> <Edit3 className="h-3 w-3 mr-1" /> {quote.status === 'DRAFT' ? "Edit" : "New Ver."} </button>
                         <button onClick={() => handleCloneQuote(quote.id)} className="flex items-center space-x-1 px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500" title={`Clone v${quote.versionNumber} as new Draft`}> <Copy className="h-4 w-4" /> <span className="hidden sm:inline">Clone</span> </button>
                         <button onClick={() => handleGeneratePDF(quote.id)} className="flex items-center space-x-1 px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500"> <FileText className="h-4 w-4" /> <span className="hidden sm:inline">PDF</span> </button>
                         {canConvertToOrder && ( <button onClick={() => handleConvertToOrder(quote.id)} className="flex items-center space-x-1 px-3 py-1 text-sm bg-green-600 text-white rounded-md shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"> <ArrowRight className="h-4 w-4" /> <span>Convert to Order</span> </button> )}
@@ -776,12 +779,12 @@ const handleModalSaveSuccess = useCallback((data: QuoteData) => {
             ) : quoteHistory.length > 0 ? ( 
               <ul className="space-y-3"> 
                 {quoteHistory.sort((a, b) => (b.versionNumber || 0) - (a.versionNumber || 0)).map(version => {
-                   const style = statusStyles[version.status as keyof typeof statusStyles] || statusStyles.UNKNOWN; 
+                   const style = statusStyles[version.status] || statusStyles.UNKNOWN; 
                    return ( 
                     <li key={version.id} className="border dark:border-gray-700 rounded p-3 bg-gray-50 dark:bg-gray-700/50 shadow-sm"> 
                       <div className="flex justify-between items-center mb-1"> 
                         <span className="font-semibold text-gray-800 dark:text-gray-100">Version {version.versionNumber}</span> 
-                        <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${style.bg} ${style.text}`}>{QUOTE_STATUSES_DISPLAY[version.status as QuoteStatusEnum] || version.status}</span> 
+                        <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${style.bg} ${style.text}`}>{QUOTE_STATUSES_DISPLAY[version.status] || version.status}</span> 
                       </div> 
                       <p className="text-sm text-gray-700 dark:text-gray-300 mb-1">{version.title}</p> 
                       <p className="text-xs text-gray-500 dark:text-gray-400"> {formatDate(version.createdAt)} {version.changeReason && `- ${version.changeReason}`} </p> 
