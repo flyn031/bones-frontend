@@ -245,7 +245,7 @@ export default function Quotes() {
                 status: (q.status || 'DRAFT').toUpperCase() as QuoteStatusEnum,
                 title: q.title,
                 description: q.description,
-                customerId: q.customerId,
+                customerId: q.customerId ?? undefined,
                 customerName: q.customer?.name || q.customerName || 'Unknown', // Prefer nested customer name
                 customer: q.customer, 
                 quoteNumber: q.quoteNumber,
@@ -520,7 +520,7 @@ const handleModalSaveSuccess = useCallback((data: QuoteData) => {
        projectTitle: quote.title,
        quoteRef: quote.quoteReference,
        customerName: quote.customerName || 'Unknown Customer',
-       customerId: quote.customerId,
+       customerId: quote.customerId ?? undefined,
        contactPerson: quote.contactPerson || '',
        contactEmail: quote.contactEmail || '',
        contactPhone: quote.contactPhone || '',
@@ -675,7 +675,7 @@ const handleModalSaveSuccess = useCallback((data: QuoteData) => {
  const convertQuoteVersionToQuoteData = (quote: QuoteVersion): QuoteData => ({
     id: quote.id,
     title: quote.title,
-    customerId: quote.customerId,
+    customerId: quote.customerId ?? undefined,
     contactPerson: quote.contactPerson || '',
     contactEmail: quote.contactEmail || '',
     contactPhone: quote.contactPhone || '',

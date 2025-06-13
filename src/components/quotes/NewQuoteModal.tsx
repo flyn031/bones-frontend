@@ -71,6 +71,13 @@ interface NewQuoteModalProps {
   customers?: Customer[];
 }
 
+// ✅ FIXED - Job interface with proper typing
+interface Job {
+  id: string;
+  title: string;
+  projectTitle: string; // Always string, never undefined
+}
+
 // Available quote statuses
 const QUOTE_STATUSES = {
   DRAFT: "Draft",
@@ -258,8 +265,8 @@ const inventoryCatalog: Item[] = [
   },
 ];
 
-// Enhanced mock data for jobs - includes 6 jobs
-const mockJobs = [
+// ✅ FIXED - Enhanced mock data for jobs with proper typing
+const mockJobs: Job[] = [
   { id: "J2024-001", title: "Acme Factory Installation", projectTitle: "Acme Factory Installation" },
   { id: "J2024-002", title: "BuildCo Maintenance", projectTitle: "BuildCo Maintenance" },
   { id: "J2024-003", title: "Steel Supply Project", projectTitle: "Steel Supply Project" },
@@ -325,8 +332,8 @@ export default function NewQuoteModal({
   const [showStatusConfirmation, setShowStatusConfirmation] = useState(false);
   const [pendingStatusChange, setPendingStatusChange] = useState<string | null>(null);
   
-  // New state for jobs
-  const [jobs, setJobs] = useState(mockJobs);
+  // ✅ FIXED - State for jobs with proper typing
+  const [jobs, setJobs] = useState<Job[]>(mockJobs);
 
   // Get status styling based on current status
   const getStatusStyles = (status: string) => {
@@ -385,7 +392,14 @@ export default function NewQuoteModal({
     setMaterialsRefreshKey(prev => prev + 1);
   };
 
-  // Fetch jobs from API
+  // ✅ FIXED - Helper function to ensure job has proper projectTitle
+  const normalizeJob = (job: any): Job => ({
+    id: job.id,
+    title: job.title || `Job ${job.id}`,
+    projectTitle: job.projectTitle || job.title || `Job ${job.id}` || 'Untitled Job'
+  });
+
+  // ✅ FIXED - Fetch jobs from API with proper type handling
   useEffect(() => {
     const fetchJobs = async () => {
       try {
@@ -406,10 +420,7 @@ export default function NewQuoteModal({
         // Check if we got an array of jobs directly
         if (Array.isArray(response.data)) {
           console.log("Found jobs array in response:", response.data.length);
-          setJobs(response.data.map(job => ({
-            ...job,
-            projectTitle: job.projectTitle || job.title || `Job ${job.id}` || 'Untitled Job'
-          })));
+          setJobs(response.data.map(normalizeJob));
           return;
         }
         
@@ -417,22 +428,19 @@ export default function NewQuoteModal({
         if (jobsData && typeof jobsData === 'object') {
           // Try common nested structures
           if (jobsData.jobs && Array.isArray(jobsData.jobs)) {
-            setJobs(jobsData.jobs.map(job => ({
-              ...job,
-              projectTitle: job.projectTitle || job.title || `Job ${job.id}`
-            })));
+            setJobs(jobsData.jobs.map(normalizeJob));
             return;
           }
           
           if (jobsData.data && Array.isArray(jobsData.data)) {
-            setJobs(jobsData.data);
+            setJobs(jobsData.data.map(normalizeJob));
             return;
           }
           
           // Look for the first array property
           for (const key in jobsData) {
             if (Array.isArray((jobsData as any)[key])) {
-              setJobs((jobsData as any)[key]);
+              setJobs((jobsData as any)[key].map(normalizeJob));
               return;
             }
           }
@@ -447,7 +455,7 @@ export default function NewQuoteModal({
           );
           
           if (Array.isArray(alt1Response.data)) {
-            setJobs(alt1Response.data);
+            setJobs(alt1Response.data.map(normalizeJob));
             return;
           }
         } catch (err) {
@@ -644,7 +652,7 @@ export default function NewQuoteModal({
     setQuoteData({
       ...quoteData,
       customer: customer.name || "",
-      customerId: customer.id ?? undefined,  // ✅ FIXED: null becomes undefined
+      customerId: customer.id || "",
       contactPerson: customer.contactPerson || "",
       contactEmail: customer.email || "",
       contactPhone: customer.phone || "",
@@ -1342,7 +1350,7 @@ export default function NewQuoteModal({
                 <option value="">No Job</option>
                 {jobs.map((job) => (
                   <option key={job.id} value={job.id}>
-                    {job.title || job.projectTitle || `Job ${job.id}`}
+                    {job.projectTitle}
                   </option>
                 ))}
               </select>

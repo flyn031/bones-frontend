@@ -203,7 +203,7 @@ export const generateQuotePDF = (quote: QuoteData, userProfile?: UserProfile) =>
               { text: 'Unit Price', style: 'tableHeader', alignment: 'right' },
               { text: 'Total', style: 'tableHeader', alignment: 'right' }
             ],
-            ...quote.items.map((_item, i) => [
+            ...quote.items.map((_item, _i) => [
               { text: _item.description || 'No description', style: 'tableCell' },
               { text: (_item.quantity || 0).toString(), style: 'tableCell', alignment: 'center' },
               { text: 'Unit', style: 'tableCell', alignment: 'center' },
