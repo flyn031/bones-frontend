@@ -324,7 +324,7 @@ const handleModalSaveSuccess = useCallback((data: QuoteData) => {
             description: item.description,
             quantity: item.quantity,
             unitPrice: item.unitPrice,
-            materialId: item.materialId || null, // Use materialId from item if available
+            materialId: (item as any).materialId || null, // Fixed: Type assertion to access materialId
             id: item.id,
             total: item.total
         }))
