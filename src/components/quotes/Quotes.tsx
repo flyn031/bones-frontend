@@ -3,18 +3,10 @@ import { Search, Plus, FileText, ArrowRight, Link as LinkIcon, Copy, Calendar, H
 import NewQuoteModal from './NewQuoteModal';
 import { generateQuotePDF } from './pdf/QuotePDF';
 import { apiClient } from '../../utils/api';
-import { Customer, QuoteData, QuoteVersion } from '../../types/quote';
+import { Customer, QuoteData, QuoteVersion, QuoteStatus } from '../../types/quote';
 
 // --- Interfaces ---
-enum QuoteStatusEnum {
-  DRAFT = 'DRAFT',
-  SENT = 'SENT',
-  PENDING = 'PENDING',
-  APPROVED = 'APPROVED',
-  DECLINED = 'DECLINED',
-  EXPIRED = 'EXPIRED',
-  CONVERTED = 'CONVERTED'
-}
+// Removed local QuoteStatusEnum - using shared QuoteStatus from types/quote.ts
 
 interface PaginatedCustomersResponse {
   customers: Customer[];
@@ -36,7 +28,7 @@ interface MockSavedQuotePayload {
     terms: string;
     notes?: string;
     customerReference?: string;
-    status: QuoteStatusEnum; 
+    status: QuoteStatus; // Fixed: Use QuoteStatus string union
     description?: string | null;
     quoteNumber?: string | null;
     quoteReference?: string | null;
@@ -87,25 +79,28 @@ interface MockOrderData {
   paymentTerms?: string;
 }
 
-const QUOTE_STATUSES_DISPLAY: Record<string, string> = { 
-    [QuoteStatusEnum.DRAFT]: "Draft", 
-    [QuoteStatusEnum.SENT]: "Sent", 
-    [QuoteStatusEnum.PENDING]: "Pending", 
-    [QuoteStatusEnum.APPROVED]: "Approved", 
-    [QuoteStatusEnum.DECLINED]: "Declined", 
-    [QuoteStatusEnum.EXPIRED]: "Expired", 
-    [QuoteStatusEnum.CONVERTED]: "Converted" 
+// Fixed: Use string literals instead of enum
+const QUOTE_STATUSES: QuoteStatus[] = ['DRAFT', 'SENT', 'PENDING', 'APPROVED', 'DECLINED', 'EXPIRED', 'CONVERTED'];
+
+const QUOTE_STATUSES_DISPLAY: Record<QuoteStatus, string> = { 
+    'DRAFT': "Draft", 
+    'SENT': "Sent", 
+    'PENDING': "Pending", 
+    'APPROVED': "Approved", 
+    'DECLINED': "Declined", 
+    'EXPIRED': "Expired", 
+    'CONVERTED': "Converted" 
 };
 
-const statusStyles: Record<string, { bg: string; text: string; border: string }> = { 
-    [QuoteStatusEnum.DRAFT]: { bg: "bg-red-100", text: "text-red-800", border: "border-red-200" }, 
-    [QuoteStatusEnum.SENT]: { bg: "bg-orange-100", text: "text-orange-800", border: "border-orange-200" }, 
-    [QuoteStatusEnum.PENDING]: { bg: "bg-yellow-100", text: "text-yellow-800", border: "border-yellow-200" }, 
-    [QuoteStatusEnum.APPROVED]: { bg: "bg-green-100", text: "text-green-800", border: "border-green-200" }, 
-    [QuoteStatusEnum.DECLINED]: { bg: "bg-red-100", text: "text-red-800", border: "border-red-200" }, 
-    [QuoteStatusEnum.EXPIRED]: { bg: "bg-purple-100", text: "text-purple-800", border: "border-purple-200" }, 
-    [QuoteStatusEnum.CONVERTED]: { bg: "bg-blue-100", text: "text-blue-800", border: "border-blue-200" }, 
-    UNKNOWN: { bg: "bg-gray-100", text: "text-gray-800", border: "border-gray-200" } 
+const statusStyles: Record<QuoteStatus | 'UNKNOWN', { bg: string; text: string; border: string }> = { 
+    'DRAFT': { bg: "bg-red-100", text: "text-red-800", border: "border-red-200" }, 
+    'SENT': { bg: "bg-orange-100", text: "text-orange-800", border: "border-orange-200" }, 
+    'PENDING': { bg: "bg-yellow-100", text: "text-yellow-800", border: "border-yellow-200" }, 
+    'APPROVED': { bg: "bg-green-100", text: "text-green-800", border: "border-green-200" }, 
+    'DECLINED': { bg: "bg-red-100", text: "text-red-800", border: "border-red-200" }, 
+    'EXPIRED': { bg: "bg-purple-100", text: "text-purple-800", border: "border-purple-200" }, 
+    'CONVERTED': { bg: "bg-blue-100", text: "text-blue-800", border: "border-blue-200" }, 
+    'UNKNOWN': { bg: "bg-gray-100", text: "text-gray-800", border: "border-gray-200" } 
 };
 
 const extractSentDate = (description: string | null | undefined): string | null => { if (!description) return null; const match = description.match(/Sent on:\s*(\d{4}-\d{2}-\d{2})/); return match ? match[1] : null; };
@@ -114,7 +109,7 @@ const formatDate = (dateString: string | null | undefined): string => { if (!dat
 export default function Quotes() {
  const [quotes, setQuotes] = useState<QuoteVersion[]>([]);
  const [searchTerm, setSearchTerm] = useState('');
- const [selectedStatusFilter, setSelectedStatusFilter] = useState<string | 'all'>('all');
+ const [selectedStatusFilter, setSelectedStatusFilter] = useState<QuoteStatus | 'all'>('all');
  const [hideConverted, setHideConverted] = useState(true);
  const [isNewQuoteModalOpen, setIsNewQuoteModalOpen] = useState(false);
  const [quoteToEdit, setQuoteToEdit] = useState<QuoteVersion | null>(null);
@@ -159,7 +154,7 @@ export default function Quotes() {
                 quoteReference: q.quoteReference,
                 versionNumber: q.versionNumber,
                 isLatestVersion: q.isLatestVersion,
-                status: (q.status || 'DRAFT').toUpperCase(),
+                status: ((q.status || 'DRAFT').toUpperCase() as QuoteStatus), // Fixed: Cast to QuoteStatus
                 title: q.title,
                 description: q.description,
                 customerId: q.customerId ?? undefined,
@@ -318,7 +313,7 @@ const handleModalSaveSuccess = useCallback((data: QuoteData) => {
     const savedQuotePayload: MockSavedQuotePayload = {
         ...data,
         totalAmount: data.totalAmount,
-        status: (data.status as string)?.toUpperCase() || 'DRAFT', // Fixed: Use string directly
+        status: (data.status as QuoteStatus), // Fixed: Direct cast to QuoteStatus (LINE 321)
         // Fixed: Convert items to expected format with all required properties
         items: data.items.map(item => ({
             description: item.description,
@@ -550,7 +545,7 @@ const handleModalSaveSuccess = useCallback((data: QuoteData) => {
      const response = await apiClient.patch(`/quotes/${quoteId}/status`, { status: newStatus });
      
      const updatedQuoteFromServer = response.data as QuoteVersion;
-     const serverStatus = (updatedQuoteFromServer.status as string)?.toUpperCase();
+     const serverStatus = ((updatedQuoteFromServer.status as string)?.toUpperCase() as QuoteStatus);
      
      setQuotes(prevQuotes => prevQuotes.map(q => 
        q.id === quoteId ? { ...q, ...updatedQuoteFromServer, status: serverStatus } : q
@@ -597,7 +592,7 @@ const handleModalSaveSuccess = useCallback((data: QuoteData) => {
     terms: '',
     notes: quote.notes ?? undefined,
     customerReference: quote.customerReference ?? undefined,
-    status: quote.status || 'DRAFT', // Fixed: Use string directly
+    status: quote.status, // Fixed: Use string directly from QuoteStatus union
     quoteNumber: quote.quoteNumber ?? undefined,
     quoteReference: quote.quoteReference ?? undefined,
     versionNumber: quote.versionNumber ?? undefined,
@@ -642,9 +637,9 @@ const handleModalSaveSuccess = useCallback((data: QuoteData) => {
                 <input type="text" placeholder="Search Ref, Ver ID, Title, Customer..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"/>
             </div>
             <div className="flex flex-wrap items-center gap-4">
-                <select value={selectedStatusFilter} onChange={(e) => setSelectedStatusFilter(e.target.value as string | 'all')} className="border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 rounded-lg px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm">
+                <select value={selectedStatusFilter} onChange={(e) => setSelectedStatusFilter(e.target.value as QuoteStatus | 'all')} className="border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 rounded-lg px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm">
                     <option value="all">All Statuses</option>
-                    {Object.values(QuoteStatusEnum).map((statusVal) => (
+                    {QUOTE_STATUSES.map((statusVal) => (
                         <option key={statusVal} value={statusVal}>{QUOTE_STATUSES_DISPLAY[statusVal] || statusVal}</option>
                     ))}
                 </select>
@@ -668,7 +663,7 @@ const handleModalSaveSuccess = useCallback((data: QuoteData) => {
        ) : (
          filteredQuotes.map((quote) => {
             const currentStatusKey = quote.status || 'UNKNOWN';
-            const style = statusStyles[currentStatusKey] || statusStyles.UNKNOWN;
+            const style = statusStyles[currentStatusKey as QuoteStatus] || statusStyles.UNKNOWN;
             const isDraftEditable = quote.status === 'DRAFT';
             const isEditableForNewVersion = ['SENT', 'PENDING'].includes(quote.status);
             const canConvertToOrder = quote.status === 'APPROVED';
@@ -698,7 +693,7 @@ const handleModalSaveSuccess = useCallback((data: QuoteData) => {
                                     className={`text-xs font-semibold appearance-none py-1 pl-2 pr-7 border rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-500 ${style.bg} ${style.text} ${style.border} ${(updatingStatusId === quote.id || isTerminalStatus) ? 'opacity-70 cursor-not-allowed' : 'hover:opacity-80'}`}
                                     title={isTerminalStatus ? `Status is final: ${QUOTE_STATUSES_DISPLAY[quote.status] || quote.status}` : "Change Status"}
                                 >
-                                    {Object.values(QuoteStatusEnum).map(s => (
+                                    {QUOTE_STATUSES.map(s => (
                                         <option 
                                             key={s} 
                                             value={s} 
@@ -779,12 +774,12 @@ const handleModalSaveSuccess = useCallback((data: QuoteData) => {
             ) : quoteHistory.length > 0 ? ( 
               <ul className="space-y-3"> 
                 {quoteHistory.sort((a, b) => (b.versionNumber || 0) - (a.versionNumber || 0)).map(version => {
-                   const style = statusStyles[version.status] || statusStyles.UNKNOWN; 
+                   const style = statusStyles[version.status as QuoteStatus] || statusStyles.UNKNOWN; 
                    return ( 
                     <li key={version.id} className="border dark:border-gray-700 rounded p-3 bg-gray-50 dark:bg-gray-700/50 shadow-sm"> 
                       <div className="flex justify-between items-center mb-1"> 
                         <span className="font-semibold text-gray-800 dark:text-gray-100">Version {version.versionNumber}</span> 
-                        <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${style.bg} ${style.text}`}>{QUOTE_STATUSES_DISPLAY[version.status] || version.status}</span> 
+                        <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${style.bg} ${style.text}`}>{QUOTE_STATUSES_DISPLAY[version.status as QuoteStatus] || version.status}</span> 
                       </div> 
                       <p className="text-sm text-gray-700 dark:text-gray-300 mb-1">{version.title}</p> 
                       <p className="text-xs text-gray-500 dark:text-gray-400"> {formatDate(version.createdAt)} {version.changeReason && `- ${version.changeReason}`} </p> 

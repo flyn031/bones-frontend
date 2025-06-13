@@ -1,6 +1,7 @@
 // src/components/audit/AuditDashboard.tsx
 import React, { useState, useEffect } from 'react';
-import { auditApi, AuditHistory, AuditStatistics } from '../../utils/auditApi';
+import { auditApi } from '../../utils/auditApi';
+import { AuditHistory, AuditStatistics, AuditEntityType, AuditSearchResponse } from '../../types/audit';
 import { Calendar, Search, Filter, Download, AlertTriangle, FileText, Briefcase, ShoppingCart, Clock } from 'lucide-react';
 import { Button } from '../ui/Button';
 import AuditTimeline from './AuditTimeline';
@@ -23,7 +24,7 @@ const AuditDashboard: React.FC = () => {
     limit: 50
   });
   const [selectedEntity, setSelectedEntity] = useState<{
-    type: 'QUOTE' | 'ORDER' | 'JOB';
+    type: AuditEntityType;
     id: string;
     title?: string;
   } | null>(null);
@@ -38,7 +39,13 @@ const AuditDashboard: React.FC = () => {
     setError(null);
     
     try {
-      const response = await auditApi.searchAuditHistory(searchParams);
+      // Convert string to proper enum type, filtering out empty strings
+      const apiParams = {
+        ...searchParams,
+        entityType: searchParams.entityType ? (searchParams.entityType as AuditEntityType) : undefined
+      };
+      
+      const response = await auditApi.searchAuditHistory(apiParams) as { data: AuditSearchResponse };
       setAuditHistory(response.data.results || []);
     } catch (err) {
       setError('Failed to load audit history');
@@ -51,7 +58,7 @@ const AuditDashboard: React.FC = () => {
   const fetchStatistics = async () => {
     try {
       const params = {
-        entityType: searchParams.entityType as 'QUOTE' | 'ORDER' | 'JOB' | undefined,
+        entityType: searchParams.entityType ? (searchParams.entityType as AuditEntityType) : undefined,
         dateFrom: searchParams.dateFrom,
         dateTo: searchParams.dateTo
       };
@@ -132,14 +139,18 @@ const AuditDashboard: React.FC = () => {
     return colors[changeType] || 'bg-gray-100 text-gray-800';
   };
 
-  const handleLegalEvidenceClick = (entity: { type: 'QUOTE' | 'ORDER' | 'JOB', id: string, title?: string }) => {
+  const handleLegalEvidenceClick = (entity: { type: AuditEntityType, id: string, title?: string }) => {
     setSelectedEntity(entity);
     setShowLegalEvidence(true);
   };
 
   // Group by entity for timeline view
   const groupedByEntity = auditHistory.reduce((groups: Record<string, AuditHistory[]>, item) => {
-    const key = `${item.quoteId || item.orderId || item.jobId}-${item.quoteId ? 'QUOTE' : item.orderId ? 'ORDER' : 'JOB'}`;
+    // Use the entity-specific IDs from the AuditHistory interface
+    const entityId = item.quoteId || item.orderId || item.jobId || item.entityId;
+    const entityType = item.quoteId ? 'QUOTE' : item.orderId ? 'ORDER' : item.jobId ? 'JOB' : item.entityType;
+    const key = `${entityId}-${entityType}`;
+    
     if (!groups[key]) {
       groups[key] = [];
     }
@@ -399,19 +410,20 @@ const AuditDashboard: React.FC = () => {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {auditHistory.map((entry) => {
-                    // Determine entity type and ID
-                    let entityType: 'QUOTE' | 'ORDER' | 'JOB' = 'JOB';
-                    let entityId = '';
+                    // Determine entity type and ID with proper type handling
+                    let entityType: AuditEntityType = entry.entityType;
+                    let entityId: string = entry.entityId;
                     
-                    if ('quoteId' in entry) {
+                    // Use specific IDs if available, with type safety
+                    if (entry.quoteId) {
                       entityType = 'QUOTE';
-                      entityId = entry.quoteId;
-                    } else if ('orderId' in entry) {
+                      entityId = String(entry.quoteId);
+                    } else if (entry.orderId) {
                       entityType = 'ORDER';
-                      entityId = entry.orderId;
-                    } else if ('jobId' in entry) {
+                      entityId = String(entry.orderId);
+                    } else if (entry.jobId) {
                       entityType = 'JOB';
-                      entityId = entry.jobId;
+                      entityId = String(entry.jobId);
                     }
                     
                     return (
@@ -503,7 +515,7 @@ const AuditDashboard: React.FC = () => {
                         variant="outline"
                         size="sm"
                         onClick={() => handleLegalEvidenceClick({
-                          type: entityType as 'QUOTE' | 'ORDER' | 'JOB',
+                          type: entityType as AuditEntityType,
                           id: entityId,
                           title: `${entityType} #${entityId.substring(0, 8)}`
                         })}
