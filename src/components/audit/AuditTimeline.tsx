@@ -1,14 +1,14 @@
 // src/components/audit/AuditTimeline.tsx
-import React, { useState } from 'react'; // Added useState
-import { AuditHistory } from '../../utils/auditApi'; // Assuming AuditHistory type is correct
+import React, { useState } from 'react';
+import { AuditHistory } from '../../utils/auditApi';
 
 interface AuditTimelineProps {
   history: AuditHistory[];
-  entityTitle?: string; // Added from the second version
+  entityTitle?: string;
 }
 
 const AuditTimeline: React.FC<AuditTimelineProps> = ({ history, entityTitle }) => {
-  const [expandedEntry, setExpandedEntry] = useState<string | null>(null); // Added from the second version
+  const [expandedEntry, setExpandedEntry] = useState<string | null>(null);
 
   // Sort history by createdAt date
   const sortedHistory = [...history].sort((a, b) =>
@@ -22,7 +22,6 @@ const AuditTimeline: React.FC<AuditTimelineProps> = ({ history, entityTitle }) =
   };
 
   const getChangeTypeColor = (changeType: string) => {
-    // Icons and colors for different change types
     const colors: Record<string, { bg: string, text: string, icon: string }> = {
       'CREATE': { bg: 'bg-green-100', text: 'text-green-800', icon: '✏️' },
       'UPDATE': { bg: 'bg-blue-100', text: 'text-blue-800', icon: '🔄' },
@@ -31,47 +30,37 @@ const AuditTimeline: React.FC<AuditTimelineProps> = ({ history, entityTitle }) =
       'APPROVED': { bg: 'bg-emerald-100', text: 'text-emerald-800', icon: '✅' },
       'REJECTED': { bg: 'bg-orange-100', text: 'text-orange-800', icon: '❌' },
       'CLONE': { bg: 'bg-indigo-100', text: 'text-indigo-800', icon: '🧬' },
-      'CONVERT': { bg: 'bg-cyan-100', text: 'text-cyan-800', icon: '🔄' }, // Assuming CONVERT might use same icon as UPDATE
+      'CONVERT': { bg: 'bg-cyan-100', text: 'text-cyan-800', icon: '🔄' },
       'MATERIAL_ADDED': { bg: 'bg-teal-100', text: 'text-teal-800', icon: '➕' },
       'MATERIAL_REMOVED': { bg: 'bg-red-100', text: 'text-red-800', icon: '➖' },
       'MATERIAL_UPDATED': { bg: 'bg-yellow-100', text: 'text-yellow-800', icon: '📝' }
-      // Add other change types if needed
     };
 
     return colors[changeType] || { bg: 'bg-gray-100', text: 'text-gray-800', icon: '📄' };
   };
 
-  // Try to extract entity title from entry data or use IDs - Added from the second version
   const getEntityTitle = (entry: AuditHistory) => {
-    // Check common fields in the 'data' payload first
     try {
-      // Assuming 'data' might contain various title-like properties
       if ('data' in entry && typeof entry.data === 'object' && entry.data !== null) {
-        const data = entry.data as any; // Use 'any' or a more specific type if you know the structure
+        const data = entry.data as any;
         if (data.title) return data.title;
         if (data.projectTitle) return data.projectTitle;
         if (data.quoteReference) return data.quoteReference;
         if (data.quoteNumber) return data.quoteNumber;
-        if (data.name) return data.name; // Common for materials/items
-        // Add other potential title fields from your audit data structure if needed
+        if (data.name) return data.name;
       }
     } catch (e) {
-      // Ignore parsing errors or unexpected data structures
-       console.warn("Error extracting entity title from audit entry data:", e); // Use warn as it might be expected for some entries
+      console.warn("Error extracting entity title from audit entry data:", e);
     }
 
-    // Fallback: Use known ID fields if available and slice for brevity
-    // Adjust substring length as needed
     if ('quoteId' in entry && entry.quoteId) return `Quote #${String(entry.quoteId).substring(0, 8)}`;
     if ('orderId' in entry && entry.orderId) return `Order #${String(entry.orderId).substring(0, 8)}`;
     if ('jobId' in entry && entry.jobId) return `Job #${String(entry.jobId).substring(0, 8)}`;
-     if ('materialId' in entry && entry.materialId) return `Material #${String(entry.materialId).substring(0, 8)}`; // Added materialId check
+    if ('materialId' in entry && entry.materialId) return `Material #${String(entry.materialId).substring(0, 8)}`;
 
-    // Final fallback: Use the prop or a default generic title
     return entityTitle || 'Unknown Entity';
   };
 
-  // Helper function to safely stringify JSON data
   const safeJsonStringify = (data: any): string => {
     try {
       const result = JSON.stringify(data, null, 2);
@@ -81,9 +70,30 @@ const AuditTimeline: React.FC<AuditTimelineProps> = ({ history, entityTitle }) =
     }
   };
 
-  // Toggle detail visibility - Added from the second version
   const toggleEntryDetails = (entryId: string) => {
     setExpandedEntry(expandedEntry === entryId ? null : entryId);
+  };
+
+  // Fixed: Helper function to safely check for material changes
+  const hasMaterialChanges = (entry: AuditHistory): boolean => {
+    try {
+      return 'materialChanges' in entry && 
+             Array.isArray((entry as any).materialChanges) && 
+             (entry as any).materialChanges.length > 0;
+    } catch {
+      return false;
+    }
+  };
+
+  // Fixed: Helper function to safely check for progress notes
+  const hasProgressNotes = (entry: AuditHistory): boolean => {
+    try {
+      return 'progressNotes' in entry && 
+             typeof (entry as any).progressNotes === 'string' && 
+             (entry as any).progressNotes.length > 0;
+    } catch {
+      return false;
+    }
   };
 
   return (
@@ -93,9 +103,9 @@ const AuditTimeline: React.FC<AuditTimelineProps> = ({ history, entityTitle }) =
 
       {/* Timeline items */}
       <ul className="space-y-6">
-      {sortedHistory.map((entry) => {
+        {sortedHistory.map((entry) => {
           const { bg, text, icon } = getChangeTypeColor(entry.changeType);
-          const entryTitle = getEntityTitle(entry); // Use the dynamic title
+          const entryTitle = getEntityTitle(entry);
 
           return (
             <li key={entry.id} className="relative pl-14">
@@ -114,7 +124,7 @@ const AuditTimeline: React.FC<AuditTimelineProps> = ({ history, entityTitle }) =
                       {formatChangeType(entry.changeType)}
                     </span>
                     <h4 className="text-sm font-medium text-gray-900">
-                       {entryTitle} - Version {entry.version} {/* Using dynamic title */}
+                      {entryTitle} - Version {entry.version}
                     </h4>
                   </div>
                   <p className="text-xs text-gray-500">
@@ -123,7 +133,7 @@ const AuditTimeline: React.FC<AuditTimelineProps> = ({ history, entityTitle }) =
                 </div>
 
                 <p className="text-sm text-gray-700 mt-2">
-                  {entry.changedByUser.name} {entry.changeType === 'CREATE' ? `created ${entryTitle}` : `made changes to ${entryTitle}`} {/* Updated text for clarity */}
+                  {entry.changedByUser.name} {entry.changeType === 'CREATE' ? `created ${entryTitle}` : `made changes to ${entryTitle}`}
                 </p>
 
                 {entry.changeReason && (
@@ -143,48 +153,45 @@ const AuditTimeline: React.FC<AuditTimelineProps> = ({ history, entityTitle }) =
                   </div>
                 )}
 
-                {/* Additional information for specific change types */}
-                {/* Display material changes if present and is an array with content */}
-                {'materialChanges' in entry && Array.isArray(entry.materialChanges) && entry.materialChanges.length > 0 && (
-                   <div className="mt-2 text-xs text-gray-700">
-                     <span className="font-medium">Material Changes:</span>
-                     <pre className="mt-1 bg-gray-50 p-2 rounded text-xs overflow-auto max-h-24">
-                       {safeJsonStringify(entry.data)}
-                     </pre>
-                   </div>
-                 )}
-
-                {/* Display progress notes if present and is a string */}
-                {'progressNotes' in entry && entry.progressNotes && typeof entry.progressNotes === 'string' && (
+                {/* Fixed: Display material changes if present - using helper function */}
+                {hasMaterialChanges(entry) && (
                   <div className="mt-2 text-xs text-gray-700">
-                    <span className="font-medium">Progress Notes:</span>
-                    <p className="mt-1 bg-gray-50 p-2 rounded">{entry.progressNotes}</p>
+                    <span className="font-medium">Material Changes:</span>
+                    <pre className="mt-1 bg-gray-50 p-2 rounded text-xs overflow-auto max-h-24">
+                      {safeJsonStringify(entry.data)}
+                    </pre>
                   </div>
                 )}
 
-                {/* Expandable details button - Added from the second version */}
+                {/* Fixed: Display progress notes if present - using helper function */}
+                {hasProgressNotes(entry) && (
+                  <div className="mt-2 text-xs text-gray-700">
+                    <span className="font-medium">Progress Notes:</span>
+                    <p className="mt-1 bg-gray-50 p-2 rounded">{(entry as any).progressNotes}</p>
+                  </div>
+                )}
+
+                {/* Expandable details button */}
                 <button
-                   onClick={() => toggleEntryDetails(entry.id)}
+                  onClick={() => toggleEntryDetails(entry.id)}
                   className="mt-2 text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center"
                 >
                   {expandedEntry === entry.id ? 'Hide Details' : 'View Details'}
-                  {/* Simple Chevron Icon */}
                   <svg className={`ml-1 h-4 w-4 transition-transform ${expandedEntry === entry.id ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                   </svg>
                 </button>
 
-                {/* Expanded details content - Added from the second version */}
+                {/* Expanded details content */}
                 {expandedEntry === entry.id && (
                   <div className="mt-3 text-xs border-t pt-3">
                     <h5 className="font-medium text-gray-700 mb-1">Data Snapshot:</h5>
-                    {/* Check if entry.data is an object or array before stringifying */}
                     {typeof entry.data === 'object' && entry.data !== null ? (
                       <pre className="bg-gray-50 p-2 rounded text-xs overflow-auto max-h-64">
                         {safeJsonStringify(entry.data)}
                       </pre>
                     ) : (
-                       <p className="bg-gray-50 p-2 rounded text-xs">No detailed data available.</p>
+                      <p className="bg-gray-50 p-2 rounded text-xs">No detailed data available.</p>
                     )}
                   </div>
                 )}

@@ -79,9 +79,10 @@ interface MockOrderData {
   paymentTerms?: string;
 }
 
-// Fixed: Use string literals instead of enum
-const QUOTE_STATUSES: QuoteStatus[] = ['DRAFT', 'SENT', 'PENDING', 'APPROVED', 'DECLINED', 'EXPIRED', 'CONVERTED'];
+// Fixed: Use string literals instead of enum - ADD missing status values
+const QUOTE_STATUSES: QuoteStatus[] = ['DRAFT', 'SENT', 'PENDING', 'APPROVED', 'DECLINED', 'EXPIRED', 'CONVERTED', 'REJECTED', 'CANCELLED', 'CONVERTED_TO_ORDER'];
 
+// Fixed: ADD missing status display entries
 const QUOTE_STATUSES_DISPLAY: Record<QuoteStatus, string> = { 
     'DRAFT': "Draft", 
     'SENT': "Sent", 
@@ -89,9 +90,13 @@ const QUOTE_STATUSES_DISPLAY: Record<QuoteStatus, string> = {
     'APPROVED': "Approved", 
     'DECLINED': "Declined", 
     'EXPIRED': "Expired", 
-    'CONVERTED': "Converted" 
+    'CONVERTED': "Converted",
+    'REJECTED': "Rejected",
+    'CANCELLED': "Cancelled",
+    'CONVERTED_TO_ORDER': "Converted to Order"
 };
 
+// Fixed: ADD missing status style entries
 const statusStyles: Record<QuoteStatus | 'UNKNOWN', { bg: string; text: string; border: string }> = { 
     'DRAFT': { bg: "bg-red-100", text: "text-red-800", border: "border-red-200" }, 
     'SENT': { bg: "bg-orange-100", text: "text-orange-800", border: "border-orange-200" }, 
@@ -99,7 +104,10 @@ const statusStyles: Record<QuoteStatus | 'UNKNOWN', { bg: string; text: string; 
     'APPROVED': { bg: "bg-green-100", text: "text-green-800", border: "border-green-200" }, 
     'DECLINED': { bg: "bg-red-100", text: "text-red-800", border: "border-red-200" }, 
     'EXPIRED': { bg: "bg-purple-100", text: "text-purple-800", border: "border-purple-200" }, 
-    'CONVERTED': { bg: "bg-blue-100", text: "text-blue-800", border: "border-blue-200" }, 
+    'CONVERTED': { bg: "bg-blue-100", text: "text-blue-800", border: "border-blue-200" },
+    'REJECTED': { bg: "bg-red-100", text: "text-red-800", border: "border-red-200" },
+    'CANCELLED': { bg: "bg-gray-100", text: "text-gray-800", border: "border-gray-200" },
+    'CONVERTED_TO_ORDER': { bg: "bg-purple-100", text: "text-purple-800", border: "border-purple-200" },
     'UNKNOWN': { bg: "bg-gray-100", text: "text-gray-800", border: "border-gray-200" } 
 };
 
@@ -370,7 +378,8 @@ const handleModalSaveSuccess = useCallback((data: QuoteData) => {
             setQuoteToEdit(quote); 
             setIsNewQuoteModalOpen(true); 
         } else { 
-            alert(`Quotes with status '${QUOTE_STATUSES_DISPLAY[quote.status] || quote.status}' cannot be directly edited or versioned. Consider cloning for a new draft.`); 
+            // Fixed: ADD type casting for array indexing
+            alert(`Quotes with status '${QUOTE_STATUSES_DISPLAY[quote.status as QuoteStatus] || quote.status}' cannot be directly edited or versioned. Consider cloning for a new draft.`); 
         } 
     } else { 
         alert("Quote not found."); 
@@ -691,7 +700,8 @@ const handleModalSaveSuccess = useCallback((data: QuoteData) => {
                                     onChange={(e) => handleUpdateStatus(quote.id, e.target.value)}
                                     disabled={updatingStatusId === quote.id || isTerminalStatus}
                                     className={`text-xs font-semibold appearance-none py-1 pl-2 pr-7 border rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-500 ${style.bg} ${style.text} ${style.border} ${(updatingStatusId === quote.id || isTerminalStatus) ? 'opacity-70 cursor-not-allowed' : 'hover:opacity-80'}`}
-                                    title={isTerminalStatus ? `Status is final: ${QUOTE_STATUSES_DISPLAY[quote.status] || quote.status}` : "Change Status"}
+                                    // Fixed: ADD type casting for array indexing
+                                    title={isTerminalStatus ? `Status is final: ${QUOTE_STATUSES_DISPLAY[quote.status as QuoteStatus] || quote.status}` : "Change Status"}
                                 >
                                     {QUOTE_STATUSES.map(s => (
                                         <option 

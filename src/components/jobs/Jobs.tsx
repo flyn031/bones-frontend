@@ -24,7 +24,7 @@ import JobDetails from './JobDetails';       // Verify path
 import { format } from 'date-fns';         // Or your date library
 import { AuditButton } from '../audit';    // Import audit button
 import { JobsResponse } from '../../types/api';
-import { ExtendedJob, AtRiskJob, DisplayJob, BaseJob, toBaseJob } from '../../types/job';
+import { ExtendedJob, AtRiskJob, DisplayJob, toBaseJob } from '../../types/job';
 
 // --- Utility Functions (Keep formatDate, formatCurrency) ---
 const formatCurrency = (amount: number | null | undefined): string => {
