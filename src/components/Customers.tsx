@@ -132,10 +132,10 @@ export default function Customers() {
         return;
       }
 
-      // FIX 1: Update API URL to use Railway backend instead of localhost
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://bonesbackend-production.up.railway.app';
+      // FIXED: Update to use Vite environment variable
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
       const response = await axios.get<CustomerResponse>(
-        `${apiUrl}/api/customers?page=${page}&limit=${pageSize}&search=${searchTerm}`,
+        `${apiUrl}/customers?page=${page}&limit=${pageSize}&search=${searchTerm}`,
         {
           headers: {
             'Authorization': `Bearer ${token}` // Use token
@@ -214,9 +214,9 @@ export default function Customers() {
       console.log('>>> Frontend sending this data to POST /api/customers:', JSON.stringify(data, null, 2));
       // --- <<< END ADDED LOGGING >>> ---
 
-      // FIX 2: Update API URL to use Railway backend instead of localhost
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://bonesbackend-production.up.railway.app';
-      await axios.post(`${apiUrl}/api/customers`, data, {
+      // FIXED: Update to use Vite environment variable
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
+      await axios.post(`${apiUrl}/customers`, data, {
         headers: {
           'Authorization': `Bearer ${token}` // Use token
           // Content-Type is usually set automatically by Axios for JSON

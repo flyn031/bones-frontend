@@ -32,9 +32,9 @@ const CustomerImport: React.FC = () => {
     formData.append('customers', file);
 
     try {
-      // FIX 3: Update API URL to use Railway backend instead of localhost
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://bonesbackend-production.up.railway.app';
-      const response = await axios.post<CustomerImportResponse>(`${apiUrl}/api/customers/import`, formData, {
+      // FIXED: Update to use Vite environment variable
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
+      const response = await axios.post<CustomerImportResponse>(`${apiUrl}/customers/import`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
           'Authorization': `Bearer ${localStorage.getItem('token')}`
