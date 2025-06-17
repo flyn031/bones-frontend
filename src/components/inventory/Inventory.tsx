@@ -1,34 +1,55 @@
-// src/components/inventory/Inventory.tsx
-import { useState, useEffect } from 'react';
-import axios from 'axios'; // ✅ FIXED - Remove isAxiosError import
-import { Search, Plus, Grid, List, ChevronLeft, ChevronRight, Filter, Briefcase, X } from 'lucide-react';
-import CreateItemModal, { MaterialCategory } from './CreateItemModal';
-import MaterialDetailModal from './MaterialDetailModal';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Search, Plus, Grid, List, Filter, ChevronLeft, ChevronRight, X, Briefcase } from 'lucide-react';
+import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
+import CreateItemModal from './CreateItemModal';
+import MaterialDetailModal from './MaterialDetailModal';
 
-// ✅ FIXED - Custom isAxiosError function for compatibility
-const isAxiosError = (error: any): error is any => {
-  return error && error.isAxiosError === true;
+// ✅ FIXED - Custom error detection instead of axios.isAxiosError
+const isAxiosError = (error: any): error is { response?: { data?: any; status?: number } } => {
+  return error && error.response && typeof error.response.status === 'number';
 };
 
+// Enums for categories
+enum MaterialCategory {
+  CONVEYOR_COMPONENT = 'CONVEYOR_COMPONENT',
+  ELECTRICAL = 'ELECTRICAL',
+  MECHANICAL = 'MECHANICAL',
+  STRUCTURAL = 'STRUCTURAL',
+  CONSUMABLE = 'CONSUMABLE',
+  TOOL = 'TOOL',
+  OTHER = 'OTHER'
+}
+
+// Enhanced interfaces to match backend schema
 interface InventoryItem {
   id: string;
-  name: string;
   code: string;
+  name: string;
+  description?: string;
   category: string;
-  currentStockLevel: number;
-  minStockLevel: number;
   unit: string;
   unitPrice: number;
-  inventoryPurpose: 'INTERNAL' | 'CUSTOMER' | 'DUAL';
+  currentStockLevel: number;
+  minStockLevel: number;
+  maxStockLevel?: number;
+  leadTimeDays?: number;
+  supplierId?: string;
+  supplier?: {
+    id: string;
+    name: string;
+    contactPerson?: string;
+    email?: string;
+    phone?: string;
+  } | null;
+  inventoryPurpose: 'CUSTOMER' | 'INTERNAL' | 'DUAL';
   isQuotable: boolean;
   isOrderable: boolean;
-  customerMarkupPercent?: number;
-  visibleToCustomers: boolean;
-  supplier?: {
-    id?: string;
-    name?: string;
-  };
+  createdAt: string;
+  updatedAt: string;
+  supplierPartNumber?: string;
+  storageLocation?: string;
+  notes?: string;
 }
 
 interface Supplier {
@@ -106,37 +127,46 @@ export default function Inventory() {
   const [assignmentItems, setAssignmentItems] = useState<JobAssignmentItem[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Fetch suppliers
-  useEffect(() => {
-    const fetchSuppliers = async () => {
-      try {
-        const token = localStorage.getItem('token');
-        const response = await axios.get<SuppliersResponse>('http://localhost:4000/api/suppliers', {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-        
-        // ✅ FIXED - Proper type checking for suppliers response
-        const responseData = response.data;
-        if (Array.isArray(responseData)) {
-          setSuppliers(responseData);
-        } else if (responseData && Array.isArray(responseData.suppliers)) {
-          setSuppliers(responseData.suppliers);
-        } else if (responseData && Array.isArray(responseData.data)) {
-          setSuppliers(responseData.data);
-        } else {
-          console.warn("Unexpected format for suppliers response:", responseData);
-          setSuppliers([]);
+  // ✅ FIXED - Extract fetchSuppliers to be callable from anywhere
+  const fetchSuppliers = useCallback(async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get<SuppliersResponse>('http://localhost:4000/api/suppliers', {
+        headers: {
+          'Authorization': `Bearer ${token}`
         }
-      } catch (error) {
-        console.error('Error fetching suppliers:', error);
+      });
+      
+      // ✅ FIXED - Proper type checking for suppliers response
+      const responseData = response.data;
+      if (Array.isArray(responseData)) {
+        setSuppliers(responseData);
+      } else if (responseData && Array.isArray(responseData.suppliers)) {
+        setSuppliers(responseData.suppliers);
+      } else if (responseData && Array.isArray(responseData.data)) {
+        setSuppliers(responseData.data);
+      } else {
+        console.warn("Unexpected format for suppliers response:", responseData);
         setSuppliers([]);
       }
-    };
-
-    fetchSuppliers();
+    } catch (error) {
+      console.error('Error fetching suppliers:', error);
+      setSuppliers([]);
+    }
   }, []);
+
+  // Load suppliers on mount
+  useEffect(() => {
+    fetchSuppliers();
+  }, [fetchSuppliers]);
+
+  // ✅ FIXED - Refresh suppliers when modal opens
+  useEffect(() => {
+    if (isModalOpen) {
+      console.log('Modal opened, refreshing suppliers...');
+      fetchSuppliers();
+    }
+  }, [isModalOpen, fetchSuppliers]);
 
   const fetchInventory = async () => {
     setInventoryLoading(true);
@@ -798,6 +828,7 @@ export default function Inventory() {
         onSubmit={handleAddItem}
         categories={Object.values(MaterialCategory)}
         suppliers={suppliers}
+        onRefreshSuppliers={fetchSuppliers}
       />
 
       {/* Material Detail Modal */}

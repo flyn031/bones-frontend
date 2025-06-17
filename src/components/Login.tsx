@@ -52,9 +52,9 @@ function Login() {
 
     try {
        console.log(`Attempting ${isLogin ? 'login' : 'registration'} for:`, payload.email);
-      // FIX 3: Update API URL to use Railway backend instead of localhost
+      // FIX 3: Updated to use Vite environment variables instead of Next.js
       const response = await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL || 'https://bonesbackend-production.up.railway.app'}/api${endpoint}`,
+        `${import.meta.env.VITE_API_URL || 'https://bonesbackend-production.up.railway.app/api'}${endpoint}`,
         payload
       );
 
