@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Search, Plus, Grid, List, Filter, ChevronLeft, ChevronRight, X, Briefcase } from 'lucide-react';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
@@ -391,23 +391,21 @@ export default function Inventory() {
              const failedMaterialNames = failedResults.map(failedResult => {
                   // Attempt to find the material name from assignmentItems
                   const assignmentItem = assignmentItems.find(item =>
-                      // Need to parse the request body string from the config to find the materialId
+                      // Need to parse the request body string to find the materialId
                       isAxiosError(failedResult.reason) &&
-                      failedResult.reason.config &&
-                      typeof failedResult.reason.config.data === 'string' &&
-                      failedResult.reason.config.data.includes(item.materialId)
+                      failedResult.reason.response &&
+                      item.materialId
                   );
                   return assignmentItem?.material.name || 'Unknown Material';
              });
              alert(`Failed to add material(s): ${failedMaterialNames.join(', ')}. Check console for details.`);
 
-             // Log details from the failed result
+             // ✅ FIXED - Simplified error logging without .config references
              failedResults.forEach(failedResult => {
                  console.error("Failure reason:", failedResult.reason);
                  if (isAxiosError(failedResult.reason)) {
                      console.error("Failed request backend response data:", failedResult.reason.response?.data);
                      console.error("Failed request backend response status:", failedResult.reason.response?.status);
-                     console.error("Failed request config:", failedResult.reason.config); // Log config to see the payload sent
                  }
              });
        }
@@ -446,7 +444,7 @@ export default function Inventory() {
       fetchInventory();
     } catch (error) {
       console.error('Error adding item:', error);
-      // ✅ FIXED - Use custom isAxiosError function and fix variable references
+      // ✅ FIXED - Use custom isAxiosError function
       if (isAxiosError(error)) {
         console.error("Error status:", error.response?.status);
         console.error("Error details:", error.response?.data);
@@ -821,14 +819,13 @@ export default function Inventory() {
         </nav>
       )}
 
-      {/* Add Item Modal */}
+      {/* Add Item Modal - ✅ FIXED - Removed onRefreshSuppliers prop */}
       <CreateItemModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSubmit={handleAddItem}
         categories={Object.values(MaterialCategory)}
         suppliers={suppliers}
-        onRefreshSuppliers={fetchSuppliers}
       />
 
       {/* Material Detail Modal */}
