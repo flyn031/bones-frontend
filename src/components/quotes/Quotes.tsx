@@ -6,7 +6,6 @@ import { apiClient } from '../../utils/api';
 import { Customer, QuoteData, QuoteVersion, QuoteStatus } from '../../types/quote';
 
 // --- Interfaces ---
-// Removed local QuoteStatusEnum - using shared QuoteStatus from types/quote.ts
 
 interface PaginatedCustomersResponse {
   customers: Customer[];
@@ -79,10 +78,10 @@ interface MockOrderData {
   paymentTerms?: string;
 }
 
-// Fixed: Use string literals instead of enum - ADD missing status values
-const QUOTE_STATUSES: QuoteStatus[] = ['DRAFT', 'SENT', 'PENDING', 'APPROVED', 'DECLINED', 'EXPIRED', 'CONVERTED', 'REJECTED', 'CANCELLED', 'CONVERTED_TO_ORDER'];
+// Fixed: Use exact backend enum values - removed CONVERTED_TO_ORDER, REJECTED, CANCELLED
+const QUOTE_STATUSES: QuoteStatus[] = ['DRAFT', 'SENT', 'PENDING', 'APPROVED', 'DECLINED', 'EXPIRED', 'CONVERTED'];
 
-// Fixed: ADD missing status display entries
+// Fixed: Removed CONVERTED_TO_ORDER, REJECTED, CANCELLED - use only backend enum values
 const QUOTE_STATUSES_DISPLAY: Record<QuoteStatus, string> = { 
     'DRAFT': "Draft", 
     'SENT': "Sent", 
@@ -90,13 +89,10 @@ const QUOTE_STATUSES_DISPLAY: Record<QuoteStatus, string> = {
     'APPROVED': "Approved", 
     'DECLINED': "Declined", 
     'EXPIRED': "Expired", 
-    'CONVERTED': "Converted",
-    'REJECTED': "Rejected",
-    'CANCELLED': "Cancelled",
-    'CONVERTED_TO_ORDER': "Converted to Order"
+    'CONVERTED': "Converted"
 };
 
-// Fixed: ADD missing status style entries
+// Fixed: Removed CONVERTED_TO_ORDER, REJECTED, CANCELLED - use only backend enum values
 const statusStyles: Record<QuoteStatus | 'UNKNOWN', { bg: string; text: string; border: string }> = { 
     'DRAFT': { bg: "bg-red-100", text: "text-red-800", border: "border-red-200" }, 
     'SENT': { bg: "bg-orange-100", text: "text-orange-800", border: "border-orange-200" }, 
@@ -105,9 +101,6 @@ const statusStyles: Record<QuoteStatus | 'UNKNOWN', { bg: string; text: string; 
     'DECLINED': { bg: "bg-red-100", text: "text-red-800", border: "border-red-200" }, 
     'EXPIRED': { bg: "bg-purple-100", text: "text-purple-800", border: "border-purple-200" }, 
     'CONVERTED': { bg: "bg-blue-100", text: "text-blue-800", border: "border-blue-200" },
-    'REJECTED': { bg: "bg-red-100", text: "text-red-800", border: "border-red-200" },
-    'CANCELLED': { bg: "bg-gray-100", text: "text-gray-800", border: "border-gray-200" },
-    'CONVERTED_TO_ORDER': { bg: "bg-purple-100", text: "text-purple-800", border: "border-purple-200" },
     'UNKNOWN': { bg: "bg-gray-100", text: "text-gray-800", border: "border-gray-200" } 
 };
 
@@ -321,7 +314,7 @@ const handleModalSaveSuccess = useCallback((data: QuoteData) => {
     const savedQuotePayload: MockSavedQuotePayload = {
         ...data,
         totalAmount: data.totalAmount,
-        status: (data.status as QuoteStatus), // Fixed: Direct cast to QuoteStatus (LINE 321)
+        status: data.status, // Fixed: Direct use of QuoteStatus
         // Fixed: Convert items to expected format with all required properties
         items: data.items.map(item => ({
             description: item.description,
@@ -378,8 +371,8 @@ const handleModalSaveSuccess = useCallback((data: QuoteData) => {
             setQuoteToEdit(quote); 
             setIsNewQuoteModalOpen(true); 
         } else { 
-            // Fixed: ADD type casting for array indexing
-            alert(`Quotes with status '${QUOTE_STATUSES_DISPLAY[quote.status as QuoteStatus] || quote.status}' cannot be directly edited or versioned. Consider cloning for a new draft.`); 
+            // Fixed: Safe access to display mapping
+            alert(`Quotes with status '${QUOTE_STATUSES_DISPLAY[quote.status] || quote.status}' cannot be directly edited or versioned. Consider cloning for a new draft.`); 
         } 
     } else { 
         alert("Quote not found."); 
@@ -601,7 +594,7 @@ const handleModalSaveSuccess = useCallback((data: QuoteData) => {
     terms: '',
     notes: quote.notes ?? undefined,
     customerReference: quote.customerReference ?? undefined,
-    status: quote.status, // Fixed: Use string directly from QuoteStatus union
+    status: quote.status, // Fixed: Use status directly from QuoteStatus union
     quoteNumber: quote.quoteNumber ?? undefined,
     quoteReference: quote.quoteReference ?? undefined,
     versionNumber: quote.versionNumber ?? undefined,
@@ -700,8 +693,7 @@ const handleModalSaveSuccess = useCallback((data: QuoteData) => {
                                     onChange={(e) => handleUpdateStatus(quote.id, e.target.value)}
                                     disabled={updatingStatusId === quote.id || isTerminalStatus}
                                     className={`text-xs font-semibold appearance-none py-1 pl-2 pr-7 border rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-500 ${style.bg} ${style.text} ${style.border} ${(updatingStatusId === quote.id || isTerminalStatus) ? 'opacity-70 cursor-not-allowed' : 'hover:opacity-80'}`}
-                                    // Fixed: ADD type casting for array indexing
-                                    title={isTerminalStatus ? `Status is final: ${QUOTE_STATUSES_DISPLAY[quote.status as QuoteStatus] || quote.status}` : "Change Status"}
+                                    title={isTerminalStatus ? `Status is final: ${QUOTE_STATUSES_DISPLAY[quote.status] || quote.status}` : "Change Status"}
                                 >
                                     {QUOTE_STATUSES.map(s => (
                                         <option 
@@ -789,7 +781,7 @@ const handleModalSaveSuccess = useCallback((data: QuoteData) => {
                     <li key={version.id} className="border dark:border-gray-700 rounded p-3 bg-gray-50 dark:bg-gray-700/50 shadow-sm"> 
                       <div className="flex justify-between items-center mb-1"> 
                         <span className="font-semibold text-gray-800 dark:text-gray-100">Version {version.versionNumber}</span> 
-                        <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${style.bg} ${style.text}`}>{QUOTE_STATUSES_DISPLAY[version.status as QuoteStatus] || version.status}</span> 
+                        <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${style.bg} ${style.text}`}>{QUOTE_STATUSES_DISPLAY[version.status] || version.status}</span> 
                       </div> 
                       <p className="text-sm text-gray-700 dark:text-gray-300 mb-1">{version.title}</p> 
                       <p className="text-xs text-gray-500 dark:text-gray-400"> {formatDate(version.createdAt)} {version.changeReason && `- ${version.changeReason}`} </p> 

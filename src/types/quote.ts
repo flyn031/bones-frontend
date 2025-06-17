@@ -1,16 +1,13 @@
 // src/types/quote.ts - Complete shared type definitions for quotes
 
-// Quote Status Types - Fixed: Added missing export with all required values
+// Quote Status Types - Fixed: Removed CONVERTED_TO_ORDER, matches backend enum exactly
 export type QuoteStatus = 
   | 'DRAFT'
-  | 'PENDING' 
-  | 'SENT'
+  | 'SENT' 
+  | 'PENDING'
   | 'APPROVED'
-  | 'REJECTED'
   | 'DECLINED'
   | 'EXPIRED'
-  | 'CANCELLED'
-  | 'CONVERTED_TO_ORDER'
   | 'CONVERTED';
 
 // Customer interface - unified version
@@ -40,6 +37,7 @@ export interface QuoteItem {
   quantity: number;
   unitPrice: number;
   total: number;
+  materialId?: string | null;
 }
 
 // Main QuoteData interface - unified version
@@ -61,7 +59,7 @@ export interface QuoteData {
   lineItems?: QuoteLineItem[]; // For backend compatibility
   totalAmount: number;         // Always required
   value?: number;             // Legacy support
-  status?: string;
+  status: QuoteStatus;        // Fixed: Use QuoteStatus type
   quoteNumber?: string;
   quoteReference?: string;
   versionNumber?: number;
@@ -76,7 +74,7 @@ export interface QuoteVersion {
   quoteReference: string;
   versionNumber: number;
   isLatestVersion: boolean;
-  status: string;
+  status: QuoteStatus;        // Fixed: Use QuoteStatus type
   title: string;
   description?: string | null;
   customerId: string;
