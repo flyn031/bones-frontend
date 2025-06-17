@@ -6,7 +6,7 @@ import BundleSelector from "./BundleSelector";
 import PriceHistoryDisplay from "./PriceHistoryDisplay";
 import SaveTemplateModal from "./SaveTemplateModal";
 import { JobsResponse, MaterialPriceResponse, CreateCustomerResponse, ApiErrorResponse } from "../../types/api";
-import { Customer, QuoteData, QuoteItem } from "../../types/quote";
+import { Customer, QuoteData, QuoteItem, QuoteStatus } from "../../types/quote";
 
 // Define conveyors and materials
 interface Item {
@@ -39,8 +39,8 @@ interface Job {
   projectTitle: string; // Always string, never undefined
 }
 
-// Available quote statuses
-const QUOTE_STATUSES = {
+// Available quote statuses - FIXED to match backend enum exactly
+const QUOTE_STATUSES: Record<QuoteStatus, string> = {
   DRAFT: "Draft",
   SENT: "Sent to Customer",
   PENDING: "Pending Approval",
@@ -51,7 +51,7 @@ const QUOTE_STATUSES = {
 };
 
 // Status descriptions for tooltips
-const STATUS_DESCRIPTIONS = {
+const STATUS_DESCRIPTIONS: Record<QuoteStatus, string> = {
   DRAFT: "Initial creation stage, still being worked on",
   SENT: "Quote has been sent to the customer",
   PENDING: "Awaiting customer's decision",
@@ -62,7 +62,7 @@ const STATUS_DESCRIPTIONS = {
 };
 
 // Status colors for visual representation
-const STATUS_COLORS = {
+const STATUS_COLORS: Record<QuoteStatus, { bg: string; text: string; border: string; icon: JSX.Element }> = {
   DRAFT: {
     bg: "bg-red-100",
     text: "text-red-800",
@@ -268,7 +268,7 @@ export default function NewQuoteModal({
     notes: "",
     items: [],
     customerReference: "", // Initialize customer reference field
-    status: "DRAFT" // Default status for new quotes
+    status: "DRAFT" // Default status for new quotes - FIXED: Use valid QuoteStatus
   });
 
   const [selectedItems, setSelectedItems] = useState<SelectedItem[]>([]);
@@ -291,14 +291,14 @@ export default function NewQuoteModal({
   
   // State for status changes
   const [showStatusConfirmation, setShowStatusConfirmation] = useState(false);
-  const [pendingStatusChange, setPendingStatusChange] = useState<string | null>(null);
+  const [pendingStatusChange, setPendingStatusChange] = useState<QuoteStatus | null>(null);
   
   // ✅ FIXED - State for jobs with proper typing
   const [jobs, setJobs] = useState<Job[]>(mockJobs);
 
-  // Get status styling based on current status
-  const getStatusStyles = (status: string) => {
-    return STATUS_COLORS[status as keyof typeof STATUS_COLORS] || STATUS_COLORS.DRAFT;
+  // Get status styling based on current status - FIXED: Use QuoteStatus type
+  const getStatusStyles = (status: QuoteStatus) => {
+    return STATUS_COLORS[status] || STATUS_COLORS.DRAFT;
   };
 
   // Create a memoized function to fetch materials
@@ -459,7 +459,7 @@ export default function NewQuoteModal({
         notes: editQuote.notes || "",
         quoteNumber: editQuote.quoteNumber || "", // Set quote number if available
         customerReference: editQuote.customerReference || "", // Set customer reference if available
-        status: editQuote.status || "DRAFT" // Set status if available
+        status: editQuote.status || "DRAFT" // Set status if available - FIXED: Use valid QuoteStatus
       });
 
       // Set selected customer if available
@@ -687,10 +687,10 @@ export default function NewQuoteModal({
     setSelectedItems([...selectedItems, ...bundleItems]);
   };
 
-  // Validate if status change is allowed
-  const isValidStatusChange = (currentStatus: string, newStatus: string): boolean => {
+  // Validate if status change is allowed - FIXED: Use QuoteStatus type
+  const isValidStatusChange = (currentStatus: QuoteStatus, newStatus: QuoteStatus): boolean => {
     // Define valid status transitions
-    const validTransitions: Record<string, string[]> = {
+    const validTransitions: Record<QuoteStatus, QuoteStatus[]> = {
       'DRAFT': ['SENT', 'PENDING', 'APPROVED', 'DECLINED', 'EXPIRED'],
       'SENT': ['PENDING', 'APPROVED', 'DECLINED', 'EXPIRED'],
       'PENDING': ['APPROVED', 'DECLINED', 'EXPIRED'],
@@ -703,14 +703,14 @@ export default function NewQuoteModal({
     return validTransitions[currentStatus]?.includes(newStatus) || false;
   };
 
-  // Handle status change with confirmation
-  const handleStatusChange = (newStatus: string) => {
+  // Handle status change with confirmation - FIXED: Use QuoteStatus type
+  const handleStatusChange = (newStatus: QuoteStatus) => {
     // If status is the same, do nothing
     if (quoteData.status === newStatus) return;
     
     // Check if this is a valid status change
-    if (!isValidStatusChange(quoteData.status || 'DRAFT', newStatus)) {
-      alert(`Cannot change status from ${QUOTE_STATUSES[quoteData.status as keyof typeof QUOTE_STATUSES]} to ${QUOTE_STATUSES[newStatus as keyof typeof QUOTE_STATUSES]}`);
+    if (!isValidStatusChange(quoteData.status as QuoteStatus || 'DRAFT', newStatus)) {
+      alert(`Cannot change status from ${QUOTE_STATUSES[quoteData.status as QuoteStatus]} to ${QUOTE_STATUSES[newStatus]}`);
       return;
     }
     
@@ -907,8 +907,8 @@ export default function NewQuoteModal({
       )
     : [];
 
-  // Get current status style
-  const currentStatusStyle = getStatusStyles(quoteData.status || 'DRAFT');
+  // Get current status style - FIXED: Use QuoteStatus type
+  const currentStatusStyle = getStatusStyles(quoteData.status as QuoteStatus || 'DRAFT');
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -933,7 +933,7 @@ export default function NewQuoteModal({
               <div>
                 <h3 className="font-medium text-gray-800">Quote Status</h3>
                 <p className="text-sm text-gray-500">
-                  {STATUS_DESCRIPTIONS[quoteData.status as keyof typeof STATUS_DESCRIPTIONS] || 
+                  {STATUS_DESCRIPTIONS[quoteData.status as QuoteStatus] || 
                    "Current status of this quote"}
                 </p>
             </div>
@@ -942,7 +942,7 @@ export default function NewQuoteModal({
                 <div className="mr-2 text-gray-700">Current Status:</div>
                 <span className={`px-3 py-1 rounded-full text-sm font-medium flex items-center ${currentStatusStyle.bg} ${currentStatusStyle.text}`}>
                   {currentStatusStyle.icon}
-                  {QUOTE_STATUSES[quoteData.status as keyof typeof QUOTE_STATUSES] || quoteData.status}
+                  {QUOTE_STATUSES[quoteData.status as QuoteStatus] || quoteData.status}
                 </span>
               </div>
             </div>
@@ -996,14 +996,14 @@ export default function NewQuoteModal({
                 Change Status
               </label>
               <div className="flex flex-wrap gap-2">
-                {Object.entries(QUOTE_STATUSES).map(([status, label]) => {
+                {(Object.entries(QUOTE_STATUSES) as [QuoteStatus, string][]).map(([status, label]) => {
                   // Don't show CONVERTED option in dropdown as it's only set by the system
                   if (status === 'CONVERTED' && quoteData.status !== 'CONVERTED') return null;
                   
                   const statusStyle = getStatusStyles(status);
                   const isDisabled = quoteData.status === status || 
                                     (quoteData.status === 'CONVERTED') || 
-                                    !isValidStatusChange(quoteData.status || 'DRAFT', status);
+                                    !isValidStatusChange(quoteData.status as QuoteStatus || 'DRAFT', status);
                   
                   return (
                     <button
@@ -1019,7 +1019,7 @@ export default function NewQuoteModal({
                             : `hover:${statusStyle.bg} border-gray-300 hover:${statusStyle.text}`
                         }
                       `}
-                      title={STATUS_DESCRIPTIONS[status as keyof typeof STATUS_DESCRIPTIONS]}
+                      title={STATUS_DESCRIPTIONS[status]}
                     >
                       {statusStyle.icon}
                       {label}
@@ -1683,9 +1683,9 @@ export default function NewQuoteModal({
               <h3 className="text-lg font-medium mb-4">Confirm Status Change</h3>
               <p className="mb-4">
                 Are you sure you want to change the quote status from 
-                <span className="font-medium"> {QUOTE_STATUSES[quoteData.status as keyof typeof QUOTE_STATUSES]} </span> 
+                <span className="font-medium"> {QUOTE_STATUSES[quoteData.status as QuoteStatus]} </span> 
                 to 
-                <span className="font-medium"> {QUOTE_STATUSES[pendingStatusChange as keyof typeof QUOTE_STATUSES]}?</span>
+                <span className="font-medium"> {QUOTE_STATUSES[pendingStatusChange as QuoteStatus]}?</span>
               </p>
               
               {pendingStatusChange === 'PENDING' && (
