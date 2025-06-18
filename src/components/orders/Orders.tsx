@@ -19,13 +19,20 @@ const priorityIconsMap: Record<string, JSX.Element> = {
   LOW: <CheckCircle className="h-4 w-4 text-green-500" />
 };
 
+// ✅ FIXED: Unified OrderItem interface to match OrderModal.tsx
 export interface OrderItem {
-  materialId?: string | null;
-  materialCode?: string | null;
+  id: string;
+  name: string;
+  code: string;
   description: string;
   quantity: number;
   unitPrice: number;
+  unit: string;
+  category: string;
   total: number;
+  // Legacy fields for backward compatibility
+  materialId?: string | null;
+  materialCode?: string | null;
 }
 
 export interface Order {
