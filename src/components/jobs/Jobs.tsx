@@ -19,6 +19,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { jobApi } from '../../utils/api'; // Verify path
+import { API_URL } from '../../config/constants'; // ✅ FIXED: Added API_URL import
 import CreateJobModal from './CreateJobModal'; // Verify path
 import JobDetails from './JobDetails';       // Verify path
 import { format } from 'date-fns';         // Or your date library
@@ -85,7 +86,7 @@ export default function Jobs() {
           // Fetch both jobs and orders in parallel
           const [jobsResponse, ordersResponse] = await Promise.all([
               jobApi.getJobs(params),
-              fetch('/api/orders', {
+              fetch(`${API_URL}/orders`, { // ✅ FIXED: Use API_URL instead of relative path
                   headers: {
                       'Authorization': `Bearer ${localStorage.getItem('token')}`,
                       'Content-Type': 'application/json',
