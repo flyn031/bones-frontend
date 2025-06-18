@@ -1,6 +1,7 @@
 // src/components/timetracking/TimeTracker.tsx
 import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, Save, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { API_URL } from '../../config/constants';
 
 interface Job {
   id: string;
@@ -57,7 +58,7 @@ export const TimeTracker: React.FC<TimeTrackerProps> = ({
     const fetchJobs = async () => {
       try {
         const token = localStorage.getItem('token');
-        const response = await fetch('/api/jobs', {
+        const response = await fetch(`${API_URL}/jobs`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
@@ -106,7 +107,7 @@ export const TimeTracker: React.FC<TimeTrackerProps> = ({
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/time-entries', {
+      const response = await fetch(`${API_URL}/time-entries`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { X, Search, UserPlus, Plus, History, Clock, Save, RefreshCw, Check, Clock3, X as XIcon, AlertTriangle } from "lucide-react";
 import axios from "axios";
+import { API_URL } from "../../config/constants";
 import FrequentItemSelector from "./FrequentItemSelector";
 import BundleSelector from "./BundleSelector";
 import PriceHistoryDisplay from "./PriceHistoryDisplay";
@@ -307,7 +308,7 @@ export default function NewQuoteModal({
     try {
       const token = localStorage.getItem("token");
       const response = await axios.get(
-        "http://localhost:4000/api/materials",
+        `${API_URL}/materials`,
         { headers: { Authorization: `Bearer ${token}` }}
       );
       
@@ -369,7 +370,7 @@ export default function NewQuoteModal({
         
         // Try fetching from the jobs endpoint
         const response = await axios.get(
-          "http://localhost:4000/api/jobs",
+          `${API_URL}/jobs`,
           { headers: { Authorization: `Bearer ${token}` }}
         );
         
@@ -411,7 +412,7 @@ export default function NewQuoteModal({
         console.log("Trying alternate endpoint...");
         try {
           const alt1Response = await axios.get(
-            "http://localhost:4000/api/jobs/all",
+            `${API_URL}/jobs/all`,
             { headers: { Authorization: `Bearer ${token}` }}
           );
           
@@ -525,7 +526,7 @@ export default function NewQuoteModal({
     try {
       const token = localStorage.getItem("token");
       const response = await axios.get(
-        `http://localhost:4000/api/customer-pricing`,
+        `${API_URL}/customer-pricing`,
         {
           params: {
             materialId,
@@ -749,7 +750,7 @@ export default function NewQuoteModal({
       const token = localStorage.getItem("token");
       // Send actual API request to create customer
       const response = await axios.post(
-        "http://localhost:4000/api/customers",
+        `${API_URL}/customers`,
         {
           name: newCustomer.name,
           email: newCustomer.email || "",

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import { API_URL } from '../../config/constants';
 
 interface Material {
   id: string;
@@ -23,7 +24,7 @@ const MaterialList: React.FC<MaterialListProps> = ({ customerId }) => {
       setIsLoading(true);
       setError(null);
       try {
-        const response = await axios.get(`http://localhost:4000/api/materials?customerId=${customerId}`, {
+        const response = await axios.get(`${API_URL}/materials?customerId=${customerId}`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`
           }

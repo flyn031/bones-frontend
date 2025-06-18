@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+import { API_URL } from '../../config/constants';
 
 interface MaterialCreationFormProps {
   customerId: string;
@@ -32,7 +33,7 @@ const MaterialCreationForm: React.FC<MaterialCreationFormProps> = ({ customerId,
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     try {
-      const response = await axios.post('/api/materials', {
+      const response = await axios.post(`${API_URL}/materials`, {
         ...formData,
         customerId
       }, {

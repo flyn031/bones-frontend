@@ -2,6 +2,8 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Plus, Search, Package, AlertTriangle, Edit, Trash2 } from 'lucide-react';
+import { API_URL } from '../../config/constants';
+
 // Local Material interface with required properties
 interface Material {
   id: string;
@@ -95,7 +97,7 @@ export default function JobMaterials({ jobId }: JobMaterialsProps) {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const response = await axios.get(`http://localhost:4000/api/jobs/${jobId}/materials`, {
+      const response = await axios.get(`${API_URL}/jobs/${jobId}/materials`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = response.data as JobMaterialsResponse;
@@ -113,7 +115,7 @@ export default function JobMaterials({ jobId }: JobMaterialsProps) {
   const fetchAvailableMaterials = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`http://localhost:4000/api/jobs/${jobId}/materials/available`, {
+      const response = await axios.get(`${API_URL}/jobs/${jobId}/materials/available`, {
         headers: { 'Authorization': `Bearer ${token}` },
         params: { search: searchTerm }
       });
@@ -133,7 +135,7 @@ export default function JobMaterials({ jobId }: JobMaterialsProps) {
   const handleAddMaterial = async () => {
     try {
       const token = localStorage.getItem('token');
-      await axios.post(`http://localhost:4000/api/jobs/${jobId}/materials`, formData, {
+      await axios.post(`${API_URL}/jobs/${jobId}/materials`, formData, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       
@@ -163,7 +165,7 @@ export default function JobMaterials({ jobId }: JobMaterialsProps) {
     try {
       const token = localStorage.getItem('token');
       await axios.patch(
-        `http://localhost:4000/api/jobs/${jobId}/materials/${allocationData.materialId}`,
+        `${API_URL}/jobs/${jobId}/materials/${allocationData.materialId}`,
         {
           quantityAllocated: allocationData.quantityAllocated,
           quantityUsed: allocationData.quantityUsed,
@@ -188,7 +190,7 @@ export default function JobMaterials({ jobId }: JobMaterialsProps) {
     
     try {
       const token = localStorage.getItem('token');
-      await axios.delete(`http://localhost:4000/api/jobs/${jobId}/materials/${materialId}`, {
+      await axios.delete(`${API_URL}/jobs/${jobId}/materials/${materialId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       

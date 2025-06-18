@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Search, Plus, Grid, List, Filter, ChevronLeft, ChevronRight, X, Briefcase } from 'lucide-react';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
+import { API_URL } from '../../config/constants'; // ✅ FIXED: Added API_URL import
 import CreateItemModal from './CreateItemModal';
 import MaterialDetailModal from './MaterialDetailModal';
 
@@ -131,7 +132,7 @@ export default function Inventory() {
   const fetchSuppliers = useCallback(async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get<SuppliersResponse>('http://localhost:4000/api/suppliers', {
+      const response = await axios.get<SuppliersResponse>(`${API_URL}/suppliers`, { // ✅ FIXED: Use API_URL
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -178,7 +179,7 @@ export default function Inventory() {
       }
 
       const response = await axios.get<MaterialsResponse>(
-        `http://localhost:4000/api/materials`,
+        `${API_URL}/materials`, // ✅ FIXED: Use API_URL
         {
           headers: {
             'Authorization': `Bearer ${token}`
@@ -229,7 +230,7 @@ export default function Inventory() {
   const fetchJobs = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get<JobsResponse>('http://localhost:4000/api/jobs', {
+      const response = await axios.get<JobsResponse>(`${API_URL}/jobs`, { // ✅ FIXED: Use API_URL
         headers: {
           'Authorization': `Bearer ${token}`
         },
@@ -362,7 +363,7 @@ export default function Inventory() {
       // Use Promise.all for concurrent requests
       const results = await Promise.allSettled(itemsToSubmit.map(item =>
         axios.post(
-          `http://localhost:4000/api/jobs/${selectedJobId}/materials`, // Verify this endpoint
+          `${API_URL}/jobs/${selectedJobId}/materials`, // ✅ FIXED: Use API_URL
           {
             materialId: item.materialId,
             quantityNeeded: item.quantity,
@@ -432,7 +433,7 @@ export default function Inventory() {
     try {
       console.log('Creating inventory item with data:', data);
       const token = localStorage.getItem('token');
-      const response = await axios.post('http://localhost:4000/api/materials', data, {
+      const response = await axios.post(`${API_URL}/materials`, data, { // ✅ FIXED: Use API_URL
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
