@@ -108,125 +108,6 @@ const STATUS_COLORS: Record<QuoteStatus, { bg: string; text: string; border: str
   }
 };
 
-// Comprehensive catalog of inventory items (mock data, will be replaced by API)
-const inventoryCatalog: Item[] = [
-  // Belt Conveyors
-  {
-    id: "BC001",
-    name: "Flat Belt Conveyor - Light Duty",
-    code: "FBC-LD",
-    unitPrice: 950.0,
-    unit: "meter",
-    category: "belt_conveyor",
-    description: "Light duty flat belt conveyor for packages up to 15kg",
-  },
-  {
-    id: "BC002",
-    name: "Trough Belt Conveyor - Heavy Duty",
-    code: "TBC-HD",
-    unitPrice: 2500.0,
-    unit: "meter",
-    category: "belt_conveyor",
-    description: "Heavy duty trough belt conveyor for bulk materials",
-  },
-  {
-    id: "BC003",
-    name: "Incline Belt Conveyor - Grip Top",
-    code: "IBC-GT",
-    unitPrice: 1200.0,
-    unit: "meter",
-    category: "belt_conveyor",
-    description: "Incline belt conveyor with grip top belt for inclines",
-  },
-  // Roller Conveyors
-  {
-    id: "RC001",
-    name: "Gravity Roller Conveyor - Light Duty",
-    code: "GRC-LD",
-    unitPrice: 150.0,
-    unit: "meter",
-    category: "roller_conveyor",
-    description: "Light duty gravity roller conveyor for carton boxes",
-  },
-  {
-    id: "RC002",
-    name: "Powered Roller Conveyor - Medium Duty",
-    code: "PRC-MD",
-    unitPrice: 800.0,
-    unit: "meter",
-    category: "roller_conveyor",
-    description: "Medium duty powered roller conveyor with accumulation zones",
-  },
-  // Chain Conveyors
-  {
-    id: "CC001",
-    name: "Twin Chain Conveyor - Pallet Handling",
-    code: "TCC-PH",
-    unitPrice: 3500.0,
-    unit: "meter",
-    category: "chain_conveyor",
-    description: "Twin chain conveyor for heavy duty pallet transport",
-  },
-  // Modular Conveyors
-  {
-    id: "MC001",
-    name: "Flexible Modular Conveyor - Plastic Chain",
-    code: "FMC-PC",
-    unitPrice: 600.0,
-    unit: "meter",
-    category: "modular_conveyor",
-    description: "Modular plastic chain conveyor for versatile layouts",
-  },
-  // Specialty Conveyors
-  {
-    id: "SC001",
-    name: "Spiral Conveyor - Space Saving",
-    code: "SPC-SS",
-    unitPrice: 15000.0,
-    unit: "unit",
-    category: "specialty_conveyor",
-    description: "Compact spiral conveyor for elevation changes in small footprints",
-  },
-  // Control Systems
-  {
-    id: "CS001",
-    name: "Basic PLC Control Panel",
-    code: "PLC-BSC",
-    unitPrice: 2500.0,
-    unit: "unit",
-    category: "control_system",
-    description: "Basic control panel with PLC for conveyor automation",
-  },
-  {
-    id: "CS002",
-    name: "Advanced SCADA System Integration",
-    code: "SCADA-ADV",
-    unitPrice: 12000.0,
-    unit: "project",
-    category: "control_system",
-    description: "Comprehensive SCADA system for full line integration and monitoring",
-  },
-  // Services
-  {
-    id: "SVC001",
-    name: "On-site Installation Service",
-    code: "INST-OS",
-    unitPrice: 800.0,
-    unit: "day",
-    category: "service",
-    description: "Professional installation service by certified technicians",
-  },
-  {
-    id: "SVC002",
-    name: "Preventative Maintenance Contract",
-    code: "MNT-PREV",
-    unitPrice: 5000.0,
-    unit: "year",
-    category: "service",
-    description: "Annual preventative maintenance contract for conveyor systems",
-  },
-];
-
 // ✅ FIXED - Enhanced mock data for jobs with proper typing
 const mockJobs: Job[] = [
   { id: "J2024-001", title: "Acme Factory Installation", projectTitle: "Acme Factory Installation" },
@@ -322,21 +203,23 @@ export default function NewQuoteModal({
           code: material.code || `MAT-${material.id.substring(0, 4)}`,
           unitPrice: material.unitPrice,
           unit: material.unit || 'unit',
-          category: material.category || 'other',
-          description: material.description
+          category: material.category || 'OTHER',
+          description: material.description,
+          currentStockLevel: material.currentStockLevel,
+          inventoryPurpose: material.inventoryPurpose,
+          isQuotable: material.isQuotable
         }));
         
         console.log(`Loaded ${materials.length} materials from API`);
         setInventoryItems(materials);
       } else {
-        // Fallback to hardcoded catalog if response format is unexpected
-        console.warn('Material API returned unexpected format, using catalog');
-        setInventoryItems(inventoryCatalog);
+        console.warn('Material API returned unexpected format, setting empty array');
+        setInventoryItems([]);
       }
     } catch (error) {
       console.error("Error fetching materials:", error);
-      // Fallback to the hardcoded catalog if API fails
-      setInventoryItems(inventoryCatalog);
+      // Set empty array instead of fallback catalog
+      setInventoryItems([]);
     } finally {
       setMaterialsLoading(false);
     }
@@ -490,7 +373,7 @@ export default function NewQuoteModal({
             unitPrice: item.unitPrice || (inventoryMatch ? inventoryMatch.unitPrice : 0),
             quantity: item.quantity || 1,
             unit: inventoryMatch?.unit || "unit",
-            category: inventoryMatch?.category || "other",
+            category: inventoryMatch?.category || "OTHER",
             total: (item.quantity || 1) * (item.unitPrice || 0)
           };
           
@@ -1389,15 +1272,13 @@ export default function NewQuoteModal({
                   className="border rounded-lg px-3 py-2"
                 >
                   <option value="all">All Categories</option>
-                  <option value="belt_conveyor">Belt Conveyors</option>
-                  <option value="roller_conveyor">Roller Conveyors</option>
-                  <option value="chain_conveyor">Chain Conveyors</option>
-                  <option value="modular_conveyor">Modular Conveyors</option>
-                  <option value="specialty_conveyor">
-                    Specialty Conveyors
-                  </option>
-                  <option value="control_system">Control Systems</option>
-                  <option value="service">Services</option>
+                  <option value="CONVEYOR_COMPONENT">Conveyor Components</option>
+                  <option value="ELECTRICAL">Electrical</option>
+                  <option value="MECHANICAL">Mechanical</option>
+                  <option value="STRUCTURAL">Structural</option>
+                  <option value="CONSUMABLE">Consumables</option>
+                  <option value="TOOL">Tools</option>
+                  <option value="OTHER">Other</option>
                 </select>
               </div>
             </div>
@@ -1447,6 +1328,7 @@ export default function NewQuoteModal({
                   <div>
                     <div className="font-medium">{item.name}</div>
                     <div className="text-sm text-gray-500">{item.code}</div>
+                    <div className="text-xs text-blue-600">Category: {item.category}</div>
                     {item.description && (
                       <div className="text-xs text-gray-400">
                         {item.description}
