@@ -38,7 +38,7 @@ interface OrderItem {
   id: string;
   name: string;
   code: string;
-  description?: string;
+  description: string;
   quantity: number;
   unitPrice: number;
   unit: string;
@@ -54,7 +54,7 @@ interface Material {
   unitPrice: number;
   unit: string;
   category: string;
-  description?: string;
+  description: string;
   currentStockLevel?: number;
 }
 
@@ -190,18 +190,19 @@ export default function OrderModal({ isOpen, onClose, onSubmit, orderToEdit }: O
       console.log('Materials fetched:', response.data);
       
       // Handle the complex response structure
-      let materialsArray = [];
+      let materialsArray: any[] = [];
       
       if (response.data) {
         // Try different possible array locations in the response
-        if (Array.isArray(response.data.materials)) {
-          materialsArray = response.data.materials;
-        } else if (Array.isArray(response.data.items)) {
-          materialsArray = response.data.items;
-        } else if (Array.isArray(response.data.data)) {
-          materialsArray = response.data.data;
-        } else if (Array.isArray(response.data)) {
-          materialsArray = response.data;
+        const responseData = response.data as any;
+        if (Array.isArray(responseData.materials)) {
+          materialsArray = responseData.materials;
+        } else if (Array.isArray(responseData.items)) {
+          materialsArray = responseData.items;
+        } else if (Array.isArray(responseData.data)) {
+          materialsArray = responseData.data;
+        } else if (Array.isArray(responseData)) {
+          materialsArray = responseData;
         }
         
         console.log('Using materials array:', materialsArray);
@@ -213,7 +214,7 @@ export default function OrderModal({ isOpen, onClose, onSubmit, orderToEdit }: O
           unitPrice: material.unitPrice || 0,
           unit: material.unit || 'unit',
           category: material.category || 'OTHER',
-          description: material.description,
+          description: material.description || '',
           currentStockLevel: material.currentStockLevel
         }));
         
@@ -246,7 +247,7 @@ export default function OrderModal({ isOpen, onClose, onSubmit, orderToEdit }: O
         id: material.id,
         name: material.name,
         code: material.code,
-        description: material.description,
+        description: material.description || '',
         quantity: 1,
         unitPrice: material.unitPrice,
         unit: material.unit,

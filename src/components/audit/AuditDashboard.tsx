@@ -46,11 +46,36 @@ const AuditDashboard: React.FC = () => {
       };
       
       const response = await auditApi.searchAuditHistory(apiParams);
-      // API returns AuditHistory[] directly, not wrapped in results
-      setAuditHistory(response.data || []);
+      
+      console.log('Audit history fetched:', response.data);
+      
+      // Handle the complex response structure - same pattern as materials
+      let auditArray: any[] = [];
+      
+      if (response.data) {
+        const responseData = response.data as any;
+        // Try different possible array locations in the response
+        if (Array.isArray(responseData.auditHistory)) {
+          auditArray = responseData.auditHistory;
+        } else if (Array.isArray(responseData.items)) {
+          auditArray = responseData.items;
+        } else if (Array.isArray(responseData.data)) {
+          auditArray = responseData.data;
+        } else if (Array.isArray(responseData.results)) {
+          auditArray = responseData.results;
+        } else if (Array.isArray(responseData)) {
+          auditArray = responseData;
+        }
+        
+        console.log('Using audit array:', auditArray);
+        setAuditHistory(auditArray);
+      } else {
+        setAuditHistory([]);
+      }
     } catch (err) {
       setError('Failed to load audit history');
       console.error('Error fetching audit history:', err);
+      setAuditHistory([]);
     } finally {
       setLoading(false);
     }
