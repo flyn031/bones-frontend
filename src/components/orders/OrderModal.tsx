@@ -189,18 +189,35 @@ export default function OrderModal({ isOpen, onClose, onSubmit, orderToEdit }: O
       
       console.log('Materials fetched:', response.data);
       
-      if (response.data && Array.isArray(response.data)) {
-        const materialsData = response.data.map((material: any) => ({
+      // Handle the complex response structure
+      let materialsArray = [];
+      
+      if (response.data) {
+        // Try different possible array locations in the response
+        if (Array.isArray(response.data.materials)) {
+          materialsArray = response.data.materials;
+        } else if (Array.isArray(response.data.items)) {
+          materialsArray = response.data.items;
+        } else if (Array.isArray(response.data.data)) {
+          materialsArray = response.data.data;
+        } else if (Array.isArray(response.data)) {
+          materialsArray = response.data;
+        }
+        
+        console.log('Using materials array:', materialsArray);
+        
+        const materialsData = materialsArray.map((material: any) => ({
           id: material.id,
           name: material.name,
           code: material.code || `MAT-${material.id.substring(0, 4)}`,
-          unitPrice: material.unitPrice,
+          unitPrice: material.unitPrice || 0,
           unit: material.unit || 'unit',
-          category: material.category || 'other',
+          category: material.category || 'OTHER',
           description: material.description,
           currentStockLevel: material.currentStockLevel
         }));
         
+        console.log('Processed materials:', materialsData);
         setMaterials(materialsData);
       } else {
         setMaterials([]);
