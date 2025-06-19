@@ -183,7 +183,7 @@ export default function NewQuoteModal({
     return STATUS_COLORS[status] || STATUS_COLORS.DRAFT;
   };
 
-  // Create a memoized function to fetch materials
+  // ✅ FIXED - Create a memoized function to fetch materials with proper API response handling
   const fetchMaterials = useCallback(async () => {
     setMaterialsLoading(true);
     try {
@@ -195,16 +195,32 @@ export default function NewQuoteModal({
       
       console.log("Materials API response:", response.data);
       
-      if (response.data && Array.isArray(response.data)) {
-        // Map the API response to the Item interface format
-        const materials = response.data.map((material: any) => ({
+      // Handle the complex response structure - same pattern as OrderModal
+      let materialsArray: any[] = [];
+      
+      if (response.data) {
+        const responseData = response.data as any;
+        // Try different possible array locations in the response
+        if (Array.isArray(responseData.materials)) {
+          materialsArray = responseData.materials;
+        } else if (Array.isArray(responseData.items)) {
+          materialsArray = responseData.items;
+        } else if (Array.isArray(responseData.data)) {
+          materialsArray = responseData.data;
+        } else if (Array.isArray(responseData)) {
+          materialsArray = responseData;
+        }
+        
+        console.log('Using materials array:', materialsArray);
+        
+        const materials = materialsArray.map((material: any) => ({
           id: material.id,
           name: material.name,
           code: material.code || `MAT-${material.id.substring(0, 4)}`,
-          unitPrice: material.unitPrice,
+          unitPrice: material.unitPrice || 0,
           unit: material.unit || 'unit',
           category: material.category || 'OTHER',
-          description: material.description,
+          description: material.description || '',
           currentStockLevel: material.currentStockLevel,
           inventoryPurpose: material.inventoryPurpose,
           isQuotable: material.isQuotable
@@ -820,9 +836,9 @@ export default function NewQuoteModal({
                   {STATUS_DESCRIPTIONS[quoteData.status as QuoteStatus] || 
                    "Current status of this quote"}
                 </p>
-            </div>
+              </div>
 
-          {/* Basic Information */}<div className="flex items-center">
+              <div className="flex items-center">
                 <div className="mr-2 text-gray-700">Current Status:</div>
                 <span className={`px-3 py-1 rounded-full text-sm font-medium flex items-center ${currentStatusStyle.bg} ${currentStatusStyle.text}`}>
                   {currentStatusStyle.icon}
@@ -919,6 +935,7 @@ export default function NewQuoteModal({
             </div>
           </div>
 
+          {/* Basic Information */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
