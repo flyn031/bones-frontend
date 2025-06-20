@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { User, LogOut, Info, X, Settings, Activity, Shield, Building, Upload, Image } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { apiClient as api } from '../../utils/api';
-import { User as UserType } from '../../types/api';
+// Removed unused import: User as UserType
 import SystemFlowDiagram from '../dashboard/SystemFlowDiagram'; // Assuming this component exists
 import { Button, Input, Alert } from '../ui'; // Assuming these UI components exist
 
@@ -11,6 +11,23 @@ type AlertType = 'info' | 'success' | 'warning' | 'error';
 interface MessageState {
   type: AlertType | '';
   text: string;
+}
+
+// Add interface for User with company details properties
+interface UserWithCompanyDetails {
+  id?: string;
+  name?: string;
+  email?: string;
+  role?: string;
+  createdAt?: string;
+  companyName?: string;
+  companyAddress?: string;
+  companyPhone?: string;
+  companyEmail?: string;
+  companyWebsite?: string;
+  companyVatNumber?: string;
+  companyLogo?: string;
+  useCompanyDetailsOnQuotes?: boolean;
 }
 
 /*
@@ -35,36 +52,39 @@ const UserProfile = () => {
   });
   const [passwordMessage, setPasswordMessage] = useState<MessageState>({ type: '', text: '' });
   const [profileMessage, setProfileMessage] = useState<MessageState>({ type: '', text: '' });
-  const [logoPreview, setLogoPreview] = useState(user?.companyLogo || '');
+  
+  // Cast user to UserWithCompanyDetails to access company properties
+  const userWithCompany = user as UserWithCompanyDetails;
+  const [logoPreview, setLogoPreview] = useState(userWithCompany?.companyLogo || '');
 
   // Company details state
   const [companyDetails, setCompanyDetails] = useState({
-    companyName: user?.companyName || '',
-    companyAddress: user?.companyAddress || '',
-    companyPhone: user?.companyPhone || '',
-    companyEmail: user?.companyEmail || '',
-    companyWebsite: user?.companyWebsite || '',
-    companyVatNumber: user?.companyVatNumber || '',
-    companyLogo: user?.companyLogo || '',
-    useCompanyDetailsOnQuotes: user?.useCompanyDetailsOnQuotes || false
+    companyName: userWithCompany?.companyName || '',
+    companyAddress: userWithCompany?.companyAddress || '',
+    companyPhone: userWithCompany?.companyPhone || '',
+    companyEmail: userWithCompany?.companyEmail || '',
+    companyWebsite: userWithCompany?.companyWebsite || '',
+    companyVatNumber: userWithCompany?.companyVatNumber || '',
+    companyLogo: userWithCompany?.companyLogo || '',
+    useCompanyDetailsOnQuotes: userWithCompany?.useCompanyDetailsOnQuotes || false
   });
 
   // Update company details state when user data changes from context
   useEffect(() => {
-    if (user) {
+    if (userWithCompany) {
       setCompanyDetails({
-        companyName: user.companyName || '',
-        companyAddress: user.companyAddress || '',
-        companyPhone: user.companyPhone || '',
-        companyEmail: user.companyEmail || '',
-        companyWebsite: user.companyWebsite || '',
-        companyVatNumber: user.companyVatNumber || '',
-        companyLogo: user.companyLogo || '',
-        useCompanyDetailsOnQuotes: user.useCompanyDetailsOnQuotes || false
+        companyName: userWithCompany.companyName || '',
+        companyAddress: userWithCompany.companyAddress || '',
+        companyPhone: userWithCompany.companyPhone || '',
+        companyEmail: userWithCompany.companyEmail || '',
+        companyWebsite: userWithCompany.companyWebsite || '',
+        companyVatNumber: userWithCompany.companyVatNumber || '',
+        companyLogo: userWithCompany.companyLogo || '',
+        useCompanyDetailsOnQuotes: userWithCompany.useCompanyDetailsOnQuotes || false
       });
-      setLogoPreview(user.companyLogo || ''); // Update preview as well
+      setLogoPreview(userWithCompany.companyLogo || ''); // Update preview as well
     }
-  }, [user]);
+  }, [userWithCompany]);
 
   // Recent activity simulation - Replace with actual API call in a real application
   const recentActivity = [
@@ -204,9 +224,12 @@ const UserProfile = () => {
       console.log('Server response:', response.data);
       console.log('Response useCompanyDetailsOnQuotes:', response.data?.useCompanyDetailsOnQuotes);
       
+      // Fixed: Ensure we have a valid user object before spreading
+      const currentUser = userWithCompany || {};
+      
       // WORKAROUND: Backend doesn't return useCompanyDetailsOnQuotes, so preserve it
       const updatedUser = {
-        ...user, // Keep existing user data
+        ...currentUser, // Keep existing user data (now guaranteed to be an object)
         ...response.data, // Merge in the updated company details
         // CRITICAL: Force preserve the checkbox value since server doesn't return it
         useCompanyDetailsOnQuotes: companyDetails.useCompanyDetailsOnQuotes
@@ -238,7 +261,7 @@ const UserProfile = () => {
         aria-label="User profile menu"
       >
         <User className="h-5 w-5" />
-        <span className="hidden md:inline text-sm font-medium">{user?.name?.split(' ')[0] || 'Profile'}</span>
+        <span className="hidden md:inline text-sm font-medium">{userWithCompany?.name?.split(' ')[0] || 'Profile'}</span>
       </button>
 
       {/* Dropdown Menu */}
@@ -253,10 +276,10 @@ const UserProfile = () => {
             {/* Profile Info Section */}
             <div className="px-4 py-3">
               <p className="text-sm font-medium text-gray-900 dark:text-white" role="none">
-                {user?.name || 'Current User'}
+                {userWithCompany?.name || 'Current User'}
               </p>
               <p className="text-sm text-gray-500 dark:text-gray-400 truncate" role="none">
-                {user?.email || 'No email provided'}
+                {userWithCompany?.email || 'No email provided'}
               </p>
             </div>
 
@@ -323,14 +346,14 @@ const UserProfile = () => {
                    <img src={logoPreview} alt="Company Logo Preview" className="h-16 w-16 rounded-full object-cover border-2 border-white dark:border-gray-600 shadow-sm flex-shrink-0"/>
                  ) : (
                    <div className="bg-indigo-500 text-white rounded-full h-16 w-16 flex items-center justify-center text-2xl font-bold shadow-sm flex-shrink-0">
-                    {user?.name?.charAt(0).toUpperCase() || 'U'}
+                    {userWithCompany?.name?.charAt(0).toUpperCase() || 'U'}
                   </div>
                  )}
                 <div className="ml-4">
-                  <h1 className="text-xl font-bold text-gray-900 dark:text-white">{user?.name || 'User Name'}</h1>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">{user?.email || 'user@example.com'}</p>
+                  <h1 className="text-xl font-bold text-gray-900 dark:text-white">{userWithCompany?.name || 'User Name'}</h1>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">{userWithCompany?.email || 'user@example.com'}</p>
                   <p className="mt-1 px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200">
-                    {user?.role || 'Default Role'}
+                    {userWithCompany?.role || 'Default Role'}
                   </p>
                 </div>
               </div>
@@ -377,20 +400,20 @@ const UserProfile = () => {
                             <dl>
                                 <div className="py-3 sm:grid sm:grid-cols-3 sm:gap-4">
                                     <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Full Name</dt>
-                                    <dd className="mt-1 text-sm text-gray-900 dark:text-white sm:mt-0 sm:col-span-2">{user?.name || 'N/A'}</dd>
+                                    <dd className="mt-1 text-sm text-gray-900 dark:text-white sm:mt-0 sm:col-span-2">{userWithCompany?.name || 'N/A'}</dd>
                                 </div>
                                 <div className="py-3 sm:grid sm:grid-cols-3 sm:gap-4 border-t dark:border-gray-700">
                                     <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Email Address</dt>
-                                    <dd className="mt-1 text-sm text-gray-900 dark:text-white sm:mt-0 sm:col-span-2">{user?.email || 'N/A'}</dd>
+                                    <dd className="mt-1 text-sm text-gray-900 dark:text-white sm:mt-0 sm:col-span-2">{userWithCompany?.email || 'N/A'}</dd>
                                 </div>
                                 <div className="py-3 sm:grid sm:grid-cols-3 sm:gap-4 border-t dark:border-gray-700">
                                     <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">User Role</dt>
-                                    <dd className="mt-1 text-sm text-gray-900 dark:text-white sm:mt-0 sm:col-span-2">{user?.role || 'N/A'}</dd>
+                                    <dd className="mt-1 text-sm text-gray-900 dark:text-white sm:mt-0 sm:col-span-2">{userWithCompany?.role || 'N/A'}</dd>
                                 </div>
                                 <div className="py-3 sm:grid sm:grid-cols-3 sm:gap-4 border-t dark:border-gray-700">
                                     <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Member Since</dt>
                                     <dd className="mt-1 text-sm text-gray-900 dark:text-white sm:mt-0 sm:col-span-2">
-                                        {user?.createdAt ? new Date(user.createdAt).toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A'}
+                                        {userWithCompany?.createdAt ? new Date(userWithCompany.createdAt).toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A'}
                                     </dd>
                                 </div>
                              </dl>
@@ -622,7 +645,7 @@ const UserProfile = () => {
                          </div>
                          <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg shadow-sm">
                            <p className="text-gray-500 dark:text-gray-400">Current User Role</p>
-                           <p className="font-medium text-gray-900 dark:text-white">{user?.role || 'N/A'}</p>
+                           <p className="font-medium text-gray-900 dark:text-white">{userWithCompany?.role || 'N/A'}</p>
                         </div>
                          <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg shadow-sm">
                            <p className="text-gray-500 dark:text-gray-400">System Version</p>

@@ -1,6 +1,7 @@
 // src/types/enhancedQuote.ts - Professional quote enhancements for CCL-style quotes
 
-import { QuoteData, QuoteItem, QuoteStatus, Customer } from './quote';
+// Removed unused import: QuoteStatus
+import { QuoteData, QuoteItem, Customer } from './quote';
 
 // Enhanced payment terms structure
 export interface PaymentTerms {
