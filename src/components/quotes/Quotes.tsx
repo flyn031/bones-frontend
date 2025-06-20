@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Search, Plus, FileText, ArrowRight, Link as LinkIcon, Copy, Calendar, History as HistoryIcon, RefreshCw, X, Edit3, MoreVertical } from "lucide-react"; 
 import NewQuoteModal from './NewQuoteModal';
 import { generateQuotePDF } from './pdf/QuotePDF';
+import { generateProfessionalQuotePDF } from './pdf/EnhancedQuotePDF'; // NEW: Enhanced PDF import
 import { apiClient } from '../../utils/api';
 import { Customer, QuoteData, QuoteVersion, QuoteStatus } from '../../types/quote';
 
@@ -563,20 +564,116 @@ const handleModalSaveSuccess = useCallback((data: QuoteData) => {
    }
  };
 
+ // ENHANCED: Professional PDF generation with user profile integration
  const handleGeneratePDF = async (quoteId: string) => {
    const quote = quotes.find(q => q.id === quoteId);
-   if (!quote) { alert("Quote not found to generate PDF."); return; }
+   if (!quote) { 
+     alert("Quote not found to generate PDF."); 
+     return; 
+   }
+
    try {
      const token = localStorage.getItem('token');
      if (!token) throw new Error("Auth token not found.");
      
+     // Fetch full quote details from API
      const response = await apiClient.get(`/quotes/${quoteId}`);
-     const data = response.data as any;
+     const quoteData = response.data as any;
      
-     generateQuotePDF(data);
+     // Get user profile for company details
+     let userProfile = null;
+     try {
+       const profileResponse = await apiClient.get('/auth/profile');
+       userProfile = profileResponse.data;
+       console.log('User profile loaded for PDF:', userProfile);
+     } catch (profileError) {
+       console.warn('Could not load user profile for PDF, using defaults:', profileError);
+     }
+     
+     // Convert QuoteVersion to QuoteData format for PDF generation
+     const quoteForPDF = {
+       id: quoteData.id,
+       title: quoteData.title,
+       customer: quoteData.customerName || quoteData.customer?.name || 'Unknown Customer',
+       customerId: quoteData.customerId,
+       contactPerson: quoteData.contactPerson,
+       contactEmail: quoteData.contactEmail, 
+       contactPhone: quoteData.contactPhone,
+       date: quoteData.createdAt,
+       validUntil: quoteData.validUntil,
+       validityDays: 30, // Default
+       terms: quoteData.terms || 'Net 30',
+       notes: quoteData.notes,
+       items: (quoteData.lineItems || []).map((item: any) => ({
+         id: item.id,
+         description: item.description,
+         quantity: item.quantity,
+         unitPrice: item.unitPrice,
+         total: item.quantity * item.unitPrice,
+         materialId: item.materialId
+       })),
+       totalAmount: quoteData.totalAmount || quoteData.value || 0,
+       status: quoteData.status,
+       quoteNumber: quoteData.quoteNumber,
+       quoteReference: quoteData.quoteReference,
+       versionNumber: quoteData.versionNumber,
+       customerReference: quoteData.customerReference
+     };
+     
+     // Generate professional PDF
+     console.log('Generating professional PDF for quote:', quoteForPDF);
+     const pdf = generateProfessionalQuotePDF(quoteForPDF, userProfile);
+     
+     // Download the PDF
+     const filename = `Quote-${quoteData.quoteNumber || quoteData.quoteReference || quoteId}-v${quoteData.versionNumber || 1}.pdf`;
+     pdf.download(filename);
+     
+     console.log('Professional PDF generated successfully');
+     
    } catch (error) {
-     console.error('Error generating PDF:', (error as any).response?.data || (error as any).message);
-     alert(`Failed to generate PDF: ${(error as any).response?.data?.message || (error as any).message}`);
+     console.error('Error generating professional PDF:', error);
+     
+     // Fallback to basic quote data from local state
+     try {
+       console.log('Falling back to local quote data for PDF generation');
+       
+       const fallbackQuoteData = {
+         id: quote.id,
+         title: quote.title,
+         customer: quote.customerName || 'Unknown Customer',
+         customerId: quote.customerId,
+         contactPerson: quote.contactPerson,
+         contactEmail: quote.contactEmail,
+         contactPhone: quote.contactPhone,
+         date: quote.createdAt,
+         validUntil: quote.validUntil,
+         validityDays: 30,
+         terms: 'Net 30',
+         notes: quote.notes,
+         items: quote.lineItems.map(item => ({
+           id: item.id,
+           description: item.description,
+           quantity: item.quantity,
+           unitPrice: item.unitPrice,
+           total: item.quantity * item.unitPrice,
+           materialId: item.materialId
+         })),
+         totalAmount: quote.totalAmount || quote.value || 0,
+         status: quote.status,
+         quoteNumber: quote.quoteNumber,
+         quoteReference: quote.quoteReference,
+         versionNumber: quote.versionNumber,
+         customerReference: quote.customerReference
+       };
+       
+       const pdf = generateProfessionalQuotePDF(fallbackQuoteData);
+       const filename = `Quote-${quote.quoteNumber || quote.quoteReference || quote.id}.pdf`;
+       pdf.download(filename);
+       
+     } catch (fallbackError) {
+       console.error('Fallback PDF generation also failed:', fallbackError);
+       alert(`Failed to generate PDF: ${(error as any).message || 'Unknown error'}`);
+     }
    }
  };
 

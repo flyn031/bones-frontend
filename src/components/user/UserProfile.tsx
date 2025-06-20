@@ -198,8 +198,23 @@ const UserProfile = () => {
 
     try {
       console.log('Saving company details:', companyDetails);
-      const response = await api.put('/auth/profile', companyDetails); // Send entire companyDetails object
-      updateUser(response.data as Partial<UserType>); // Update context with potentially merged/updated data from backend
+      const response = await api.put('/auth/profile', companyDetails);
+      
+      // DEBUG: Log the actual response to see what we're getting
+      console.log('Server response:', response.data);
+      console.log('Response useCompanyDetailsOnQuotes:', response.data?.useCompanyDetailsOnQuotes);
+      
+      // WORKAROUND: Backend doesn't return useCompanyDetailsOnQuotes, so preserve it
+      const updatedUser = {
+        ...user, // Keep existing user data
+        ...response.data, // Merge in the updated company details
+        // CRITICAL: Force preserve the checkbox value since server doesn't return it
+        useCompanyDetailsOnQuotes: companyDetails.useCompanyDetailsOnQuotes
+      };
+      
+      console.log('Updated user for context (with preserved checkbox):', updatedUser);
+      updateUser(updatedUser);
+      
       setProfileMessage({ type: 'success', text: 'Company details updated successfully!' });
       setTimeout(() => setProfileMessage({ type: '', text: '' }), 3000);
     } catch (error: any) {
