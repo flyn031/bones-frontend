@@ -66,7 +66,7 @@ const UserProfile = () => {
     companyWebsite: userWithCompany?.companyWebsite || '',
     companyVatNumber: userWithCompany?.companyVatNumber || '',
     companyLogo: userWithCompany?.companyLogo || '',
-    useCompanyDetailsOnQuotes: userWithCompany?.useCompanyDetailsOnQuotes || false
+    useCompanyDetailsOnQuotes: Boolean(userWithCompany?.useCompanyDetailsOnQuotes) // Fixed: Ensure boolean
   });
 
   // Update company details state when user data changes from context
@@ -80,7 +80,7 @@ const UserProfile = () => {
         companyWebsite: userWithCompany.companyWebsite || '',
         companyVatNumber: userWithCompany.companyVatNumber || '',
         companyLogo: userWithCompany.companyLogo || '',
-        useCompanyDetailsOnQuotes: userWithCompany.useCompanyDetailsOnQuotes || false
+        useCompanyDetailsOnQuotes: Boolean(userWithCompany.useCompanyDetailsOnQuotes) // Fixed: Ensure boolean
       });
       setLogoPreview(userWithCompany.companyLogo || ''); // Update preview as well
     }
@@ -226,6 +226,11 @@ const UserProfile = () => {
       
       // Fixed: Ensure we have a valid user object before spreading
       const currentUser = userWithCompany || {};
+      
+      // Ensure currentUser is a proper object before spreading
+      if (typeof currentUser !== 'object' || currentUser === null) {
+        throw new Error('Invalid user data');
+      }
       
       // WORKAROUND: Backend doesn't return useCompanyDetailsOnQuotes, so preserve it
       const updatedUser = {
