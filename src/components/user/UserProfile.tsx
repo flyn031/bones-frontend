@@ -265,9 +265,10 @@ const UserProfile = () => {
       
       // DEBUG: Log the actual response to see what we're getting
       console.log('Server response:', response.data);
-      // Ensure we have a safe object to work with
-      const safeResponseData = response.data && typeof response.data === 'object' ? response.data : {};
-      console.log('Response useCompanyDetailsOnQuotes:', safeResponseData.useCompanyDetailsOnQuotes);
+      // Explicit typing and null checking to avoid property access errors
+      const responseData = response.data;
+      const safeResponseData = (responseData && typeof responseData === 'object') ? responseData : {};
+      console.log('Response useCompanyDetailsOnQuotes:', (safeResponseData as any).useCompanyDetailsOnQuotes);
       
       // Fixed: Ensure we have a valid user object before spreading and proper type handling
       const currentUser = user && typeof user === 'object' ? user : {};
