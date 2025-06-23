@@ -6,8 +6,8 @@ import { generateProfessionalQuotePDF } from './pdf/EnhancedQuotePDF'; // NEW: E
 import { apiClient } from '../../utils/api';
 import { Customer, QuoteData, QuoteVersion, QuoteStatus } from '../../types/quote';
 
-// Add UserProfile interface to fix type issues
-interface UserProfile {
+// Add local UserProfile interface to avoid conflicts with existing types
+interface LocalUserProfile {
   id?: string;
   name?: string;
   email?: string;
@@ -592,11 +592,14 @@ const handleModalSaveSuccess = useCallback((data: QuoteData) => {
      const response = await apiClient.get(`/quotes/${quoteId}`);
      const quoteData = response.data as any;
      
-     // Get user profile for company details - Fixed: Proper typing
-     let userProfile: UserProfile | undefined = undefined;
+     // Get user profile for company details - Fixed: Proper typing and fallback
+     let userProfile: LocalUserProfile | undefined = undefined;
      try {
        const profileResponse = await apiClient.get('/auth/profile');
-       userProfile = profileResponse.data as UserProfile;
+       userProfile = {
+         ...profileResponse.data,
+         useCompanyDetailsOnQuotes: Boolean(profileResponse.data?.useCompanyDetailsOnQuotes)
+       };
        console.log('User profile loaded for PDF:', userProfile);
      } catch (profileError) {
        console.warn('Could not load user profile for PDF, using defaults:', profileError);
@@ -608,14 +611,14 @@ const handleModalSaveSuccess = useCallback((data: QuoteData) => {
        title: quoteData.title,
        customer: quoteData.customerName || quoteData.customer?.name || 'Unknown Customer',
        customerId: quoteData.customerId,
-       contactPerson: quoteData.contactPerson || undefined, // Fixed: Convert null to undefined
-       contactEmail: quoteData.contactEmail || undefined, // Fixed: Convert null to undefined
-       contactPhone: quoteData.contactPhone || undefined, // Fixed: Convert null to undefined
+       contactPerson: quoteData.contactPerson || undefined,
+       contactEmail: quoteData.contactEmail || undefined,
+       contactPhone: quoteData.contactPhone || undefined,
        date: quoteData.createdAt,
-       validUntil: quoteData.validUntil,
+       validUntil: quoteData.validUntil || undefined, // Fixed: Convert null to undefined
        validityDays: 30, // Default
        terms: quoteData.terms || 'Net 30',
-       notes: quoteData.notes || undefined, // Fixed: Convert null to undefined
+       notes: quoteData.notes || undefined,
        items: (quoteData.lineItems || []).map((item: any) => ({
          id: item.id,
          description: item.description,
@@ -629,12 +632,12 @@ const handleModalSaveSuccess = useCallback((data: QuoteData) => {
        quoteNumber: quoteData.quoteNumber,
        quoteReference: quoteData.quoteReference,
        versionNumber: quoteData.versionNumber,
-       customerReference: quoteData.customerReference || undefined // Fixed: Convert null to undefined
+       customerReference: quoteData.customerReference || undefined
      };
      
-     // Generate professional PDF
+     // Generate professional PDF - Pass userProfile as any to avoid type conflicts
      console.log('Generating professional PDF for quote:', quoteForPDF);
-     const pdf = generateProfessionalQuotePDF(quoteForPDF, userProfile);
+     const pdf = generateProfessionalQuotePDF(quoteForPDF, userProfile as any);
      
      // Download the PDF
      const filename = `Quote-${quoteData.quoteNumber || quoteData.quoteReference || quoteId}-v${quoteData.versionNumber || 1}.pdf`;
@@ -654,14 +657,14 @@ const handleModalSaveSuccess = useCallback((data: QuoteData) => {
          title: quote.title,
          customer: quote.customerName || 'Unknown Customer',
          customerId: quote.customerId,
-         contactPerson: quote.contactPerson || undefined, // Fixed: Convert null to undefined
-         contactEmail: quote.contactEmail || undefined, // Fixed: Convert null to undefined
-         contactPhone: quote.contactPhone || undefined, // Fixed: Convert null to undefined
+         contactPerson: quote.contactPerson || undefined,
+         contactEmail: quote.contactEmail || undefined,
+         contactPhone: quote.contactPhone || undefined,
          date: quote.createdAt,
-         validUntil: quote.validUntil,
+         validUntil: quote.validUntil || undefined, // Fixed: Convert null to undefined
          validityDays: 30,
          terms: 'Net 30',
-         notes: quote.notes || undefined, // Fixed: Convert null to undefined
+         notes: quote.notes || undefined,
          items: quote.lineItems.map(item => ({
            id: item.id,
            description: item.description,
@@ -675,7 +678,7 @@ const handleModalSaveSuccess = useCallback((data: QuoteData) => {
          quoteNumber: quote.quoteNumber,
          quoteReference: quote.quoteReference,
          versionNumber: quote.versionNumber,
-         customerReference: quote.customerReference || undefined // Fixed: Convert null to undefined
+         customerReference: quote.customerReference || undefined
        };
        
        const pdf = generateProfessionalQuotePDF(fallbackQuoteData);
