@@ -265,10 +265,12 @@ const UserProfile = () => {
       
       // DEBUG: Log the actual response to see what we're getting
       console.log('Server response:', response.data);
-      console.log('Response useCompanyDetailsOnQuotes:', response.data?.useCompanyDetailsOnQuotes);
+      // Ensure we have a safe object to work with
+      const safeResponseData = response.data && typeof response.data === 'object' ? response.data : {};
+      console.log('Response useCompanyDetailsOnQuotes:', safeResponseData.useCompanyDetailsOnQuotes);
       
       // Fixed: Ensure we have a valid user object before spreading and proper type handling
-      const currentUser = user || {};
+      const currentUser = user && typeof user === 'object' ? user : {};
       
       // Validate that currentUser is a proper object
       if (typeof currentUser !== 'object' || currentUser === null || Array.isArray(currentUser)) {
@@ -278,7 +280,7 @@ const UserProfile = () => {
       // WORKAROUND: Backend doesn't return useCompanyDetailsOnQuotes, so preserve it
       const updatedUser = {
         ...currentUser, // Keep existing user data
-        ...response.data, // Merge in the updated company details
+        ...safeResponseData, // Merge in the updated company details
         // CRITICAL: Force preserve the checkbox value since server doesn't return it
         useCompanyDetailsOnQuotes: companyDetails.useCompanyDetailsOnQuotes
       };
