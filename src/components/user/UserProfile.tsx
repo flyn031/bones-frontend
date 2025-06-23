@@ -254,48 +254,107 @@ const UserProfile = () => {
     setTimeout(() => setProfileMessage({ type: '', text: '' }), 4000);
   };
 
-  // Handle saving company details to the backend
+  // WORKING VERSION: Zero TypeScript errors - Manual property assignment
   const handleSaveCompanyDetails = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setProfileMessage({ type: '', text: '' }); // Clear previous messages
+    setProfileMessage({ type: '', text: '' });
 
     try {
       console.log('Saving company details:', companyDetails);
       const response = await api.put('/auth/profile', companyDetails);
       
-      // DEBUG: Log the actual response to see what we're getting
       console.log('Server response:', response.data);
-      // Explicit typing and null checking to avoid property access errors
-      const responseData = response.data;
-      const safeResponseData = (responseData && typeof responseData === 'object') ? responseData : {};
-      console.log('Response useCompanyDetailsOnQuotes:', (safeResponseData as any).useCompanyDetailsOnQuotes);
       
-      // Fixed: Ensure we have a valid user object before spreading and proper type handling
-      const currentUser = user && typeof user === 'object' ? user : {};
-      
-      // Validate that currentUser is a proper object
-      if (typeof currentUser !== 'object' || currentUser === null || Array.isArray(currentUser)) {
-        throw new Error('Invalid user data structure');
+      // CLEAN: Manual property assignment - zero spreading
+      interface CleanUserData {
+        id?: string;
+        name?: string;
+        email?: string;
+        role?: string;
+        createdAt?: string;
+        companyName?: string;
+        companyAddress?: string;
+        companyPhone?: string;
+        companyEmail?: string;
+        companyWebsite?: string;
+        companyVatNumber?: string;
+        companyLogo?: string;
+        useCompanyDetailsOnQuotes?: boolean;
+        [key: string]: any;
       }
       
-      // WORKAROUND: Backend doesn't return useCompanyDetailsOnQuotes, so preserve it
-      const updatedUser = {
-        ...currentUser, // Keep existing user data
-        ...safeResponseData, // Merge in the updated company details
-        // CRITICAL: Force preserve the checkbox value since server doesn't return it
-        useCompanyDetailsOnQuotes: companyDetails.useCompanyDetailsOnQuotes
-      };
+      // Start fresh
+      const updatedUser: CleanUserData = {};
       
-      console.log('Updated user for context (with preserved checkbox):', updatedUser);
+      // Copy existing user data manually
+      if (user) {
+        updatedUser.id = user.id;
+        updatedUser.name = user.name;
+        updatedUser.email = user.email;
+        updatedUser.role = user.role;
+        updatedUser.createdAt = user.createdAt;
+        updatedUser.companyName = (user as any).companyName;
+        updatedUser.companyAddress = (user as any).companyAddress;
+        updatedUser.companyPhone = (user as any).companyPhone;
+        updatedUser.companyEmail = (user as any).companyEmail;
+        updatedUser.companyWebsite = (user as any).companyWebsite;
+        updatedUser.companyVatNumber = (user as any).companyVatNumber;
+        updatedUser.companyLogo = (user as any).companyLogo;
+        updatedUser.useCompanyDetailsOnQuotes = (user as any).useCompanyDetailsOnQuotes;
+      }
+      
+      // Apply response data manually
+      if (response.data && typeof response.data === 'object') {
+        const rd = response.data as any;
+        
+        if (rd.id !== undefined) updatedUser.id = rd.id;
+        if (rd.name !== undefined) updatedUser.name = rd.name;
+        if (rd.email !== undefined) updatedUser.email = rd.email;
+        if (rd.role !== undefined) updatedUser.role = rd.role;
+        if (rd.createdAt !== undefined) updatedUser.createdAt = rd.createdAt;
+        if (rd.companyName !== undefined) updatedUser.companyName = rd.companyName;
+        if (rd.companyAddress !== undefined) updatedUser.companyAddress = rd.companyAddress;
+        if (rd.companyPhone !== undefined) updatedUser.companyPhone = rd.companyPhone;
+        if (rd.companyEmail !== undefined) updatedUser.companyEmail = rd.companyEmail;
+        if (rd.companyWebsite !== undefined) updatedUser.companyWebsite = rd.companyWebsite;
+        if (rd.companyVatNumber !== undefined) updatedUser.companyVatNumber = rd.companyVatNumber;
+        if (rd.companyLogo !== undefined) updatedUser.companyLogo = rd.companyLogo;
+        if (rd.useCompanyDetailsOnQuotes !== undefined) updatedUser.useCompanyDetailsOnQuotes = rd.useCompanyDetailsOnQuotes;
+        
+        // Copy any extra properties manually
+        const knownProps = ['id', 'name', 'email', 'role', 'createdAt', 'companyName', 'companyAddress', 'companyPhone', 'companyEmail', 'companyWebsite', 'companyVatNumber', 'companyLogo', 'useCompanyDetailsOnQuotes'];
+        Object.keys(rd).forEach(key => {
+          if (!knownProps.includes(key)) {
+            updatedUser[key] = rd[key];
+          }
+        });
+      }
+      
+      // Force preserve checkbox value
+      updatedUser.useCompanyDetailsOnQuotes = companyDetails.useCompanyDetailsOnQuotes;
+      
+      console.log('Clean updated user for context:', updatedUser);
       updateUser(updatedUser);
       
-      setProfileMessage({ type: 'success', text: 'Company details updated successfully!' });
-      setTimeout(() => setProfileMessage({ type: '', text: '' }), 3000);
+      setProfileMessage({ 
+        type: 'success', 
+        text: 'Company details updated successfully!' 
+      });
+      
+      setTimeout(() => {
+        setProfileMessage({ type: '', text: '' });
+      }, 3000);
+      
     } catch (error: any) {
       console.error('Error updating company details:', error);
+      
+      const errorMessage = error?.response?.data?.message || 
+                           error?.message || 
+                           'Failed to update company details. Please try again.';
+      
       setProfileMessage({
         type: 'error',
-        text: error?.response?.data?.message || 'Failed to update company details. Please try again.'
+        text: errorMessage
       });
     }
   };
