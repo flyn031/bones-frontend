@@ -77,7 +77,7 @@ export const CustomerSuggestions: React.FC<CustomerSuggestionsProps> = ({
 
   // Toggle suggestion selection
   const toggleSuggestionSelection = (suggestion: CustomerSuggestion) => {
-    const isSelected = selectedSuggestions.some(s => s.itemId === suggestion.itemId);
+    const isSelected = (selectedSuggestions || []).some(s => s.itemId === suggestion.itemId);
     
     if (isSelected) {
       setSelectedSuggestions(selectedSuggestions.filter(s => s.itemId !== suggestion.itemId));
@@ -165,8 +165,8 @@ export const CustomerSuggestions: React.FC<CustomerSuggestionsProps> = ({
                 <div className="text-gray-500">Win Rate</div>
               </div>
               <div className="text-center">
-                <div className={`font-medium ${customerIntelligenceUtils.getRiskLevelColor(customerIntel.riskLevel)}`}>
-                  {customerIntel.riskLevel.toUpperCase()}
+                <div className={`font-medium ${customerIntelligenceUtils.getRiskLevelColor(customerIntel?.riskLevel || "low")}`}>
+                  {(customerIntel?.riskLevel || "low").toUpperCase()}
                 </div>
                 <div className="text-gray-500">Risk</div>
               </div>
@@ -267,15 +267,15 @@ export const CustomerSuggestions: React.FC<CustomerSuggestionsProps> = ({
 
                 {/* Group Items */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {reasonSuggestions.map((suggestion) => {
-                    const isSelected = selectedSuggestions.some(s => s.itemId === suggestion.itemId);
-                    const isCurrentItem = currentItems.some(current => 
+                  {reasonSuggestions.map((suggestion, index) => {
+                    const isSelected = (selectedSuggestions || []).some(s => s.itemId === suggestion.itemId);
+                    const isCurrentItem = (currentItems || []).some(current => 
                       current.toLowerCase() === suggestion.itemName.toLowerCase()
                     );
 
                     return (
                       <div
-                        key={suggestion.itemId}
+                        key={`suggestion_${suggestion.itemId}_${index}`}
                         className={`p-3 border rounded-lg cursor-pointer transition-colors ${
                           isSelected 
                             ? 'bg-blue-50 border-blue-200' 
@@ -318,7 +318,7 @@ export const CustomerSuggestions: React.FC<CustomerSuggestionsProps> = ({
                               
                               <div className="flex items-center gap-2">
                                 <span className={`text-xs px-2 py-1 rounded ${
-                                  customerIntelligenceUtils.getConfidenceBadge(suggestion.confidence)
+                                  suggestion.confidence >= 0.8 ? "bg-green-100 text-green-800" : suggestion.confidence >= 0.6 ? "bg-yellow-100 text-yellow-800" : "bg-red-100 text-red-800"
                                 }`}>
                                   {customerIntelligenceUtils.formatConfidence(suggestion.confidence)}
                                 </span>
