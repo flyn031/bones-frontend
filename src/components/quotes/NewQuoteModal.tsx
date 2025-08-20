@@ -513,7 +513,7 @@ export default function NewQuoteModal({
       
       return null;
     } catch (error) {
-      console.error("Error fetching customer-specific price:", error);
+      if (error.response?.status !== 404) console.error("Error fetching customer-specific price:", error);
       return null;
     }
   };

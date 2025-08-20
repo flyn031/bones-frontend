@@ -96,7 +96,7 @@ export const SmartQuoteBuilder: React.FC<SmartQuoteBuilderProps> = ({
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <button
+        <button type="button"
           onClick={() => setActiveTab('suggestions')}
           className="p-3 bg-white rounded-lg border hover:border-blue-300 transition-colors text-left"
         >
@@ -104,7 +104,7 @@ export const SmartQuoteBuilder: React.FC<SmartQuoteBuilderProps> = ({
           <div className="text-xs text-gray-500">Based on history</div>
         </button>
         
-        <button
+        <button type="button"
           onClick={() => setActiveTab('search')}
           className="p-3 bg-white rounded-lg border hover:border-blue-300 transition-colors text-left"
         >
@@ -112,7 +112,7 @@ export const SmartQuoteBuilder: React.FC<SmartQuoteBuilderProps> = ({
           <div className="text-xs text-gray-500">From previous quotes</div>
         </button>
         
-        <button
+        <button type="button"
           onClick={() => setActiveTab('templates')}
           className="p-3 bg-white rounded-lg border hover:border-blue-300 transition-colors text-left"
         >
@@ -120,7 +120,7 @@ export const SmartQuoteBuilder: React.FC<SmartQuoteBuilderProps> = ({
           <div className="text-xs text-gray-500">Pre-built solutions</div>
         </button>
         
-        <button
+        <button type="button"
           onClick={() => setActiveTab('bundles')}
           className="p-3 bg-white rounded-lg border hover:border-blue-300 transition-colors text-left"
         >
