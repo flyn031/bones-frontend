@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { X, Search, UserPlus, Plus, History, Clock, Save, RefreshCw, Check, Clock3, X as XIcon, AlertTriangle } from "lucide-react";
+import { X, Search, UserPlus, Plus, History, Clock, Save, RefreshCw, Check, Clock3, X as XIcon, AlertTriangle, Zap } from "lucide-react";
 import axios from "axios";
 import { API_URL } from "../../config/constants";
 import FrequentItemSelector from "./FrequentItemSelector";
 import BundleSelector from "./BundleSelector";
 import PriceHistoryDisplay from "./PriceHistoryDisplay";
 import SaveTemplateModal from "./SaveTemplateModal";
+// Smart Quote Builder Import
+import { SmartQuoteBuilder } from "../smartquote";
 import { JobsResponse, MaterialPriceResponse, CreateCustomerResponse, ApiErrorResponse } from "../../types/api";
 import { Customer, QuoteData, QuoteItem, QuoteStatus } from "../../types/quote";
 
@@ -178,9 +180,74 @@ export default function NewQuoteModal({
   // ✅ FIXED - State for jobs with proper typing
   const [jobs, setJobs] = useState<Job[]>(mockJobs);
 
+  // 🚀 NEW - Smart Quote Builder State
+
+  // Debug selectedItems changes
+  useEffect(() => {
+    console.log("🚀 [DEBUG] selectedItems changed:", selectedItems.length, selectedItems);
+  }, [selectedItems]);
+
+  const [showSmartBuilder, setShowSmartBuilder] = useState(false);
+  const [smartBuilderMode, setSmartBuilderMode] = useState<'full' | 'compact' | 'suggestions-only'>('compact');
+
   // Get status styling based on current status - FIXED: Use QuoteStatus type
   const getStatusStyles = (status: QuoteStatus) => {
     return STATUS_COLORS[status] || STATUS_COLORS.DRAFT;
+  };
+
+  // Calculate total value - enhanced for Smart Quote Builder
+  const totalValue = selectedItems.reduce((sum, item) => sum + (item.total || item.unitPrice * item.quantity), 0);
+
+  // Get current item names for Smart Quote Builder
+  const currentItemNames = selectedItems.map(item => item.name);
+
+  // 🚀 NEW - Handle items added from Smart Quote Builder with DEBUG
+  const handleSmartItemsAdded = (newItems: any[]) => {
+    console.log("🚀 [DEBUG] Smart items received:", newItems);
+    console.log("🚀 [DEBUG] selectedItems before conversion:", selectedItems.length, selectedItems);
+    
+    const convertedItems = newItems.map(smartItem => {
+      console.log("🚀 [DEBUG] Converting smart item:", smartItem);
+      
+      return {
+        id: smartItem.id || `smart_${Date.now()}_${Math.random()}`,
+        name: smartItem.description || smartItem.itemName || "Unknown Item",
+        description: smartItem.description || "",
+        code: smartItem.code || smartItem.materialCode || `SMART-${(smartItem.description || "ITEM").substring(0, 4).toUpperCase()}`,
+        unitPrice: smartItem.unitPrice || smartItem.suggestedPrice || 0,
+        quantity: smartItem.quantity || smartItem.recommendedQuantity || 1,
+        unit: smartItem.unit || "unit",
+        category: smartItem.category || "Smart Import",
+        total: (smartItem.quantity || smartItem.recommendedQuantity || 1) * (smartItem.unitPrice || smartItem.suggestedPrice || 0),
+        source: smartItem.source || "smart_builder",
+        confidence: smartItem.confidence,
+        reason: smartItem.reason
+      };
+    });
+
+    console.log("🚀 [DEBUG] Converted items:", convertedItems);
+
+    setSelectedItems(prevItems => {
+      console.log("🚀 [DEBUG] Previous items before filter:", prevItems);
+      
+      const newItemsFiltered = convertedItems.filter(newItem => 
+        !prevItems.some(existing => 
+          existing.name.toLowerCase().trim() === newItem.name.toLowerCase().trim()
+        )
+      );
+      
+      console.log(`🚀 [DEBUG] Filtered items to add: ${newItemsFiltered.length}`);
+      console.log("🚀 [DEBUG] Items being added:", newItemsFiltered);
+      
+      const updatedItems = [...prevItems, ...newItemsFiltered];
+      console.log("🚀 [DEBUG] Final updated items:", updatedItems);
+      
+      return updatedItems;
+    });
+
+    if (convertedItems.length > 0) {
+      console.log(`🚀 [DEBUG] Completed adding ${convertedItems.length} items`);
+    }
   };
 
   // ✅ FIXED - Create a memoized function to fetch materials with proper API response handling
@@ -746,7 +813,8 @@ export default function NewQuoteModal({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     console.log("NewQuoteModal: handleSubmit triggered!"); // ADDED LOG
-
+    console.log("🚀 [DEBUG] selectedItems at submission:", selectedItems);
+    
     const totalValue = calculateTotal();
 
     // Format items for submission
@@ -758,6 +826,8 @@ export default function NewQuoteModal({
       total: item.total,
       materialId: item.id, // Use item.id as materialId since items are materials
     }));
+
+    console.log("🚀 [DEBUG] formattedItems for backend:", formattedItems);
 
     // Create complete quote data
     const completeQuoteData: QuoteData = {
@@ -812,7 +882,7 @@ export default function NewQuoteModal({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-lg p-6 w-full max-w-5xl max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-bold">
             {editQuote ? "Edit Quote" : "Create New Quote"}
@@ -1253,269 +1323,417 @@ export default function NewQuoteModal({
             </div>
           </div>
 
-          {/* Items Section */}
-          <div>
-            <div className="flex justify-between items-center mb-2">
-              <div className="flex items-center">
-                <label className="block text-sm font-medium text-gray-700 mr-2">
-                  Items
-                </label>
-                {/* New refresh button for materials */}
+          {/* 🚀 SMART QUOTE BUILDER INTEGRATION */}
+          <div className="border-t border-gray-200 pt-6">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-lg font-medium text-gray-900 flex items-center">
+                  <Zap className="h-5 w-5 mr-2 text-blue-600" />
+                  Add Items to Quote
+                </h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  Use traditional methods or try our Smart Quote Builder for intelligent suggestions
+                </p>
+              </div>
+              
+              <div className="flex items-center gap-3">
+                {selectedCustomer && (
+                  <div className="text-sm text-blue-600 font-medium">
+                    Smart features available for {selectedCustomer.name}
+                  </div>
+                )}
                 <button
                   type="button"
-                  onClick={handleRefreshMaterials}
-                  className="p-1 text-blue-600 hover:bg-blue-50 rounded-full flex items-center"
-                  title="Refresh materials list"
-                  disabled={materialsLoading}
+                  onClick={() => setShowSmartBuilder(!showSmartBuilder)}
+                  className={`px-4 py-2 rounded-lg flex items-center transition-colors ${
+                    showSmartBuilder 
+                      ? 'bg-blue-600 text-white hover:bg-blue-700' 
+                      : 'border border-blue-600 text-blue-600 hover:bg-blue-50'
+                  }`}
                 >
-                  <RefreshCw className={`h-4 w-4 ${materialsLoading ? 'animate-spin' : ''}`} />
+                  <Zap className="h-4 w-4 mr-2" />
+                  {showSmartBuilder ? 'Hide' : 'Show'} Smart Builder
                 </button>
-                {materialsLoading && <span className="ml-1 text-xs text-gray-500">Loading...</span>}
-              </div>
-              <div className="flex space-x-2">
-                <div className="relative w-64">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder="Search items..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 pr-4 py-2 w-full border rounded-lg focus:ring-2 focus:ring-blue-500"
-                    />
-                </div>
-                <select
-                  value={categoryFilter}
-                  onChange={(e) => setCategoryFilter(e.target.value)}
-                  className="border rounded-lg px-3 py-2"
-                >
-                  <option value="all">All Categories</option>
-                  <option value="CONVEYOR_COMPONENT">Conveyor Components</option>
-                  <option value="ELECTRICAL">Electrical</option>
-                  <option value="MECHANICAL">Mechanical</option>
-                  <option value="STRUCTURAL">Structural</option>
-                  <option value="CONSUMABLE">Consumables</option>
-                  <option value="TOOL">Tools</option>
-                  <option value="OTHER">Other</option>
-                </select>
               </div>
             </div>
-          </div>
 
-          {/* Component Integration */}
-          <div className="flex space-x-2 mb-4">
-            <FrequentItemSelector 
-              onSelectItems={handleAddFrequentItems}
-              customerId={selectedCustomer?.id}
-            />
-            
-            <BundleSelector 
-              onSelectBundle={handleAddBundle}
-            />
-            
-            <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                setShowSaveTemplateModal(true);
-              }}
-              className="flex items-center space-x-1 px-3 py-2 border rounded-lg hover:bg-gray-50"
-            >
-              <Save className="h-4 w-4 mr-1" />
-              <span>Save as Template</span>
-            </button>
-          </div>
-
-          {/* Materials Status */}
-          <div className="text-sm text-gray-500 mb-2">
-            {inventoryItems.length} items available. {materialsLoading ? 'Refreshing materials...' : 'Click the refresh button to load latest items.'}
-          </div>
-
-          {/* Available Items */}
-          <div className="mb-4 max-h-40 overflow-y-auto border rounded-lg">
-            {materialsLoading ? (
-              <div className="p-4 text-center text-gray-500">
-                Loading materials...
+            {/* Smart Quote Builder */}
+            {showSmartBuilder && (
+              <div className="border border-blue-200 rounded-lg p-4 bg-gradient-to-br from-blue-50 to-indigo-50 mb-6">
+                <SmartQuoteBuilder
+                  customerId={selectedCustomer?.id}
+                  customerName={selectedCustomer?.name}
+                  existingItems={selectedItems.map(item => ({
+                    itemName: item.name,
+                    description: item.description,
+                    quantity: item.quantity,
+                    unitPrice: item.unitPrice,
+                    totalPrice: item.total
+                  }))}
+                  onItemsAdded={handleSmartItemsAdded}
+                  totalValue={totalValue}
+                  mode={smartBuilderMode}
+                  className="bg-white rounded-lg border border-gray-200"
+                />
+                
+                {/* Smart Builder Mode Toggle */}
+                <div className="mt-4 flex gap-2">
+                  <span className="text-sm text-gray-600 self-center">Mode:</span>
+                  <button
+                    type="button"
+                    onClick={() => setSmartBuilderMode('compact')}
+                    className={`px-3 py-1 text-sm rounded-md ${
+                      smartBuilderMode === 'compact' 
+                        ? 'bg-blue-600 text-white' 
+                        : 'bg-white text-blue-600 border border-blue-600 hover:bg-blue-50'
+                    }`}
+                  >
+                    Compact
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSmartBuilderMode('full')}
+                    className={`px-3 py-1 text-sm rounded-md ${
+                      smartBuilderMode === 'full' 
+                        ? 'bg-blue-600 text-white' 
+                        : 'bg-white text-blue-600 border border-blue-600 hover:bg-blue-50'
+                    }`}
+                  >
+                    Full Features
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSmartBuilderMode('suggestions-only')}
+                    className={`px-3 py-1 text-sm rounded-md ${
+                      smartBuilderMode === 'suggestions-only' 
+                        ? 'bg-blue-600 text-white' 
+                        : 'bg-white text-blue-600 border border-blue-600 hover:bg-blue-50'
+                    }`}
+                  >
+                    Suggestions Only
+                  </button>
+                </div>
               </div>
-            ) : filteredItems.length > 0 ? (
-              filteredItems.map((item) => (
-                <div
-                  key={item.id}
-                  className="p-2 hover:bg-gray-50 flex justify-between items-center border-b"
-                >
-                  <div>
-                    <div className="font-medium">{item.name}</div>
-                    <div className="text-sm text-gray-500">{item.code}</div>
-                    <div className="text-xs text-blue-600">Category: {item.category}</div>
-                    {item.description && (
-                      <div className="text-xs text-gray-400">
-                        {item.description}
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex items-center space-x-4">
-                    <div className="text-right">
-                      <div>
-                        £
-                        {item.unitPrice.toLocaleString("en-GB", {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        })}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        per {item.unit}
-                      </div>
-                    </div>
+            )}
+
+            {/* Traditional Item Addition */}
+            {!showSmartBuilder && (
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <div className="flex items-center">
+                    <label className="block text-sm font-medium text-gray-700 mr-2">
+                      Browse Available Items
+                    </label>
+                    {/* Materials refresh button */}
                     <button
                       type="button"
-                      onClick={() => addItem(item)}
-                      className="p-1 text-blue-600 hover:bg-blue-50 rounded"
+                      onClick={handleRefreshMaterials}
+                      className="p-1 text-blue-600 hover:bg-blue-50 rounded-full flex items-center"
+                      title="Refresh materials list"
+                      disabled={materialsLoading}
                     >
-                      <Plus className="h-5 w-5" />
+                      <RefreshCw className={`h-4 w-4 ${materialsLoading ? 'animate-spin' : ''}`} />
                     </button>
+                    {materialsLoading && <span className="ml-1 text-xs text-gray-500">Loading...</span>}
+                  </div>
+                  <div className="flex space-x-2">
+                    <div className="relative w-64">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <input
+                        type="text"
+                        placeholder="Search items..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-10 pr-4 py-2 w-full border rounded-lg focus:ring-2 focus:ring-blue-500"
+                        />
+                    </div>
+                    <select
+                      value={categoryFilter}
+                      onChange={(e) => setCategoryFilter(e.target.value)}
+                      className="border rounded-lg px-3 py-2"
+                    >
+                      <option value="all">All Categories</option>
+                      <option value="CONVEYOR_COMPONENT">Conveyor Components</option>
+                      <option value="ELECTRICAL">Electrical</option>
+                      <option value="MECHANICAL">Mechanical</option>
+                      <option value="STRUCTURAL">Structural</option>
+                      <option value="CONSUMABLE">Consumables</option>
+                      <option value="TOOL">Tools</option>
+                      <option value="OTHER">Other</option>
+                    </select>
                   </div>
                 </div>
-              ))
-            ) : (
-              <div className="p-4 text-center text-gray-500">
-                {inventoryItems.length === 0 
-                  ? "No materials available. Try refreshing the materials list."
-                  : "No items match your search criteria"}
+
+                {/* Component Integration */}
+                <div className="flex space-x-2 mb-4">
+                  <FrequentItemSelector 
+                    onSelectItems={handleAddFrequentItems}
+                    customerId={selectedCustomer?.id}
+                  />
+                  
+                  <BundleSelector 
+                    onSelectBundle={handleAddBundle}
+                  />
+                  
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setShowSaveTemplateModal(true);
+                    }}
+                    className="flex items-center space-x-1 px-3 py-2 border rounded-lg hover:bg-gray-50"
+                  >
+                    <Save className="h-4 w-4 mr-1" />
+                    <span>Save as Template</span>
+                  </button>
+                </div>
+
+                {/* Materials Status */}
+                <div className="text-sm text-gray-500 mb-2">
+                  {inventoryItems.length} items available. {materialsLoading ? 'Refreshing materials...' : 'Click the refresh button to load latest items.'}
+                </div>
+
+                {/* Available Items */}
+                <div className="mb-4 max-h-40 overflow-y-auto border rounded-lg">
+                  {materialsLoading ? (
+                    <div className="p-4 text-center text-gray-500">
+                      Loading materials...
+                    </div>
+                  ) : filteredItems.length > 0 ? (
+                    filteredItems.map((item) => (
+                      <div
+                        key={item.id}
+                        className="p-2 hover:bg-gray-50 flex justify-between items-center border-b"
+                      >
+                        <div>
+                          <div className="font-medium">{item.name}</div>
+                          <div className="text-sm text-gray-500">{item.code}</div>
+                          <div className="text-xs text-blue-600">Category: {item.category}</div>
+                          {item.description && (
+                            <div className="text-xs text-gray-400">
+                              {item.description}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex items-center space-x-4">
+                          <div className="text-right">
+                            <div>
+                              £
+                              {item.unitPrice.toLocaleString("en-GB", {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                              })}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              per {item.unit}
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => addItem(item)}
+                            className="p-1 text-blue-600 hover:bg-blue-50 rounded"
+                          >
+                            <Plus className="h-5 w-5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="p-4 text-center text-gray-500">
+                      {inventoryItems.length === 0 
+                        ? "No materials available. Try refreshing the materials list."
+                        : "No items match your search criteria"}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>
 
           {/* Selected Items */}
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead>
-              <tr>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                  Item
-                </th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                  Quantity
-                </th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                  Unit Price
-                </th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                  Total
-                </th>
-                <th className="px-4 py-2"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {selectedItems.length > 0 ? (
-                selectedItems.map((item, index) => (
-                  <tr key={index}>
-                    <td className="px-4 py-2">
-                      <div className="flex items-center">
-                        <div>
-                          <div className="font-medium">{item.name}</div>
-                          <div className="text-sm text-gray-500">
-                            {item.code}
+          <div>
+            <h4 className="font-medium text-gray-900 mb-3 flex items-center">
+              Quote Items ({selectedItems.length})
+              {selectedItems.length > 0 && (
+                <span className="ml-2 text-sm font-normal text-gray-600">
+                  Total: £{totalValue.toLocaleString()}
+                </span>
+              )}
+            </h4>
+            
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead>
+                <tr>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                    Item
+                  </th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                    Quantity
+                  </th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                    Unit Price
+                  </th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                    Total
+                  </th>
+                  <th className="px-4 py-2"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {selectedItems.length > 0 ? (
+                  selectedItems.map((item, index) => (
+                    <tr key={index} className="hover:bg-gray-50">
+                      <td className="px-4 py-2">
+                        <div className="flex items-center">
+                          <div>
+                            <div className="font-medium flex items-center">
+                              {item.name}
+                              {/* Smart source indicator */}
+                              {item.source && item.source !== 'manual' && (
+                                <span className={`ml-2 px-2 py-1 text-xs rounded-full ${
+                                  item.source === 'smart_builder' || item.source === 'suggestion' ? 'bg-blue-100 text-blue-800' :
+                                  item.source === 'historical_search' ? 'bg-green-100 text-green-800' :
+                                  item.source === 'bundle' ? 'bg-purple-100 text-purple-800' :
+                                  item.source === 'template' ? 'bg-orange-100 text-orange-800' :
+                                  'bg-gray-100 text-gray-800'
+                                }`}>
+                                  {item.source === 'smart_builder' ? '🚀 Smart' : 
+                                   item.source === 'historical_search' ? '🔍 History' :
+                                   item.source === 'suggestion' ? '🎯 Suggested' :
+                                   item.source === 'bundle' ? '📦 Bundle' :
+                                   item.source === 'template' ? '⚡ Template' : item.source}
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-sm text-gray-500">
+                              {item.code}
+                            </div>
+                            {/* Show additional smart info */}
+                            {item.confidence && (
+                              <div className="text-xs text-blue-600">
+                                Confidence: {item.confidence}%
+                              </div>
+                            )}
                           </div>
+                          <button
+                            type="button"
+                            onClick={(e) => handleTogglePriceHistory(item.id, e)}
+                            className="text-blue-600 hover:text-blue-800 ml-2"
+                            title="View price history"
+                          >
+                            <History className="h-4 w-4" />
+                          </button>
                         </div>
+                      </td>
+                      <td className="px-4 py-2">
+                        <input
+                          type="number"
+                          min="1"
+                          value={item.quantity}
+                          onChange={(e) =>
+                            updateItemQuantity(index, parseInt(e.target.value))
+                          }
+                          className="w-20 p-1 border rounded"
+                        />
+                        {item.unit}
+                      </td>
+                      <td className="px-4 py-2">
+                        £
+                        {item.unitPrice.toLocaleString("en-GB", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                      </td>
+                      <td className="px-4 py-2">
+                        £
+                        {item.total.toLocaleString("en-GB", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                      </td>
+                      <td className="px-4 py-2">
                         <button
                           type="button"
-                          onClick={(e) => handleTogglePriceHistory(item.id, e)}
-                          className="text-blue-600 hover:text-blue-800 ml-2"
-                          title="View price history"
+                          onClick={() => removeItem(index)}
+                          className="text-red-600 hover:text-red-800"
                         >
-                          <History className="h-4 w-4" />
+                          <X className="h-4 w-4" />
                         </button>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td
+                      colSpan={5}
+                      className="px-4 py-8 text-center text-gray-500"
+                    >
+                      <div className="flex flex-col items-center">
+                        <div className="text-4xl mb-2">📋</div>
+                        <div className="text-lg font-medium mb-1">No items added yet</div>
+                        <div className="text-sm">
+                          {showSmartBuilder 
+                            ? "Use the Smart Quote Builder above to add items intelligently"
+                            : "Use the items panel above to add products, or try the Smart Quote Builder"
+                          }
+                        </div>
+                        {!showSmartBuilder && (
+                          <button
+                            type="button"
+                            onClick={() => setShowSmartBuilder(true)}
+                            className="mt-2 px-3 py-1 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                          >
+                            🚀 Try Smart Builder
+                          </button>
+                        )}
                       </div>
                     </td>
-                    <td className="px-4 py-2">
-                      <input
-                        type="number"
-                        min="1"
-                        value={item.quantity}
-                        onChange={(e) =>
-                          updateItemQuantity(index, parseInt(e.target.value))
-                        }
-                        className="w-20 p-1 border rounded"
-                      />
-                      {item.unit}
-                    </td>
-                    <td className="px-4 py-2">
-                      £
-                      {item.unitPrice.toLocaleString("en-GB", {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}
-                    </td>
-                    <td className="px-4 py-2">
-                      £
-                      {item.total.toLocaleString("en-GB", {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}
-                    </td>
-                    <td className="px-4 py-2">
-                      <button
-                        type="button"
-                        onClick={() => removeItem(index)}
-                        className="text-red-600 hover:text-red-800"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    </td>
                   </tr>
-                ))
-              ) : (
+                )}
+              </tbody>
+              <tfoot>
                 <tr>
-                  <td
-                    colSpan={5}
-                    className="px-4 py-4 text-center text-gray-500"
-                  >
-                    No items added to the quote yet. Use the panel above to
-                    add items.
+                  <td colSpan={3} className="px-4 py-2 text-right font-medium">
+                    Subtotal:
                   </td>
+                  <td className="px-4 py-2 font-medium">
+                    £
+                    {calculateTotal().toLocaleString("en-GB", {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}
+                  </td>
+                  <td></td>
                 </tr>
-              )}
-            </tbody>
-            <tfoot>
-              <tr>
-                <td colSpan={3} className="px-4 py-2 text-right font-medium">
-                  Subtotal:
-                </td>
-                <td className="px-4 py-2 font-medium">
-                  £
-                  {calculateTotal().toLocaleString("en-GB", {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  })}
-                </td>
-                <td></td>
-              </tr>
-              <tr>
-                <td colSpan={3} className="px-4 py-2 text-right font-medium">
-                  VAT (20%):
-                </td>
-                <td className="px-4 py-2 font-medium">
-                  £
-                  {(calculateTotal() * 0.2).toLocaleString("en-GB", {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  })}
-                </td>
-                <td></td>
-              </tr>
-              <tr>
-                <td colSpan={3} className="px-4 py-2 text-right font-medium">
-                  Total:
-                </td>
-                <td className="px-4 py-2 font-medium">
-                  £
-                  {(calculateTotal() * 1.2).toLocaleString("en-GB", {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  })}
-                </td>
-                <td></td>
-              </tr>
-            </tfoot>
-          </table>
+                <tr>
+                  <td colSpan={3} className="px-4 py-2 text-right font-medium">
+                    VAT (20%):
+                  </td>
+                  <td className="px-4 py-2 font-medium">
+                    £
+                    {(calculateTotal() * 0.2).toLocaleString("en-GB", {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}
+                  </td>
+                  <td></td>
+                </tr>
+                <tr>
+                  <td colSpan={3} className="px-4 py-2 text-right font-medium">
+                    Total:
+                  </td>
+                  <td className="px-4 py-2 font-medium">
+                    £
+                    {(calculateTotal() * 1.2).toLocaleString("en-GB", {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}
+                  </td>
+                  <td></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
 
           {/* Price History Display */}
           {showPriceHistory && selectedMaterialId && (
@@ -1551,9 +1769,14 @@ export default function NewQuoteModal({
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center"
             >
               {editQuote ? "Update Quote" : "Create Quote"}
+              {selectedItems.length > 0 && (
+                <span className="ml-2 px-2 py-1 bg-blue-500 text-xs rounded-full">
+                  {selectedItems.length} items
+                </span>
+              )}
             </button>
           </div>
         </form>
