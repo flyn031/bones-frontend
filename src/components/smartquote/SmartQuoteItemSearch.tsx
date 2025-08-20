@@ -362,7 +362,7 @@ export const SmartQuoteItemSearch: React.FC<SmartQuoteItemSearchProps> = ({
 
               {/* Items List */}
               <div className="space-y-2">
-                {searchResults.items.map((item) => {
+                {searchResults.items.map((item, index) => {
                   const isSelected = selectedItems.some(selected => selected.id === item.id);
                   const isCurrentItem = currentItems.some(current => 
                     current.toLowerCase() === item.itemName.toLowerCase()
@@ -370,7 +370,7 @@ export const SmartQuoteItemSearch: React.FC<SmartQuoteItemSearchProps> = ({
 
                   return (
                     <div
-                      key={item.id}
+                      key={`${item.id}_${index}`}
                       className={`p-4 border rounded-lg cursor-pointer transition-colors ${
                         isSelected 
                           ? 'bg-blue-50 border-blue-200' 
