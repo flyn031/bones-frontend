@@ -1,227 +1,182 @@
-// FIX 1: Remove unused React import (not needed in React 17+)
 import { useState } from "react";
-import axios from "axios"; // Keep using axios directly for login, it's fine
-import { useAuth } from "../context/AuthContext"; // Correct path assuming Login.tsx is in src/components
-import { Button, Input, Alert } from "../components/ui"; // Assuming ui is inside components
-import { Mail, Lock } from "lucide-react";
-import loginBackground from "../assets/images/login-background copy.jpeg";
+import axios from "axios";
+import { useAuth } from "../context/AuthContext";
+import { Button, Input, Alert } from "./ui"; // Assuming ui components are in src/components/ui
+import { Mail, Lock, User } from "lucide-react";
+import loginBackground from "../assets/images/FabricoX_ The X-Factor Design 2.jpeg"; // <-- UPDATED to your new blank background
 
-// Define API response types
+// API Response Interfaces
 interface LoginResponse {
   token: string;
-  user: {
-    id: string;
-    name: string;
-    email: string;
-    role: string; // Make role required to match AuthContext
-  };
+  user: { id: string; name: string; email: string; role: string };
 }
-
 interface RegisterResponse {
   token?: string;
-  user?: {
-    id: string;
-    name: string;
-    email: string;
-    role: string; // Make role required to match AuthContext
-  };
+  user?: { id: string; name: string; email: string; role: string };
   message?: string;
 }
 
-// FIX 2: REMOVED - AlertProps interface was declared but never used
-
 function Login() {
   const { login } = useAuth();
-  const [isLogin, setIsLogin] = useState(true); // Assuming default is login view
-  const [formData, setFormData] = useState({
-    email: "",
-    password: "",
-    name: "", // Keep for registration potentially
-  });
+  const [isLogin, setIsLogin] = useState(true);
+  const [formData, setFormData] = useState({ email: "", password: "", name: "" });
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false); // Add loading state
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
 
-    // Determine endpoint based on isLogin state
-    const endpoint = isLogin ? '/auth/login' : '/auth/register'; // Adjust register endpoint if needed
+    const endpoint = isLogin ? '/auth/login' : '/auth/register';
     const payload = isLogin ? { email: formData.email, password: formData.password } : formData;
 
     try {
-       console.log(`Attempting ${isLogin ? 'login' : 'registration'} for:`, payload.email);
-      // FIX 3: Updated to use Vite environment variables instead of Next.js
       const response = await axios.post(
         `${import.meta.env.VITE_API_URL || 'https://bonesbackend-production.up.railway.app/api'}${endpoint}`,
         payload
       );
 
-      console.log(`${isLogin ? 'Login' : 'Registration'} response:`, response.data);
-
       if (isLogin) {
-        // Type assertion for login response
         const loginData = response.data as LoginResponse;
-        if (loginData && loginData.token && loginData.user) {
-          // Call context's login with BOTH token and user data
+        if (loginData?.token && loginData?.user) {
           await login(loginData.token, loginData.user);
-          
-          // Let the router in App.tsx handle redirection based on isAuthenticated state
-          // No immediate navigation needed here
-
         } else {
-           // Handle case where login response is missing expected data
-           console.error("Login Error: Response missing token or user data.", response.data);
-           setError("Login failed: Invalid server response.");
+          setError("Login failed: Invalid server response.");
         }
       } else {
-        // Type assertion for register response
         const registerData = response.data as RegisterResponse;
-        
-        // Handle successful registration (maybe show success message or auto-login)
-        console.log("Registration successful. User might need to login now or auto-login triggered.");
-        
-        // If auto-login after register and data is available:
-        if (registerData.token && registerData.user) {
+        if (registerData?.token && registerData?.user) {
           await login(registerData.token, registerData.user);
         } else {
-          // Otherwise, switch back to login view:
           setIsLogin(true);
-          setError("Registration successful! Please log in."); // Use success alert ideally
+          setError("Registration successful! Please log in.");
         }
       }
     } catch (err: any) {
-      console.error(`Authentication ${isLogin ? 'login' : 'registration'} error:`, err.response?.data || err.message);
       setError(err.response?.data?.error || err.response?.data?.message || `${isLogin ? 'Login' : 'Registration'} failed`);
     } finally {
-        setLoading(false);
+      setLoading(false);
     }
   };
 
-  // Toggle between Login and Register
   const toggleForm = () => {
     setIsLogin(!isLogin);
     setFormData({ email: "", password: "", name: "" });
-    setError(""); // Clear errors when switching forms
+    setError("");
   };
 
   return (
-    <div
-      className="min-h-screen flex items-center justify-center bg-cover bg-center px-4" // Added padding for small screens
-      style={{ backgroundImage: `url(${loginBackground})` }}
-    >
-      <div className="max-w-md w-full space-y-8 p-8 bg-white bg-opacity-95 dark:bg-gray-900 dark:bg-opacity-95 rounded-xl shadow-lg border dark:border-gray-700">
-        <div>
-          {/* Optional: Add Logo here */}
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900 dark:text-gray-100">
-            {isLogin ? "Sign in to BONES CRM" : "Create your Account"}
-          </h2>
+    <div className="w-full min-h-screen lg:grid lg:grid-cols-2">
+      {/* ===== Left Column: Branding ===== */}
+      <div
+        className="hidden lg:flex flex-col items-center justify-center p-12 text-center"
+        style={{
+          backgroundImage: `url(${loginBackground})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+        }}
+      >
+        {/* The HTML text is now rendered over the blank background image */}
+        <div className="bg-black bg-opacity-25 p-8 rounded-lg">
+          <h1 className="text-6xl font-bold text-white tracking-tighter">
+            FabricoX
+          </h1>
+          <p className="mt-4 text-2xl text-white/90">
+            The X-Factor in Manufacturing Management
+          </p>
         </div>
+      </div>
 
-        {error && (
-          <Alert
-            type="error"
-            message={error}
-            className="mb-4"
-          />
-        )}
+      {/* ===== Right Column: Form ===== */}
+      <div className="flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-white dark:bg-gray-950">
+        <div className="mx-auto grid w-full max-w-sm gap-6">
+          <div className="grid gap-2 text-center">
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-50">
+              {isLogin ? "Welcome Back" : "Create an Account"}
+            </h1>
+            <p className="text-balance text-gray-600 dark:text-gray-400">
+              {isLogin
+                ? "Enter your credentials to access your account"
+                : "Enter your details to get started"}
+            </p>
+          </div>
 
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          <input type="hidden" name="remember" defaultValue="true" />
-          <div className="rounded-md shadow-sm -space-y-px">
+          {error && <Alert type="error" message={error} />}
+
+          <form className="grid gap-4" onSubmit={handleSubmit}>
             {!isLogin && (
-              <div className="pb-4"> {/* Add spacing */}
+              <div className="grid gap-2">
+                <label htmlFor="name" className="sr-only">Name</label>
                 <Input
                   id="name"
                   name="name"
                   type="text"
-                  autoComplete="name"
-                  value={formData.name}
-                  onChange={(e) =>
-                    setFormData({ ...formData, name: e.target.value })
-                  }
                   placeholder="Full Name"
-                  // leftIcon={User} // Add icon if desired
-                  required={!isLogin}
-                  className="rounded-t-md" // Adjust rounding if needed
+                  required
+                  leftIcon={User}
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  disabled={loading}
                 />
               </div>
             )}
 
-            <div>
+            <div className="grid gap-2">
+              <label htmlFor="email-address" className="sr-only">Email</label>
               <Input
                 id="email-address"
                 name="email"
                 type="email"
-                autoComplete="email"
-                value={formData.email}
-                onChange={(e) =>
-                  setFormData({ ...formData, email: e.target.value })
-                }
                 placeholder="Email address"
-                leftIcon={Mail}
+                autoComplete="email"
                 required
-                // Adjust rounding based on whether name field is present
-                className={isLogin ? "rounded-t-md" : ""}
+                leftIcon={Mail}
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                disabled={loading}
               />
             </div>
-            <div>
+
+            <div className="grid gap-2">
+              <label htmlFor="password" className="sr-only">Password</label>
               <Input
                 id="password"
                 name="password"
                 type="password"
-                autoComplete={isLogin ? "current-password" : "new-password"}
-                value={formData.password}
-                onChange={(e) =>
-                  setFormData({ ...formData, password: e.target.value })
-                }
                 placeholder="Password"
-                leftIcon={Lock}
+                autoComplete={isLogin ? "current-password" : "new-password"}
                 required
-                className="rounded-b-md" // Always rounded bottom
+                leftIcon={Lock}
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                disabled={loading}
               />
             </div>
-          </div>
-
-          {/* Optional: Remember me / Forgot password */}
-          {isLogin && (
-              <div className="flex items-center justify-between">
-                {/* <div className="flex items-center">
-                  <input id="remember-me" name="remember-me" type="checkbox" className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded" />
-                  <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900 dark:text-gray-300"> Remember me </label>
-                </div> */}
-                <div className="text-sm">
-                  <a href="#" className="font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300">
+            
+            {isLogin && (
+              <div className="flex items-center">
+                 <a href="#" className="ml-auto inline-block text-sm font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 underline underline-offset-4">
                     Forgot your password?
                   </a>
-                </div>
               </div>
-           )}
+            )}
 
-
-          <div>
-            <Button
-              type="submit"
-              fullWidth
-              className="mt-6" // Added margin top
-              disabled={loading} // Disable button while loading
-            >
-              {loading ? 'Processing...' : (isLogin ? "Sign In" : "Create Account")}
+            <Button type="submit" fullWidth disabled={loading}>
+              {loading ? "Processing..." : isLogin ? "Sign In" : "Create Account"}
             </Button>
-          </div>
-        </form>
+          </form>
 
-        <div className="text-sm text-center mt-6"> {/* Adjusted margin */}
-          <Button
-            variant="ghost" // FIX 5: Keep "ghost" instead of "link" (already fixed)
-            onClick={toggleForm}
-            className="font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300"
-          >
-            {isLogin
-              ? "Don't have an account? Register"
-              : "Already have an account? Sign in"}
-          </Button>
+          <div className="mt-4 text-center text-sm">
+            {isLogin ? "Don't have an account?" : "Already have an account?"}{" "}
+            <button
+              onClick={toggleForm}
+              className="font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 underline underline-offset-4"
+              disabled={loading}
+            >
+              {isLogin ? "Register" : "Sign in"}
+            </button>
+          </div>
         </div>
       </div>
     </div>

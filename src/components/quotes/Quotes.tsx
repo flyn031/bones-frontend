@@ -327,11 +327,17 @@ const handleModalSaveSuccess = useCallback((data: QuoteData) => {
         }))
     };
     
-    const isUpdatingDraft = !!savedQuotePayload.id && !savedQuotePayload.parentQuoteId; 
-    const apiUrl = isUpdatingDraft 
-        ? `/quotes/${savedQuotePayload.id}` 
-        : '/quotes';                     
-    const apiMethod = isUpdatingDraft ? apiClient.patch : apiClient.post; 
+   const isUpdatingDraft = !!savedQuotePayload.id && !savedQuotePayload.parentQuoteId; 
+
+// Add these debug lines:
+console.log('DEBUG savedQuotePayload.id:', savedQuotePayload.id);
+console.log('DEBUG savedQuotePayload.parentQuoteId:', savedQuotePayload.parentQuoteId);
+console.log('DEBUG isUpdatingDraft:', isUpdatingDraft);
+
+const apiUrl = isUpdatingDraft 
+    ? `/quotes/${savedQuotePayload.id}` 
+    : '/quotes';                     
+const apiMethod = isUpdatingDraft ? apiClient.put : apiClient.post;
 
     console.log(`[Quotes.tsx] Attempting to save quote. isUpdatingDraft: ${isUpdatingDraft}, URL: ${apiUrl}, Method: ${isUpdatingDraft ? 'PATCH' : 'POST'}`);
 
