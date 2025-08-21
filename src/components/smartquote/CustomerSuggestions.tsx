@@ -49,7 +49,7 @@ export const CustomerSuggestions: React.FC<CustomerSuggestionsProps> = ({
     setError(null);
     
     try {
-      console.log('🎯 Loading suggestions for customer:', customerId);
+      console.log('Loading suggestions for customer:', customerId);
       
       // Load suggestions and customer intelligence in parallel
       const [suggestionsData, customerData] = await Promise.all([
@@ -65,7 +65,7 @@ export const CustomerSuggestions: React.FC<CustomerSuggestionsProps> = ({
       setGroupedSuggestions(grouped);
       setCustomerIntel(customerData);
       
-      console.log('✅ Loaded', sortedSuggestions.length, 'suggestions');
+      console.log('Loaded', sortedSuggestions.length, 'suggestions');
       
     } catch (err: any) {
       console.error('Error loading customer suggestions:', err);
@@ -108,7 +108,7 @@ export const CustomerSuggestions: React.FC<CustomerSuggestionsProps> = ({
       itemName: suggestion.itemName,
       description: suggestion.description,
       quantity: 1, // Default quantity
-      unitPrice: suggestion.suggestedPrice,
+      unitPrice: suggestion.unitPrice,
       source: 'suggestion' as const,
       confidence: suggestion.confidence,
       reason: suggestion.reason
@@ -124,7 +124,7 @@ export const CustomerSuggestions: React.FC<CustomerSuggestionsProps> = ({
       itemName: suggestion.itemName,
       description: suggestion.description,
       quantity: 1,
-      unitPrice: suggestion.suggestedPrice,
+      unitPrice: suggestion.unitPrice,
       source: 'suggestion' as const,
       confidence: suggestion.confidence,
       reason: suggestion.reason
@@ -150,7 +150,7 @@ export const CustomerSuggestions: React.FC<CustomerSuggestionsProps> = ({
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-lg font-medium text-gray-900">
-              🎯 Smart Suggestions
+              Smart Suggestions
             </h3>
             <p className="text-sm text-gray-600 mt-1">
               Based on {customerName || 'customer'} purchase history and patterns
@@ -209,14 +209,14 @@ export const CustomerSuggestions: React.FC<CustomerSuggestionsProps> = ({
       <div className="p-4">
         {isLoading && (
           <div className="flex items-center justify-center py-8">
-            <div className="text-gray-500">🧠 Analyzing customer patterns...</div>
+            <div className="text-gray-500">Analyzing customer patterns...</div>
           </div>
         )}
 
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4">
             <div className="text-red-800">
-              ❌ {error}
+              {error}
             </div>
             <Button
               variant="outline"
@@ -307,7 +307,7 @@ export const CustomerSuggestions: React.FC<CustomerSuggestionsProps> = ({
                             <div className="flex items-center justify-between mt-2 ml-6">
                               <div className="text-sm">
                                 <span className="font-medium text-gray-900">
-                                  {customerIntelligenceUtils.formatCurrency(suggestion.suggestedPrice)}
+                                  {customerIntelligenceUtils.formatCurrency(suggestion.unitPrice)}
                                 </span>
                                 {suggestion.lastPurchased && (
                                   <span className="text-gray-500 ml-2">
