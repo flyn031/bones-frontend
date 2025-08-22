@@ -1,7 +1,7 @@
-// Smart Quote Item Search Component
+// Smart Quote Item Search Component - Optimized for Large Datasets
 // Location: bones-frontend/src/components/smartquote/SmartQuoteItemSearch.tsx
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { smartQuoteApi, smartQuoteUtils } from '../../utils/smartQuoteApi';
 import { 
   HistoricalQuoteItem, 
@@ -16,7 +16,8 @@ interface SmartQuoteItemSearchProps {
   isOpen: boolean;
   onClose: () => void;
   onItemsSelected: (items: HistoricalQuoteItem[]) => void;
-  customerId: string; // Added required customerId prop
+  customerId?: string;
+  searchScope?: 'customer' | 'global';
   currentItems?: string[];
 }
 
@@ -24,52 +25,90 @@ export const SmartQuoteItemSearch: React.FC<SmartQuoteItemSearchProps> = ({
   isOpen,
   onClose,
   onItemsSelected,
-  customerId, // Added customerId prop
+  customerId,
+  searchScope = 'customer',
   currentItems = []
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filters, setFilters] = useState<QuoteItemSearchFilters>({
-    customerId, // Set customerId in filters
+    customerId: searchScope === 'customer' ? customerId : undefined,
     limit: 50,
     offset: 0
   });
   const [searchResults, setSearchResults] = useState<QuoteItemSearchResult | null>(null);
+  const [allResults, setAllResults] = useState<HistoricalQuoteItem[]>([]); // Store all loaded results
   const [selectedItems, setSelectedItems] = useState<HistoricalQuoteItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [filterOptions, setFilterOptions] = useState<any>(null);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [searchSuggestions, setSearchSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [performanceWarning, setPerformanceWarning] = useState<string[]>([]);
+  const [bulkSelectMode, setBulkSelectMode] = useState(false);
 
-  // Debounced search function
+  // Enhanced debounced search function
   const debouncedSearch = useCallback(
     smartQuoteUtils.debounce(async (searchFilters: QuoteItemSearchFilters) => {
       setIsLoading(true);
+      setPerformanceWarning([]);
+      
       try {
-        const results = await smartQuoteApi.searchQuoteItems(searchFilters);
-        setSearchResults(results);
+        let results;
+        if (searchScope === 'global') {
+          results = await smartQuoteApi.searchAllQuoteItems(searchFilters);
+        } else {
+          results = await smartQuoteApi.searchQuoteItems(searchFilters);
+        }
+        
+        // Reset accumulated results when new search
+        if (searchFilters.offset === 0) {
+          setAllResults(results.items);
+          setSearchResults(results);
+        } else {
+          // Append to existing results for pagination
+          setAllResults(prev => [...prev, ...results.items]);
+          setSearchResults(prev => prev ? {
+            ...results,
+            items: [...prev.items, ...results.items]
+          } : results);
+        }
+
+        // Performance warnings
+        const warnings = smartQuoteUtils.getPerformanceRecommendations(results.total || 0);
+        setPerformanceWarning(warnings);
+        
       } catch (error) {
         console.error('Search error:', error);
       } finally {
         setIsLoading(false);
       }
-    }, 500),
-    []
+    }, 300), // Reduced delay for better responsiveness
+    [searchScope]
   );
 
-  // Update filters when customerId changes
+  // Update filters when searchScope or customerId changes
   useEffect(() => {
-    setFilters(prev => ({ ...prev, customerId }));
-  }, [customerId]);
+    setFilters(prev => ({ 
+      ...prev, 
+      customerId: searchScope === 'customer' ? customerId : undefined,
+      offset: 0 // Reset pagination
+    }));
+  }, [customerId, searchScope]);
 
   // Load filter options on mount
   useEffect(() => {
     if (isOpen) {
       loadFilterOptions();
       // Perform initial search to show recent items
-      performSearch({ ...filters, customerId, searchTerm: '' });
+      performSearch({ 
+        ...filters, 
+        customerId: searchScope === 'customer' ? customerId : undefined, 
+        searchTerm: '',
+        offset: 0
+      });
     }
-  }, [isOpen, customerId]);
+  }, [isOpen, customerId, searchScope]);
 
   // Load filter options
   const loadFilterOptions = async () => {
@@ -88,7 +127,7 @@ export const SmartQuoteItemSearch: React.FC<SmartQuoteItemSearchProps> = ({
     // Get search suggestions
     if (value.length >= 2) {
       try {
-        const suggestions = await smartQuoteApi.getSearchSuggestions(value, 5);
+        const suggestions = await smartQuoteApi.getSearchSuggestions(value, 8);
         setSearchSuggestions(suggestions);
         setShowSuggestions(suggestions.length > 0);
       } catch (error) {
@@ -98,8 +137,13 @@ export const SmartQuoteItemSearch: React.FC<SmartQuoteItemSearchProps> = ({
       setShowSuggestions(false);
     }
 
-    // Perform search
-    const newFilters = { ...filters, customerId, searchTerm: value, offset: 0 };
+    // Perform search with reset
+    const newFilters = { 
+      ...filters, 
+      customerId: searchScope === 'customer' ? customerId : undefined, 
+      searchTerm: value, 
+      offset: 0 
+    };
     setFilters(newFilters);
     debouncedSearch(newFilters);
   };
@@ -108,8 +152,27 @@ export const SmartQuoteItemSearch: React.FC<SmartQuoteItemSearchProps> = ({
   const performSearch = async (searchFilters: QuoteItemSearchFilters) => {
     setIsLoading(true);
     try {
-      const results = await smartQuoteApi.searchQuoteItems(searchFilters);
-      setSearchResults(results);
+      let results;
+      if (searchScope === 'global') {
+        results = await smartQuoteApi.searchAllQuoteItems(searchFilters);
+      } else {
+        results = await smartQuoteApi.searchQuoteItems(searchFilters);
+      }
+      
+      if (searchFilters.offset === 0) {
+        setAllResults(results.items);
+        setSearchResults(results);
+      } else {
+        setAllResults(prev => [...prev, ...results.items]);
+        setSearchResults(prev => prev ? {
+          ...results,
+          items: [...prev.items, ...results.items]
+        } : results);
+      }
+
+      const warnings = smartQuoteUtils.getPerformanceRecommendations(results.total || 0);
+      setPerformanceWarning(warnings);
+      
     } catch (error) {
       console.error('Search error:', error);
     } finally {
@@ -119,7 +182,12 @@ export const SmartQuoteItemSearch: React.FC<SmartQuoteItemSearchProps> = ({
 
   // Handle filter changes
   const handleFilterChange = (key: string, value: any) => {
-    const newFilters = { ...filters, customerId, [key]: value, offset: 0 };
+    const newFilters = { 
+      ...filters, 
+      customerId: searchScope === 'customer' ? customerId : undefined, 
+      [key]: value, 
+      offset: 0 
+    };
     setFilters(newFilters);
     performSearch(newFilters);
   };
@@ -134,7 +202,7 @@ export const SmartQuoteItemSearch: React.FC<SmartQuoteItemSearchProps> = ({
     }
   };
 
-  // Select all visible items
+  // Bulk selection functions
   const selectAllVisible = () => {
     const visibleItems = searchResults?.items || [];
     const newSelected = [...selectedItems];
@@ -148,9 +216,38 @@ export const SmartQuoteItemSearch: React.FC<SmartQuoteItemSearchProps> = ({
     setSelectedItems(newSelected);
   };
 
+  const selectByCategory = (category: string) => {
+    const categoryItems = allResults.filter(item => item.category === category);
+    const newSelected = [...selectedItems];
+    
+    categoryItems.forEach(item => {
+      if (!newSelected.some(selected => selected.id === item.id)) {
+        newSelected.push(item);
+      }
+    });
+    
+    setSelectedItems(newSelected);
+  };
+
+  const selectByPriceRange = (min: number, max: number) => {
+    const priceRangeItems = allResults.filter(item => 
+      item.unitPrice >= min && item.unitPrice <= max
+    );
+    const newSelected = [...selectedItems];
+    
+    priceRangeItems.forEach(item => {
+      if (!newSelected.some(selected => selected.id === item.id)) {
+        newSelected.push(item);
+      }
+    });
+    
+    setSelectedItems(newSelected);
+  };
+
   // Clear selection
   const clearSelection = () => {
     setSelectedItems([]);
+    setBulkSelectMode(false);
   };
 
   // Handle import selected items
@@ -162,34 +259,113 @@ export const SmartQuoteItemSearch: React.FC<SmartQuoteItemSearchProps> = ({
     }
   };
 
-  // Load more results (pagination)
-  const loadMore = () => {
-    const newFilters = { ...filters, customerId, offset: (filters.offset || 0) + (filters.limit || 50) };
+  // Load more results (enhanced pagination)
+  const loadMore = async () => {
+    if (!searchResults?.hasMore) return;
+    
+    setIsLoadingMore(true);
+    const newFilters = { 
+      ...filters, 
+      customerId: searchScope === 'customer' ? customerId : undefined, 
+      offset: (filters.offset || 0) + (filters.limit || 50) 
+    };
     setFilters(newFilters);
-    performSearch(newFilters);
+    
+    try {
+      let results;
+      if (searchScope === 'global') {
+        results = await smartQuoteApi.searchAllQuoteItems(newFilters);
+      } else {
+        results = await smartQuoteApi.searchQuoteItems(newFilters);
+      }
+      
+      setAllResults(prev => [...prev, ...results.items]);
+      setSearchResults(prev => prev ? {
+        ...results,
+        total: prev.total,
+        items: [...prev.items, ...results.items]
+      } : results);
+      
+    } catch (error) {
+      console.error('Error loading more results:', error);
+    } finally {
+      setIsLoadingMore(false);
+    }
   };
+
+  // Get search title based on scope
+  const getSearchTitle = () => {
+    if (searchScope === 'global') {
+      return 'Search All Quote Items';
+    }
+    return 'Search Previous Quote Items';
+  };
+
+  // Get search description based on scope
+  const getSearchDescription = () => {
+    if (searchScope === 'global') {
+      return 'Search across all customers and quotes in your company';
+    }
+    return `Search ${customerId ? 'this customer\'s' : ''} previous quote items`;
+  };
+
+  // Memoized grouped categories for bulk selection
+  const groupedCategories = useMemo(() => {
+    return smartQuoteUtils.groupItemsByCategory(allResults);
+  }, [allResults]);
 
   return (
     <Modal 
       isOpen={isOpen} 
       onClose={onClose}
-      title="Search Previous Quote Items"
+      title={getSearchTitle()}
       size="xl"
     >
       <div className="flex flex-col h-full max-h-[80vh]">
         {/* Search Header */}
         <div className="border-b border-gray-200 pb-4 mb-4">
+          {/* Search Description */}
+          <div className="mb-4">
+            <p className="text-sm text-gray-600">
+              {getSearchDescription()}
+            </p>
+            {searchScope === 'global' && (
+              <div className="mt-1 text-xs text-blue-600">
+                Global search includes items from all customers and quotes
+              </div>
+            )}
+          </div>
+
+          {/* Performance Warning */}
+          {performanceWarning.length > 0 && (
+            <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+              <div className="flex items-start">
+                <div className="text-amber-600 text-sm">
+                  <strong>Performance Notice:</strong>
+                  <ul className="mt-1 list-disc list-inside">
+                    {performanceWarning.map((warning, index) => (
+                      <li key={index}>{warning}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Main Search Input */}
           <div className="relative mb-4">
             <Input
               type="text"
-              placeholder="Search items by name, description, or material code..."
+              placeholder={searchScope === 'global' ? 
+                "Search all items by name, description, or material code..." : 
+                "Search items by name, description, or material code..."
+              }
               value={searchTerm}
               onChange={(e) => handleSearchTermChange(e.target.value)}
               className="w-full pl-10"
             />
             <div className="absolute left-3 top-3 text-gray-400">
-              🔍
+              {searchScope === 'global' ? '🌍' : '🔍'}
             </div>
             
             {/* Search Suggestions */}
@@ -225,7 +401,12 @@ export const SmartQuoteItemSearch: React.FC<SmartQuoteItemSearchProps> = ({
             <Button
               variant="outline"
               size="sm"
-              onClick={() => performSearch({ customerId, searchTerm: '', limit: 20 })}
+              onClick={() => performSearch({ 
+                customerId: searchScope === 'customer' ? customerId : undefined, 
+                searchTerm: '', 
+                limit: 50,
+                offset: 0
+              })}
             >
               Recent Items
             </Button>
@@ -234,14 +415,21 @@ export const SmartQuoteItemSearch: React.FC<SmartQuoteItemSearchProps> = ({
               variant="outline"
               size="sm"
               onClick={async () => {
-                console.log('🔥 [DEBUG] Frequent Items button clicked, customerId:', customerId);
+                console.log(`Frequent Items button clicked, searchScope: ${searchScope}, customerId:`, customerId);
                 try {
-                  const frequent = await smartQuoteApi.getFrequentItems(customerId, 20);
-                  console.log('🔍 FREQUENT ITEMS RAW RESPONSE:', frequent);
+                  let frequent;
+                  if (searchScope === 'global') {
+                    frequent = await smartQuoteApi.getFrequentItems(undefined, 50);
+                  } else {
+                    frequent = await smartQuoteApi.getFrequentItems(customerId, 50);
+                  }
+                  console.log('FREQUENT ITEMS RAW RESPONSE:', frequent);
                   setSearchResults({
                     items: frequent,
-                    total: frequent.length
+                    total: frequent.length,
+                    hasMore: false
                   });
+                  setAllResults(frequent);
                 } catch (error) {
                   console.error('Error loading frequent items:', error);
                 }
@@ -249,11 +437,58 @@ export const SmartQuoteItemSearch: React.FC<SmartQuoteItemSearchProps> = ({
             >
               Frequent Items
             </Button>
+
+            <Button
+              variant={bulkSelectMode ? "default" : "outline"}
+              size="sm"
+              onClick={() => setBulkSelectMode(!bulkSelectMode)}
+            >
+              Bulk Select
+            </Button>
           </div>
+
+          {/* Bulk Selection Tools */}
+          {bulkSelectMode && (
+            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="text-sm font-medium text-blue-900 mb-2">Bulk Selection Tools</div>
+              <div className="flex flex-wrap gap-2">
+                <Button size="sm" variant="outline" onClick={selectAllVisible}>
+                  Select All Visible
+                </Button>
+                
+                {Object.keys(groupedCategories).map(category => (
+                  <Button 
+                    key={category}
+                    size="sm" 
+                    variant="outline"
+                    onClick={() => selectByCategory(category)}
+                  >
+                    Select {category} ({groupedCategories[category].length})
+                  </Button>
+                ))}
+                
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  onClick={() => selectByPriceRange(0, 100)}
+                >
+                  Select £0-£100
+                </Button>
+                
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  onClick={() => selectByPriceRange(100, 500)}
+                >
+                  Select £100-£500
+                </Button>
+              </div>
+            </div>
+          )}
 
           {/* Advanced Filters */}
           {showAdvancedFilters && filterOptions && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-50 rounded-lg">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-50 rounded-lg mb-4">
               {/* Category Filter */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -296,24 +531,26 @@ export const SmartQuoteItemSearch: React.FC<SmartQuoteItemSearchProps> = ({
                 </div>
               </div>
 
-              {/* Customer Filter */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Customer
-                </label>
-                <select
-                  value={filters.customerId || ''}
-                  onChange={(e) => handleFilterChange('customerId', e.target.value || undefined)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">All Customers</option>
-                  {filterOptions.customers.map((customer: any) => (
-                    <option key={customer.id} value={customer.id}>
-                      {customer.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {/* Customer Filter - Only show for global search */}
+              {searchScope === 'global' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Customer
+                  </label>
+                  <select
+                    value={filters.customerId || ''}
+                    onChange={(e) => handleFilterChange('customerId', e.target.value || undefined)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">All Customers</option>
+                    {filterOptions.customers.map((customer: any) => (
+                      <option key={customer.id} value={customer.id}>
+                        {customer.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
           )}
 
@@ -330,7 +567,7 @@ export const SmartQuoteItemSearch: React.FC<SmartQuoteItemSearchProps> = ({
               </span>
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" onClick={clearSelection}>
-                  Clear
+                  Clear ({selectedItems.length})
                 </Button>
                 <Button size="sm" onClick={handleImportSelected}>
                   Import Selected
@@ -342,9 +579,11 @@ export const SmartQuoteItemSearch: React.FC<SmartQuoteItemSearchProps> = ({
 
         {/* Search Results */}
         <div className="flex-1 overflow-y-auto">
-          {isLoading && (
+          {isLoading && !isLoadingMore && (
             <div className="flex items-center justify-center py-8">
-              <div className="text-gray-500">🔍 Searching...</div>
+              <div className="text-gray-500">
+                {searchScope === 'global' ? 'Searching all quotes...' : 'Searching...'}
+              </div>
             </div>
           )}
 
@@ -353,8 +592,11 @@ export const SmartQuoteItemSearch: React.FC<SmartQuoteItemSearchProps> = ({
               {/* Results Header */}
               <div className="flex items-center justify-between mb-4">
                 <div className="text-sm text-gray-600">
-                  {searchResults.total} items found
+                  {searchResults.items.length} of {searchResults.total} items loaded
                   {searchTerm && ` for "${searchTerm}"`}
+                  {searchScope === 'global' && (
+                    <span className="ml-1 text-blue-600">(across all customers)</span>
+                  )}
                 </div>
                 <div className="flex gap-2">
                   <Button
@@ -363,7 +605,7 @@ export const SmartQuoteItemSearch: React.FC<SmartQuoteItemSearchProps> = ({
                     onClick={selectAllVisible}
                     disabled={searchResults.items.length === 0}
                   >
-                    Select All Visible
+                    Select All Visible ({searchResults.items.length})
                   </Button>
                 </div>
               </div>
@@ -403,6 +645,16 @@ export const SmartQuoteItemSearch: React.FC<SmartQuoteItemSearchProps> = ({
                                   In Current Quote
                                 </span>
                               )}
+                              {searchScope === 'global' && (
+                                <span className="ml-2 px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded">
+                                  Global
+                                </span>
+                              )}
+                              {item.timesUsed > 5 && (
+                                <span className="ml-2 px-2 py-1 text-xs bg-green-100 text-green-800 rounded">
+                                  Popular
+                                </span>
+                              )}
                             </h4>
                           </div>
                           
@@ -416,6 +668,7 @@ export const SmartQuoteItemSearch: React.FC<SmartQuoteItemSearchProps> = ({
                           <div className="flex items-center gap-4 mt-1 ml-6 text-xs text-gray-400">
                             {item.lastUsed && <span>Last used: {smartQuoteUtils.formatDate(item.lastUsed)}</span>}
                             {item.timesUsed > 0 && <span>Used {item.timesUsed} times</span>}
+                            {item.stockLevel && <span>Stock: {item.stockLevel}</span>}
                           </div>
                         </div>
                       </div>
@@ -425,10 +678,14 @@ export const SmartQuoteItemSearch: React.FC<SmartQuoteItemSearchProps> = ({
               </div>
 
               {/* Load More */}
-              {searchResults.items.length < searchResults.total && (
+              {searchResults.hasMore && (
                 <div className="flex justify-center mt-6">
-                  <Button variant="outline" onClick={loadMore}>
-                    Load More ({searchResults.total - searchResults.items.length} remaining)
+                  <Button 
+                    variant="outline" 
+                    onClick={loadMore}
+                    disabled={isLoadingMore}
+                  >
+                    {isLoadingMore ? 'Loading...' : `Load More (${searchResults.total - searchResults.items.length} remaining)`}
                   </Button>
                 </div>
               )}
@@ -438,7 +695,10 @@ export const SmartQuoteItemSearch: React.FC<SmartQuoteItemSearchProps> = ({
                 <div className="text-center py-8">
                   <div className="text-gray-500 mb-2">No items found</div>
                   <div className="text-sm text-gray-400">
-                    Try adjusting your search terms or filters
+                    {searchScope === 'global' ? 
+                      'No items found across all quotes. Try different search terms.' :
+                      'Try adjusting your search terms or filters'
+                    }
                   </div>
                 </div>
               )}
@@ -448,16 +708,26 @@ export const SmartQuoteItemSearch: React.FC<SmartQuoteItemSearchProps> = ({
 
         {/* Footer Actions */}
         <div className="border-t border-gray-200 pt-4 mt-4">
-          <div className="flex justify-end gap-3">
-            <Button variant="outline" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button 
-              onClick={handleImportSelected}
-              disabled={selectedItems.length === 0}
-            >
-              Import {selectedItems.length > 0 ? `${selectedItems.length} ` : ''}Selected
-            </Button>
+          <div className="flex justify-between items-center">
+            <div className="text-sm text-gray-500">
+              {searchResults && (
+                <span>
+                  Loaded {searchResults.items.length} of {searchResults.total} items
+                  {selectedItems.length > 0 && ` • ${selectedItems.length} selected`}
+                </span>
+              )}
+            </div>
+            <div className="flex gap-3">
+              <Button variant="outline" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleImportSelected}
+                disabled={selectedItems.length === 0}
+              >
+                Import {selectedItems.length > 0 ? `${selectedItems.length} ` : ''}Selected
+              </Button>
+            </div>
           </div>
         </div>
       </div>

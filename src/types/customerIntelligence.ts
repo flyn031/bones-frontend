@@ -16,9 +16,11 @@ export interface CustomerIntelligence {
 
 export interface CustomerSuggestion {
   id: number;
+  itemId: string;           // ADDED: Missing property
   itemName: string;
   description?: string;
   suggestedPrice: number;
+  unitPrice: number;        // ADDED: Missing property
   confidence: number;
   reason: string;
   category?: string;

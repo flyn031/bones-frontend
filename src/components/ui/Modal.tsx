@@ -9,6 +9,7 @@ interface ModalProps {
   children: React.ReactNode;
   footer?: React.ReactNode;
   className?: string;
+  size?: 'small' | 'medium' | 'large' | 'xl' | string;  // ADDED: Missing size property
 }
 
 export const Modal: React.FC<ModalProps> = ({
@@ -17,9 +18,25 @@ export const Modal: React.FC<ModalProps> = ({
   title,
   children,
   footer,
-  className = ''
+  className = '',
+  size = 'medium'  // ADDED: Default size
 }) => {
   if (!isOpen) return null;
+
+  // ADDED: Size classes mapping
+  const getSizeClasses = (size: string) => {
+    switch (size) {
+      case 'small':
+        return 'max-w-md';
+      case 'large':
+        return 'max-w-2xl';
+      case 'xl':
+        return 'max-w-4xl';
+      case 'medium':
+      default:
+        return 'max-w-lg';
+    }
+  };
 
   return (
     <div 
@@ -36,7 +53,7 @@ export const Modal: React.FC<ModalProps> = ({
       {/* Modal Container */}
       <div 
         className={`
-          relative w-full max-w-lg mx-auto my-6 
+          relative w-full ${getSizeClasses(size)} mx-auto my-6 
           transform transition-all duration-300 ease-in-out
           ${className}
         `}

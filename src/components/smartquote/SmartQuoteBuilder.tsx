@@ -26,7 +26,7 @@ export const SmartQuoteBuilder: React.FC<SmartQuoteBuilderProps> = ({
   totalValue,
   mode = 'full'
 }) => {
-  const [activeTab, setActiveTab] = useState<'search' | 'suggestions' | 'templates' | 'bundles'>('suggestions');
+  const [activeTab, setActiveTab] = useState<'search' | 'search-all' | 'suggestions' | 'templates' | 'bundles'>('suggestions');
   const [quoteHealth, setQuoteHealth] = useState<QuoteHealthScore | null>(null);
   const [customerIntel, setCustomerIntel] = useState<CustomerIntelligence | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -109,7 +109,15 @@ export const SmartQuoteBuilder: React.FC<SmartQuoteBuilderProps> = ({
           className="p-3 bg-white rounded-lg border hover:border-blue-300 transition-colors text-left"
         >
           <div className="text-sm font-medium text-gray-900">Search Items</div>
-          <div className="text-xs text-gray-500">From previous quotes</div>
+          <div className="text-xs text-gray-500">From this customer's quotes</div>
+        </button>
+        
+        <button type="button"
+          onClick={() => setActiveTab('search-all')}
+          className="p-3 bg-white rounded-lg border hover:border-blue-300 transition-colors text-left"
+        >
+          <div className="text-sm font-medium text-gray-900">Search All Items</div>
+          <div className="text-xs text-gray-500">From all company quotes</div>
         </button>
         
         <button type="button"
@@ -118,14 +126,6 @@ export const SmartQuoteBuilder: React.FC<SmartQuoteBuilderProps> = ({
         >
           <div className="text-sm font-medium text-gray-900">Quick Templates</div>
           <div className="text-xs text-gray-500">Pre-built solutions</div>
-        </button>
-        
-        <button type="button"
-          onClick={() => setActiveTab('bundles')}
-          className="p-3 bg-white rounded-lg border hover:border-blue-300 transition-colors text-left"
-        >
-          <div className="text-sm font-medium text-gray-900">Bundle Deals</div>
-          <div className="text-xs text-gray-500">Save with combos</div>
         </button>
       </div>
 
@@ -138,28 +138,32 @@ export const SmartQuoteBuilder: React.FC<SmartQuoteBuilderProps> = ({
         />
       )}
       
-     {activeTab === 'search' && (
-  <SmartQuoteItemSearch
-    customerId={customerId}
-    isOpen={true}
-    onClose={() => setActiveTab('suggestions')}
-    onItemsSelected={handleItemsAdded}
-    currentItems={existingItems.map(item => item.description)}
-  />
+      {activeTab === 'search' && (
+        <SmartQuoteItemSearch
+          customerId={customerId}
+          searchScope="customer"
+          isOpen={true}
+          onClose={() => setActiveTab('suggestions')}
+          onItemsSelected={handleItemsAdded}
+          currentItems={existingItems.map(item => item.description)}
+        />
+      )}
+      
+      {activeTab === 'search-all' && (
+        <SmartQuoteItemSearch
+          customerId={undefined}
+          searchScope="global"
+          isOpen={true}
+          onClose={() => setActiveTab('suggestions')}
+          onItemsSelected={handleItemsAdded}
+          currentItems={existingItems.map(item => item.description)}
+        />
       )}
       
       {activeTab === 'templates' && (
         <QuickAssemblyShortcuts
           onTemplateSelected={handleItemsAdded}
           customerType={customerIntel?.industry}
-        />
-      )}
-      
-      {activeTab === 'bundles' && (
-        <BundleRecommendations
-          existingItems={existingItems}
-          customerId={customerId}
-          onBundleSelected={handleItemsAdded}
         />
       )}
     </div>
