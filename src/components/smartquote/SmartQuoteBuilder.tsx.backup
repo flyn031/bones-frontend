@@ -140,7 +140,6 @@ export const SmartQuoteBuilder: React.FC<SmartQuoteBuilderProps> = ({
       
      {activeTab === 'search' && (
   <SmartQuoteItemSearch
-    customerId={customerId}
     isOpen={true}
     onClose={() => setActiveTab('suggestions')}
     onItemsSelected={handleItemsAdded}

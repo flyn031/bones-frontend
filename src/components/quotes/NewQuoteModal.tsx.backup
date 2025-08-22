@@ -185,7 +185,9 @@ export default function NewQuoteModal({
   // Debug selectedItems changes
   useEffect(() => {
     console.log("🚀 [DEBUG] selectedItems changed:", selectedItems.length, selectedItems);
-  }, [selectedItems]);  const [showSmartBuilder, setShowSmartBuilder] = useState(false);
+  }, [selectedItems]);
+
+  const [showSmartBuilder, setShowSmartBuilder] = useState(false);
   const [smartBuilderMode, setSmartBuilderMode] = useState<'full' | 'compact' | 'suggestions-only'>('compact');
 
   // Get status styling based on current status - FIXED: Use QuoteStatus type
@@ -199,47 +201,52 @@ export default function NewQuoteModal({
   // Get current item names for Smart Quote Builder
   const currentItemNames = selectedItems.map(item => item.name);
 
-  // 🚀 NEW - Handle items added from Smart Quote Builder
+  // 🚀 NEW - Handle items added from Smart Quote Builder with DEBUG
   const handleSmartItemsAdded = (newItems: any[]) => {
-    console.log('🚀 Adding smart items:', newItems);
+    console.log("🚀 [DEBUG] Smart items received:", newItems);
+    console.log("🚀 [DEBUG] selectedItems before conversion:", selectedItems.length, selectedItems);
     
-    // Convert smart items to your existing item format
-    const convertedItems = newItems.map(smartItem => ({
-      id: smartItem.id || `smart_${Date.now()}_${Math.random()}`,
-      name: smartItem.itemName,
-      description: smartItem.description || '',
-      code: smartItem.code || smartItem.materialCode || `SMART-${smartItem.itemName.substring(0, 4).toUpperCase()}`,
-      unitPrice: smartItem.unitPrice,
-      quantity: smartItem.quantity,
-      unit: smartItem.unit || 'unit',
-      category: smartItem.category || 'Smart Import',
-      total: smartItem.quantity * smartItem.unitPrice,
-      // Add source information for tracking
-      source: smartItem.source || 'smart_builder',
-      confidence: smartItem.confidence,
-      reason: smartItem.reason,
-      templateName: smartItem.templateName,
-      bundleName: smartItem.bundleName,
-      bundleId: smartItem.bundleId,
-      originalQuote: smartItem.originalQuote,
-      originalCustomer: smartItem.originalCustomer
-    }));
+    const convertedItems = newItems.map(smartItem => {
+      console.log("🚀 [DEBUG] Converting smart item:", smartItem);
+      
+      return {
+        id: smartItem.id || `smart_${Date.now()}_${Math.random()}`,
+        name: smartItem.description || smartItem.itemName || "Unknown Item",
+        description: smartItem.description || "",
+        code: smartItem.code || smartItem.materialCode || `SMART-${(smartItem.description || "ITEM").substring(0, 4).toUpperCase()}`,
+        unitPrice: smartItem.unitPrice || smartItem.suggestedPrice || 0,
+        quantity: smartItem.quantity || smartItem.recommendedQuantity || 1,
+        unit: smartItem.unit || "unit",
+        category: smartItem.category || "Smart Import",
+        total: (smartItem.quantity || smartItem.recommendedQuantity || 1) * (smartItem.unitPrice || smartItem.suggestedPrice || 0),
+        source: smartItem.source || "smart_builder",
+        confidence: smartItem.confidence,
+        reason: smartItem.reason
+      };
+    });
 
-    // Add to existing items (avoiding duplicates by name)
+    console.log("🚀 [DEBUG] Converted items:", convertedItems);
+
     setSelectedItems(prevItems => {
+      console.log("🚀 [DEBUG] Previous items before filter:", prevItems);
+      
       const newItemsFiltered = convertedItems.filter(newItem => 
         !prevItems.some(existing => 
           existing.name.toLowerCase().trim() === newItem.name.toLowerCase().trim()
         )
       );
       
-      console.log(`✅ Adding ${newItemsFiltered.length} new items (${convertedItems.length - newItemsFiltered.length} duplicates avoided)`);
-      return [...prevItems, ...newItemsFiltered];
+      console.log(`🚀 [DEBUG] Filtered items to add: ${newItemsFiltered.length}`);
+      console.log("🚀 [DEBUG] Items being added:", newItemsFiltered);
+      
+      const updatedItems = [...prevItems, ...newItemsFiltered];
+      console.log("🚀 [DEBUG] Final updated items:", updatedItems);
+      
+      return updatedItems;
     });
 
-    // Show success message
     if (convertedItems.length > 0) {
-      console.log(`✅ Added ${convertedItems.length} items from Smart Quote Builder`);
+      console.log(`🚀 [DEBUG] Completed adding ${convertedItems.length} items`);
     }
   };
 
@@ -407,6 +414,7 @@ export default function NewQuoteModal({
       console.log("Quote line items for editing:", quoteItems);
       
       setQuoteData({
+        id: editQuote.id,
         title: editQuote.title,
         customer: editQuote.customer,
         customerId: editQuote.customerId,
@@ -506,7 +514,7 @@ export default function NewQuoteModal({
       
       return null;
     } catch (error) {
-      console.error("Error fetching customer-specific price:", error);
+      if (error.response?.status !== 404) console.error("Error fetching customer-specific price:", error);
       return null;
     }
   };
@@ -807,7 +815,7 @@ export default function NewQuoteModal({
     e.preventDefault();
     console.log("NewQuoteModal: handleSubmit triggered!"); // ADDED LOG
     console.log("🚀 [DEBUG] selectedItems at submission:", selectedItems);
-    console.log("🚀 [DEBUG] formattedItems for backend:", formattedItems);
+    
     const totalValue = calculateTotal();
 
     // Format items for submission
@@ -819,6 +827,8 @@ export default function NewQuoteModal({
       total: item.total,
       materialId: item.id, // Use item.id as materialId since items are materials
     }));
+
+    console.log("🚀 [DEBUG] formattedItems for backend:", formattedItems);
 
     // Create complete quote data
     const completeQuoteData: QuoteData = {

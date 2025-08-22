@@ -28,18 +28,22 @@ const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
 
 // Customer Intelligence API endpoints
 export const customerIntelligenceApi = {
+  // Get customer intelligence data
   getCustomerIntelligence: async (customerId: string) => {
     return apiRequest(`/api/customer-intelligence/${customerId}`);
   },
 
+  // Get customer suggestions
   getCustomerSuggestions: async (customerId: string) => {
     return apiRequest(`/api/customer-intelligence/${customerId}/suggestions`);
   },
 
+  // Get bundle recommendations
   getBundleRecommendations: async (customerId: string) => {
     return apiRequest(`/api/customer-intelligence/${customerId}/bundles`);
   },
 
+  // Get dynamic bundle recommendations
   getDynamicBundleRecommendations: async (customerId: string, existingItems: string[] = []) => {
     const queryParams = new URLSearchParams({
       customerId,
@@ -48,15 +52,24 @@ export const customerIntelligenceApi = {
     return apiRequest(`/api/customer-intelligence/dynamic-bundles?${queryParams}`);
   },
 
+  // Get seasonal recommendations
   getSeasonalRecommendations: async () => {
     return apiRequest('/api/customer-intelligence/seasonal-recommendations');
   },
 
+  // Get quick templates
   getQuickTemplates: async (industry?: string) => {
     const queryParam = industry ? `?industry=${encodeURIComponent(industry)}` : '';
     return apiRequest(`/api/customer-intelligence/quick-templates${queryParam}`);
   },
 
+  // Get quick assembly templates (alias for getQuickTemplates)
+  getQuickAssemblyTemplates: async (industry?: string) => {
+    const queryParam = industry ? `?industry=${encodeURIComponent(industry)}` : '';
+    return apiRequest(`/api/customer-intelligence/quick-templates${queryParam}`);
+  },
+
+  // Analyze quote health
   analyzeQuoteHealth: async (quoteData: any) => {
     return apiRequest('/api/customer-intelligence/analyze-quote-health', {
       method: 'POST',
@@ -64,6 +77,7 @@ export const customerIntelligenceApi = {
     });
   },
 
+  // Get comprehensive insights
   getComprehensiveInsights: async (customerId: string) => {
     return apiRequest(`/api/customer-intelligence/${customerId}/comprehensive`);
   },
@@ -372,4 +386,5 @@ export const getBundleRecommendations = customerIntelligenceApi.getBundleRecomme
 export const getDynamicBundleRecommendations = customerIntelligenceApi.getDynamicBundleRecommendations;
 export const getSeasonalRecommendations = customerIntelligenceApi.getSeasonalRecommendations;
 export const getQuickTemplates = customerIntelligenceApi.getQuickTemplates;
+export const getQuickAssemblyTemplates = customerIntelligenceApi.getQuickAssemblyTemplates;
 export const analyzeQuoteHealth = customerIntelligenceApi.analyzeQuoteHealth;

@@ -1361,7 +1361,7 @@ export default function NewQuoteModal({
             {/* Smart Quote Builder */}
             {showSmartBuilder && (
               <div className="border border-blue-200 rounded-lg p-4 bg-gradient-to-br from-blue-50 to-indigo-50 mb-6">
-                <SmartQuoteBuilder
+                {console.log("DEBUG selectedCustomer:", selectedCustomer)}                <SmartQuoteBuilder
                   customerId={selectedCustomer?.id}
                   customerName={selectedCustomer?.name}
                   existingItems={selectedItems.map(item => ({

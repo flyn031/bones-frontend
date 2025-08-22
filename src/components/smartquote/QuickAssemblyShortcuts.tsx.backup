@@ -43,7 +43,7 @@ export const QuickAssemblyShortcuts: React.FC<QuickAssemblyShortcutsProps> = ({
     try {
       console.log('⚡ Loading quick assembly templates...');
       
-      const templatesData = await customerIntelligenceApi.getQuickTemplates();
+      const templatesData = await customerIntelligenceApi.getQuickAssemblyTemplates();
       setTemplates(templatesData);
       
       console.log('✅ Loaded', templatesData.length, 'templates');

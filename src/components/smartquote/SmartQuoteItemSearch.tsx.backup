@@ -16,7 +16,6 @@ interface SmartQuoteItemSearchProps {
   isOpen: boolean;
   onClose: () => void;
   onItemsSelected: (items: HistoricalQuoteItem[]) => void;
-  customerId: string; // Added required customerId prop
   currentItems?: string[];
 }
 
@@ -24,12 +23,10 @@ export const SmartQuoteItemSearch: React.FC<SmartQuoteItemSearchProps> = ({
   isOpen,
   onClose,
   onItemsSelected,
-  customerId, // Added customerId prop
   currentItems = []
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filters, setFilters] = useState<QuoteItemSearchFilters>({
-    customerId, // Set customerId in filters
     limit: 50,
     offset: 0
   });
@@ -57,19 +54,14 @@ export const SmartQuoteItemSearch: React.FC<SmartQuoteItemSearchProps> = ({
     []
   );
 
-  // Update filters when customerId changes
-  useEffect(() => {
-    setFilters(prev => ({ ...prev, customerId }));
-  }, [customerId]);
-
   // Load filter options on mount
   useEffect(() => {
     if (isOpen) {
       loadFilterOptions();
       // Perform initial search to show recent items
-      performSearch({ ...filters, customerId, searchTerm: '' });
+      performSearch({ ...filters, searchTerm: '' });
     }
-  }, [isOpen, customerId]);
+  }, [isOpen]);
 
   // Load filter options
   const loadFilterOptions = async () => {
@@ -99,7 +91,7 @@ export const SmartQuoteItemSearch: React.FC<SmartQuoteItemSearchProps> = ({
     }
 
     // Perform search
-    const newFilters = { ...filters, customerId, searchTerm: value, offset: 0 };
+    const newFilters = { ...filters, searchTerm: value, offset: 0 };
     setFilters(newFilters);
     debouncedSearch(newFilters);
   };
@@ -119,7 +111,7 @@ export const SmartQuoteItemSearch: React.FC<SmartQuoteItemSearchProps> = ({
 
   // Handle filter changes
   const handleFilterChange = (key: string, value: any) => {
-    const newFilters = { ...filters, customerId, [key]: value, offset: 0 };
+    const newFilters = { ...filters, [key]: value, offset: 0 };
     setFilters(newFilters);
     performSearch(newFilters);
   };
@@ -164,7 +156,7 @@ export const SmartQuoteItemSearch: React.FC<SmartQuoteItemSearchProps> = ({
 
   // Load more results (pagination)
   const loadMore = () => {
-    const newFilters = { ...filters, customerId, offset: (filters.offset || 0) + (filters.limit || 50) };
+    const newFilters = { ...filters, offset: (filters.offset || 0) + (filters.limit || 50) };
     setFilters(newFilters);
     performSearch(newFilters);
   };
@@ -225,7 +217,7 @@ export const SmartQuoteItemSearch: React.FC<SmartQuoteItemSearchProps> = ({
             <Button
               variant="outline"
               size="sm"
-              onClick={() => performSearch({ customerId, searchTerm: '', limit: 20 })}
+              onClick={() => performSearch({ searchTerm: '', limit: 20 })}
             >
               Recent Items
             </Button>
@@ -234,13 +226,13 @@ export const SmartQuoteItemSearch: React.FC<SmartQuoteItemSearchProps> = ({
               variant="outline"
               size="sm"
               onClick={async () => {
-                console.log('🔥 [DEBUG] Frequent Items button clicked, customerId:', customerId);
                 try {
-                  const frequent = await smartQuoteApi.getFrequentItems(customerId, 20);
-                  console.log('🔍 FREQUENT ITEMS RAW RESPONSE:', frequent);
+                  const frequent = await smartQuoteApi.getFrequentItems(20);
                   setSearchResults({
                     items: frequent,
-                    total: frequent.length
+                    totalCount: frequent.length,
+                    categories: [],
+                    priceRange: { min: 0, max: 0 }
                   });
                 } catch (error) {
                   console.error('Error loading frequent items:', error);
@@ -353,7 +345,7 @@ export const SmartQuoteItemSearch: React.FC<SmartQuoteItemSearchProps> = ({
               {/* Results Header */}
               <div className="flex items-center justify-between mb-4">
                 <div className="text-sm text-gray-600">
-                  {searchResults.total} items found
+                  {searchResults.totalCount} items found
                   {searchTerm && ` for "${searchTerm}"`}
                 </div>
                 <div className="flex gap-2">
@@ -373,7 +365,7 @@ export const SmartQuoteItemSearch: React.FC<SmartQuoteItemSearchProps> = ({
                 {searchResults.items.map((item, index) => {
                   const isSelected = selectedItems.some(selected => selected.id === item.id);
                   const isCurrentItem = currentItems.some(current => 
-                    current.toLowerCase() === (item.description || '').toLowerCase()
+                    current.toLowerCase() === item.itemName.toLowerCase()
                   );
 
                   return (
@@ -397,7 +389,7 @@ export const SmartQuoteItemSearch: React.FC<SmartQuoteItemSearchProps> = ({
                               {isSelected && <span className="text-white text-xs">✓</span>}
                             </div>
                             <h4 className="font-medium text-gray-900">
-                              {item.description}
+                              {item.itemName}
                               {isCurrentItem && (
                                 <span className="ml-2 px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded">
                                   In Current Quote
@@ -405,6 +397,12 @@ export const SmartQuoteItemSearch: React.FC<SmartQuoteItemSearchProps> = ({
                               )}
                             </h4>
                           </div>
+                          
+                          {item.description && (
+                            <p className="text-sm text-gray-600 mt-1 ml-6">
+                              {item.description}
+                            </p>
+                          )}
                           
                           <div className="flex items-center gap-4 mt-2 ml-6 text-sm text-gray-500">
                             <span>Qty: {item.quantity}</span>
@@ -414,8 +412,9 @@ export const SmartQuoteItemSearch: React.FC<SmartQuoteItemSearchProps> = ({
                           </div>
                           
                           <div className="flex items-center gap-4 mt-1 ml-6 text-xs text-gray-400">
-                            {item.lastUsed && <span>Last used: {smartQuoteUtils.formatDate(item.lastUsed)}</span>}
-                            {item.timesUsed > 0 && <span>Used {item.timesUsed} times</span>}
+                            <span>From: {item.sourceCustomerName}</span>
+                            <span>Quote: {item.sourceQuoteNumber}</span>
+                            <span>Date: {smartQuoteUtils.formatDate(item.createdAt)}</span>
                           </div>
                         </div>
                       </div>
@@ -425,10 +424,10 @@ export const SmartQuoteItemSearch: React.FC<SmartQuoteItemSearchProps> = ({
               </div>
 
               {/* Load More */}
-              {searchResults.items.length < searchResults.total && (
+              {searchResults.items.length < searchResults.totalCount && (
                 <div className="flex justify-center mt-6">
                   <Button variant="outline" onClick={loadMore}>
-                    Load More ({searchResults.total - searchResults.items.length} remaining)
+                    Load More ({searchResults.totalCount - searchResults.items.length} remaining)
                   </Button>
                 </div>
               )}
