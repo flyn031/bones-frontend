@@ -85,9 +85,11 @@ export interface HistoricalQuoteItem {
   sourceQuoteNumber: string;
   createdAt: string | Date;
   materialId?: string;
-  lastUsed?: string | Date;   // ADDED: Missing property
-  timesUsed?: number;         // ADDED: Missing property
-  confidence?: number;        // ADDED: Missing property
+  lastUsed?: string | Date;
+  timesUsed?: number;
+  confidence?: number;
+  stockLevel?: number;     // ADDED: Missing property
+  source?: string;         // ADDED: Missing property for SmartQuoteBuilder compatibility
 }
 
 export interface QuoteItemSearchFilters {
@@ -106,7 +108,8 @@ export interface QuoteItemSearchFilters {
 export interface QuoteItemSearchResult {
   items: HistoricalQuoteItem[];
   totalCount: number;
-  total: number;              // ADDED: Missing property
+  total: number;
+  hasMore?: boolean;      // ADDED: Missing property
   categories: string[];
   priceRange: { min: number; max: number };
 }

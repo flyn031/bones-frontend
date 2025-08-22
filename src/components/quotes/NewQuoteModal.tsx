@@ -25,6 +25,8 @@ interface Item {
 interface SelectedItem extends Item {
   quantity: number;
   total: number;
+  source?: string;        // ADDED: Missing property
+  confidence?: number;    // ADDED: Missing property
 }
 
 interface NewQuoteModalProps {
