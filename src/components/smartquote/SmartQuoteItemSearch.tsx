@@ -419,16 +419,19 @@ export const SmartQuoteItemSearch: React.FC<SmartQuoteItemSearchProps> = ({
                 try {
                   let frequent;
                   if (searchScope === 'global') {
-                    frequent = await smartQuoteApi.getFrequentItems(undefined, 50);
+                  frequent = await smartQuoteApi.getFrequentItems(undefined);
                   } else {
-                    frequent = await smartQuoteApi.getFrequentItems(customerId, 50);
+                  frequent = await smartQuoteApi.getFrequentItems(customerId);
                   }
                   console.log('FREQUENT ITEMS RAW RESPONSE:', frequent);
                   setSearchResults({
-                    items: frequent,
-                    total: frequent.length,
-                    hasMore: false
-                  });
+                  items: frequent,
+                  totalCount: frequent.length,
+                  total: frequent.length,
+                  hasMore: false,
+                  categories: [],
+                  priceRange: { min: 0, max: 0 }
+                    });
                   setAllResults(frequent);
                 } catch (error) {
                   console.error('Error loading frequent items:', error);
@@ -650,7 +653,7 @@ export const SmartQuoteItemSearch: React.FC<SmartQuoteItemSearchProps> = ({
                                   Global
                                 </span>
                               )}
-                              {item.timesUsed > 5 && (
+                            {(item.timesUsed ?? 0) > 5 && (
                                 <span className="ml-2 px-2 py-1 text-xs bg-green-100 text-green-800 rounded">
                                   Popular
                                 </span>
@@ -667,7 +670,7 @@ export const SmartQuoteItemSearch: React.FC<SmartQuoteItemSearchProps> = ({
                           
                           <div className="flex items-center gap-4 mt-1 ml-6 text-xs text-gray-400">
                             {item.lastUsed && <span>Last used: {smartQuoteUtils.formatDate(item.lastUsed)}</span>}
-                            {item.timesUsed > 0 && <span>Used {item.timesUsed} times</span>}
+                           {(item.timesUsed ?? 0) > 0 && <span>Used {item.timesUsed ?? 0} times</span>}
                             {item.stockLevel && <span>Stock: {item.stockLevel}</span>}
                           </div>
                         </div>

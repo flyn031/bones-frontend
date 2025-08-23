@@ -1,8 +1,8 @@
 // Smart Quote Types
 export interface SmartQuoteItem {
   id: number | string;
-  itemName: string;        // ADDED: Missing property
-  description: string;
+  itemName: string;
+  description: string; 
   quantity: number;
   unitPrice: number;
   totalPrice: number;

@@ -53,7 +53,7 @@ export const CustomerSuggestions: React.FC<CustomerSuggestionsProps> = ({
       
       // Load suggestions and customer intelligence in parallel
       const [suggestionsData, customerData] = await Promise.all([
-        customerIntelligenceApi.getCustomerSuggestions(customerId, currentItems),
+       customerIntelligenceApi.getCustomerSuggestions(customerId),
         customerIntelligenceApi.getCustomerIntelligence(customerId)
       ]);
 
@@ -106,7 +106,7 @@ export const CustomerSuggestions: React.FC<CustomerSuggestionsProps> = ({
 
     const itemsToAdd = selectedSuggestions.map(suggestion => ({
       itemName: suggestion.itemName,
-      description: suggestion.description,
+      description: suggestion.description || 'No description available',
       quantity: 1, // Default quantity
       unitPrice: suggestion.unitPrice,
       source: 'suggestion' as const,
@@ -122,7 +122,7 @@ export const CustomerSuggestions: React.FC<CustomerSuggestionsProps> = ({
   const quickAddSuggestion = (suggestion: CustomerSuggestion) => {
     const itemToAdd = {
       itemName: suggestion.itemName,
-      description: suggestion.description,
+     description: suggestion.description || 'No description available',
       quantity: 1,
       unitPrice: suggestion.unitPrice,
       source: 'suggestion' as const,

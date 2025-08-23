@@ -65,7 +65,7 @@ export const QuickAssemblyShortcuts: React.FC<QuickAssemblyShortcutsProps> = ({
       description: item.description,
       quantity: item.quantity,
       unitPrice: item.unitPrice,
-      required: item.required,
+      required: item.required ?? false,
       source: 'template' as const,
       templateName: template.name
     }));

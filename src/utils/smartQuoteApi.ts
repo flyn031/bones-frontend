@@ -159,7 +159,7 @@ export const smartQuoteApi = {
           items: mappedItems,
           totalCount: filteredItems.length,
           total: filteredItems.length,  // FIXED: Added missing property
-          categories: [...new Set(filteredItems.map((item: any) => item.material?.category || item.category).filter(Boolean))],
+          categories: [...new Set(filteredItems.map((item: any) => item.category).filter(Boolean))] as string[],
           priceRange: {
             min: Math.min(...filteredItems.map((item: any) => parseFloat(item.unitPrice || item.price || 0))),
             max: Math.max(...filteredItems.map((item: any) => parseFloat(item.unitPrice || item.price || 0)))
@@ -675,7 +675,7 @@ export const smartQuoteUtils = {
       const callNow = immediate && !timeout;
       clearTimeout(timeout);
       timeout = setTimeout(() => {
-        timeout = undefined;
+       timeout = undefined as any;
         if (!immediate) func.apply(null, args);
       }, wait);
       if (callNow) func.apply(null, args);
