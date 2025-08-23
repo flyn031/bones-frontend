@@ -26,8 +26,8 @@ export const SmartQuoteBuilder: React.FC<SmartQuoteBuilderProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'search' | 'search-all' | 'suggestions' | 'templates' | 'bundles'>('suggestions');
   const [quoteHealth, setQuoteHealth] = useState<QuoteHealthScore | null>(null);
-  const [customerIntel, setCustomerIntel] = useState<CustomerIntelligence | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  
+  
 
   // Helper function to convert any item format to SmartQuoteItem
   const convertToSmartQuoteItems = (items: any[]): SmartQuoteItem[] => {
@@ -165,6 +165,7 @@ export const SmartQuoteBuilder: React.FC<SmartQuoteBuilderProps> = ({
 
       {activeTab === 'suggestions' && (
         <CustomerSuggestions
+          currentItems={existingItems.map(item => item.description)}
           customerId={customerId?.toString() || ''}
           onItemsSelected={items => handleItemsAdded(convertToSmartQuoteItems(items))}
         />

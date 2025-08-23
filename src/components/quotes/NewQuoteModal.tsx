@@ -301,7 +301,7 @@ export default function NewQuoteModal({
         console.warn('Material API returned unexpected format, setting empty array');
         setInventoryItems([]);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error fetching materials:", error);
       // Set empty array instead of fallback catalog
       setInventoryItems([]);
@@ -396,7 +396,7 @@ export default function NewQuoteModal({
         console.warn('All attempts failed, using enhanced mock data');
         setJobs(mockJobs);
         
-      } catch (error) {
+      } catch (error: unknown) {
         console.error("Error fetching jobs:", error);
         // Fallback to the enhanced mock jobs if API fails
         setJobs(mockJobs);
@@ -515,7 +515,7 @@ export default function NewQuoteModal({
       }
       
       return null;
-    } catch (error) {
+    } catch (error: unknown) {
       if (error.response?.status !== 404) console.error("Error fetching customer-specific price:", error);
       return null;
     }
