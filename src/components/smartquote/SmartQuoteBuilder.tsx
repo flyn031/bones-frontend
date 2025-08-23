@@ -29,6 +29,32 @@ export const SmartQuoteBuilder: React.FC<SmartQuoteBuilderProps> = ({
   const [customerIntel, setCustomerIntel] = useState<CustomerIntelligence | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Helper function to convert any item format to SmartQuoteItem
+  const convertToSmartQuoteItems = (items: any[]): SmartQuoteItem[] => {
+    return items.map(item => ({
+      id: item.id || Math.random().toString(36).substr(2, 9),
+      itemName: item.itemName || item.description || 'Unknown Item',
+      description: item.description || 'No description available',
+      quantity: item.quantity || 1,
+      unitPrice: item.unitPrice || 0,
+      totalPrice: item.totalPrice || (item.unitPrice * item.quantity) || 0,
+      materialId: item.materialId,
+      source: item.source || 'manual',
+      sourceQuoteId: item.sourceQuoteId,
+      sourceQuoteNumber: item.sourceQuoteNumber,
+      confidence: item.confidence,
+      reason: item.reason,
+      category: item.category,
+      lastUsed: item.lastUsed,
+      usageCount: item.usageCount,
+      required: item.required,
+      templateName: item.templateName,
+      bundleName: item.bundleName,
+      bundleId: item.bundleId,
+      material: item.material
+    }));
+  };
+
   useEffect(() => {
     if (customerId) {
       loadCustomerIntelligence();
@@ -141,7 +167,7 @@ export const SmartQuoteBuilder: React.FC<SmartQuoteBuilderProps> = ({
         <CustomerSuggestions
           customerId={customerId?.toString() || ''}
           customerIntelligence={customerIntel}
-          onItemsSelected={handleItemsAdded}
+          onItemsSelected={items => handleItemsAdded(convertToSmartQuoteItems(items))}
           isLoading={isLoading}
         />
       )}
@@ -152,7 +178,7 @@ export const SmartQuoteBuilder: React.FC<SmartQuoteBuilderProps> = ({
           searchScope="customer"
           isOpen={true}
           onClose={() => setActiveTab('suggestions')}
-          onItemsSelected={handleItemsAdded}
+          onItemsSelected={items => handleItemsAdded(convertToSmartQuoteItems(items))}
           currentItems={existingItems.map(item => item.description)}
         />
       )}
@@ -163,14 +189,14 @@ export const SmartQuoteBuilder: React.FC<SmartQuoteBuilderProps> = ({
           searchScope="global"
           isOpen={true}
           onClose={() => setActiveTab('suggestions')}
-          onItemsSelected={handleItemsAdded}
+          onItemsSelected={items => handleItemsAdded(convertToSmartQuoteItems(items))}
           currentItems={existingItems.map(item => item.description)}
         />
       )}
       
       {activeTab === 'templates' && (
         <QuickAssemblyShortcuts
-          onTemplateSelected={handleItemsAdded}
+          onTemplateSelected={items => handleItemsAdded(convertToSmartQuoteItems(items))}
           customerType={customerIntel?.industry}
         />
       )}

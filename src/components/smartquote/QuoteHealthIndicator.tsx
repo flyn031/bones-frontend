@@ -25,7 +25,7 @@ export const QuoteHealthIndicator: React.FC<QuoteHealthIndicatorProps> = ({
   customerId,
   items,
   totalValue,
-  onRefresh,
+  _onRefresh, // instead of onRefresh
   className = '',
   autoRefresh = true
 }) => {

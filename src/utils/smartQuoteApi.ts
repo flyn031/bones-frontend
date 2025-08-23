@@ -300,7 +300,7 @@ export const smartQuoteApi = {
           items: mappedFallbackItems,
           totalCount: filteredItems.length,
           total: filteredItems.length,  // FIXED: Added missing property
-          categories: [...new Set(filteredItems.map((item: any) => item.category).filter(Boolean))],
+          categories: [...new Set(filteredItems.map((item: any) => item.category).filter(Boolean))] as string[],
           priceRange: {
             min: Math.min(...filteredItems.map((item: any) => item.unitPrice || 0)),
             max: Math.max(...filteredItems.map((item: any) => item.unitPrice || 0))
