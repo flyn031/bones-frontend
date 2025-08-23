@@ -201,7 +201,7 @@ export default function NewQuoteModal({
   const totalValue = selectedItems.reduce((sum, item) => sum + (item.total || item.unitPrice * item.quantity), 0);
 
   // Get current item names for Smart Quote Builder
-  const _currentItemNames = selectedItems.map(item => item.name); // Complete the assignment
+  // const _currentItemNames = selectedItems.map(item => item.name); // Complete the assignment
 
   // 🚀 NEW - Handle items added from Smart Quote Builder with DEBUG
   const handleSmartItemsAdded = (newItems: any[]) => {

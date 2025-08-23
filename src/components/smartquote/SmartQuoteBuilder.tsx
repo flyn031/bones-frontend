@@ -166,7 +166,6 @@ export const SmartQuoteBuilder: React.FC<SmartQuoteBuilderProps> = ({
       {activeTab === 'suggestions' && (
         <CustomerSuggestions
           customerId={customerId?.toString() || ''}
-          customerIntelligence={customerIntel}
           onItemsSelected={items => handleItemsAdded(convertToSmartQuoteItems(items))}
           isLoading={isLoading}
         />
@@ -197,7 +196,6 @@ export const SmartQuoteBuilder: React.FC<SmartQuoteBuilderProps> = ({
       {activeTab === 'templates' && (
         <QuickAssemblyShortcuts
           onTemplateSelected={items => handleItemsAdded(convertToSmartQuoteItems(items))}
-          customerType={customerIntel?.industry}
         />
       )}
     </div>
