@@ -3,9 +3,7 @@ import { SmartQuoteItemSearch } from './SmartQuoteItemSearch';
 import { CustomerSuggestions } from './CustomerSuggestions';
 import { QuickAssemblyShortcuts } from './QuickAssemblyShortcuts';
 import { SmartQuoteItem, QuoteHealthScore } from '../../types/smartQuote';
-import { CustomerIntelligence } from '../../types/customerIntelligence';
 import { analyzeQuoteHealth } from '../../utils/smartQuoteApi';
-import { getCustomerIntelligence } from '../../utils/customerIntelligenceApi';
 
 interface SmartQuoteBuilderProps {
   customerId?: number;
@@ -26,8 +24,6 @@ export const SmartQuoteBuilder: React.FC<SmartQuoteBuilderProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'search' | 'search-all' | 'suggestions' | 'templates' | 'bundles'>('suggestions');
   const [quoteHealth, setQuoteHealth] = useState<QuoteHealthScore | null>(null);
-  
-  
 
   // Helper function to convert any item format to SmartQuoteItem
   const convertToSmartQuoteItems = (items: any[]): SmartQuoteItem[] => {
@@ -56,30 +52,10 @@ export const SmartQuoteBuilder: React.FC<SmartQuoteBuilderProps> = ({
   };
 
   useEffect(() => {
-    if (customerId) {
-      loadCustomerIntelligence();
-    }
-  }, [customerId]);
-
-  useEffect(() => {
     if (existingItems.length > 0) {
       analyzeQuote();
     }
   }, [existingItems, totalValue]);
-
-  const loadCustomerIntelligence = async () => {
-    if (!customerId) return;
-    
-    try {
-      setIsLoading(true);
-      const intelligence = await getCustomerIntelligence(customerId.toString());
-      setCustomerIntel(intelligence);
-    } catch (error) {
-      console.error('Failed to load customer intelligence:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const analyzeQuote = async () => {
     if (existingItems.length === 0) return;
@@ -165,8 +141,8 @@ export const SmartQuoteBuilder: React.FC<SmartQuoteBuilderProps> = ({
 
       {activeTab === 'suggestions' && (
         <CustomerSuggestions
-          currentItems={existingItems.map(item => item.description)}
           customerId={customerId?.toString() || ''}
+          currentItems={existingItems.map(item => item.description)}
           onItemsSelected={items => handleItemsAdded(convertToSmartQuoteItems(items))}
         />
       )}
