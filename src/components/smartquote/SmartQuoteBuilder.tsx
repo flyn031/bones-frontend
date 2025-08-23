@@ -167,7 +167,6 @@ export const SmartQuoteBuilder: React.FC<SmartQuoteBuilderProps> = ({
         <CustomerSuggestions
           customerId={customerId?.toString() || ''}
           onItemsSelected={items => handleItemsAdded(convertToSmartQuoteItems(items))}
-          isLoading={isLoading}
         />
       )}
       
