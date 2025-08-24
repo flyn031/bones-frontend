@@ -56,7 +56,7 @@ export const BundleRecommendations: React.FC<BundleRecommendationsProps> = ({
       
       // Load all types of bundles in parallel
       const [customerBundlesData, dynamicBundlesData, seasonalBundlesData] = await Promise.all([
-        customerIntelligenceApi.getBundleRecommendations(customerId, currentItems),
+        customerIntelligenceApi.getBundleRecommendations(customerId),
         customerIntelligenceApi.getDynamicBundleRecommendations(customerId, currentItems),
         customerIntelligenceApi.getSeasonalRecommendations()
       ]);
@@ -87,7 +87,7 @@ export const BundleRecommendations: React.FC<BundleRecommendationsProps> = ({
       console.log('📦 Loading dynamic bundles...');
       
       const [dynamicBundlesData, seasonalBundlesData] = await Promise.all([
-        customerIntelligenceApi.getDynamicBundleRecommendations(undefined, currentItems),
+        customerIntelligenceApi.getDynamicBundleRecommendations("", currentItems),
         customerIntelligenceApi.getSeasonalRecommendations()
       ]);
 

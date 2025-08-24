@@ -11,7 +11,7 @@ interface SmartQuoteBuilderProps {
   existingItems: any[];
   onItemsAdded: (items: SmartQuoteItem[]) => void;
   totalValue: number;
-  mode?: 'compact' | 'full';
+  mode?: 'compact' | 'full' | 'suggestions-only';
 }
 
 export const SmartQuoteBuilder: React.FC<SmartQuoteBuilderProps> = ({

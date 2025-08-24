@@ -25,7 +25,6 @@ export const QuoteHealthIndicator: React.FC<QuoteHealthIndicatorProps> = ({
   customerId,
   items,
   totalValue,
-  _onRefresh, // instead of onRefresh
   className = '',
   autoRefresh = true
 }) => {
@@ -53,7 +52,7 @@ export const QuoteHealthIndicator: React.FC<QuoteHealthIndicatorProps> = ({
     try {
       console.log('🏥 Analyzing quote health...');
       
-      const healthData = await smartQuoteApi.analyzeQuoteHealth(customerId, items, totalValue);
+      const healthData = await smartQuoteApi.analyzeQuoteHealth({items, customerId: customerId ? parseInt(customerId) : undefined, totalValue});
       setQuoteHealth(healthData);
       setLastUpdated(new Date());
       
@@ -327,7 +326,7 @@ export const QuoteHealthIndicator: React.FC<QuoteHealthIndicatorProps> = ({
                   </div>
                   <div className="text-xs text-gray-600">
                     <div className="font-medium mb-1">Key Factors:</div>
-                    {quoteHealth.winProbability.factors.slice(0, 3).map((factor, index) => (
+                    {quoteHealth.winProbability.factors.slice(0, 3).map((factor: any, index: number) => (
                       <div key={index}>• {factor}</div>
                     ))}
                   </div>
