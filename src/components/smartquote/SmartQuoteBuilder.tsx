@@ -6,7 +6,7 @@ import { SmartQuoteItem, QuoteHealthScore } from '../../types/smartQuote';
 import { analyzeQuoteHealth } from '../../utils/smartQuoteApi';
 
 interface SmartQuoteBuilderProps {
-  customerId?: number;
+  customerId?: string;
   customerName?: string;
   existingItems: any[];
   onItemsAdded: (items: SmartQuoteItem[]) => void;
@@ -141,7 +141,7 @@ export const SmartQuoteBuilder: React.FC<SmartQuoteBuilderProps> = ({
 
       {activeTab === 'suggestions' && (
         <CustomerSuggestions
-          customerId={customerId?.toString() || ''}
+          customerId={customerId || ''}
           currentItems={existingItems.map(item => item.description)}
           onItemsSelected={items => handleItemsAdded(convertToSmartQuoteItems(items))}
         />
@@ -149,7 +149,7 @@ export const SmartQuoteBuilder: React.FC<SmartQuoteBuilderProps> = ({
       
       {activeTab === 'search' && (
         <SmartQuoteItemSearch
-          customerId={customerId?.toString()}
+          customerId={customerId}
           searchScope="customer"
           isOpen={true}
           onClose={() => setActiveTab('suggestions')}
