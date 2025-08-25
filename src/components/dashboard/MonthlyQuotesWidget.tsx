@@ -1,3 +1,4 @@
+import { API_URL } from '../../config/constants';
 import { useEffect, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import axios from 'axios';
@@ -61,7 +62,7 @@ const MonthlyQuotesWidget = () => {
         const token = localStorage.getItem('token');
         if (!token) throw new Error("Authentication token not found.");
 
-        const response = await axios.get('http://localhost:4000/api/quotes', {
+        const response = await axios.get(API_URL + '/quotes', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
 

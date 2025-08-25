@@ -1,7 +1,8 @@
 import { BundleRecommendation } from '../types/smartQuote';
 
 // Base API configuration
-const API_BASE_URL = 'http://localhost:4000';
+import { API_URL } from '../config/constants';
+const API_BASE_URL = API_URL.replace('/api', '');
 
 // Generic API request handler
 const apiRequest = async (endpoint: string, options: RequestInit = {}) => {

@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import axios from 'axios';
 
 // Temporarily define constants directly to bypass import issues
-const API_BASE_URL = 'http://localhost:4000';
+import { API_URL } from '../../config/constants';
+const API_BASE_URL = API_URL.replace('/api', '');
 const getAuthToken = () => localStorage.getItem('authToken') || localStorage.getItem('token') || '';
 
 // Financial summary interface
