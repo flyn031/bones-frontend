@@ -326,7 +326,7 @@ export const smartQuoteApi = {
   /**
    * Get frequently used items with performance optimization
    */
-  getFrequentItems: async (customerId?: number | string): Promise<HistoricalQuoteItem[]> => {  // FIXED: Removed unused limit parameter
+  getFrequentItems: async (customerId?: string | string): Promise<HistoricalQuoteItem[]> => {  // FIXED: Removed unused limit parameter
     console.log('🔥 [API] Getting frequent items, customerId:', customerId);
     
     try {
@@ -540,7 +540,7 @@ export const smartQuoteApi = {
   /**
    * Analyze quote health
    */
-  analyzeQuoteHealth: async (data: { items: any[]; customerId?: number; totalValue: number }): Promise<QuoteHealth> => {
+  analyzeQuoteHealth: async (data: { items: any[]; customerId?: string; totalValue: number }): Promise<QuoteHealth> => {
     console.log('🏥 [API] Analyzing quote health for customer:', data.customerId);
     console.log('📊 [API] Items count:', data.items.length, 'Total value:', data.totalValue);
     
@@ -579,7 +579,7 @@ export const smartQuoteApi = {
   /**
    * Get bundle recommendations based on existing items
    */
-  getBundleRecommendations: async (data: { existingItems: any[]; customerId?: number }): Promise<any[]> => {
+  getBundleRecommendations: async (data: { existingItems: any[]; customerId?: string }): Promise<any[]> => {
     console.log('📦 [API] Getting bundle recommendations for customer:', data.customerId);
     console.log('📋 [API] Based on existing items:', data.existingItems.length);
     

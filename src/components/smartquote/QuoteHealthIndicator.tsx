@@ -52,7 +52,7 @@ export const QuoteHealthIndicator: React.FC<QuoteHealthIndicatorProps> = ({
     try {
       console.log('🏥 Analyzing quote health...');
       
-      const healthData = await smartQuoteApi.analyzeQuoteHealth({items, customerId: customerId ? parseInt(customerId) : undefined, totalValue});
+      const healthData = await smartQuoteApi.analyzeQuoteHealth({items, customerId: customerId, totalValue});
       setQuoteHealth(healthData);
       setLastUpdated(new Date());
       
