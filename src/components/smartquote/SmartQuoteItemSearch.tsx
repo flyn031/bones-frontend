@@ -89,11 +89,19 @@ export const SmartQuoteItemSearch: React.FC<SmartQuoteItemSearchProps> = ({
 
   // Update filters when searchScope or customerId changes
   useEffect(() => {
-    setFilters(prev => ({ 
-      ...prev, 
+    const newFilters = { 
       customerId: searchScope === 'customer' ? customerId : undefined,
       offset: 0 // Reset pagination
-    }));
+    };
+    
+    // Default to 6 months for global search performance
+    if (searchScope === 'global') {
+      const sixMonthsAgo = new Date();
+      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+      newFilters.dateFrom = sixMonthsAgo;
+    }
+    
+    setFilters(newFilters);
   }, [customerId, searchScope]);
 
   // Load filter options on mount
@@ -101,12 +109,21 @@ export const SmartQuoteItemSearch: React.FC<SmartQuoteItemSearchProps> = ({
     if (isOpen) {
       loadFilterOptions();
       // Perform initial search to show recent items
-      performSearch({ 
+      const initialFilters = { 
         ...filters, 
         customerId: searchScope === 'customer' ? customerId : undefined, 
         searchTerm: '',
         offset: 0
-      });
+      };
+      
+      // Apply default 6-month filter for global search
+      if (searchScope === 'global') {
+        const sixMonthsAgo = new Date();
+        sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+        initialFilters.dateFrom = sixMonthsAgo;
+      }
+      
+      performSearch(initialFilters);
     }
   }, [isOpen, customerId, searchScope]);
 
@@ -190,6 +207,29 @@ export const SmartQuoteItemSearch: React.FC<SmartQuoteItemSearchProps> = ({
     };
     setFilters(newFilters);
     performSearch(newFilters);
+  };
+
+  // Quick date range functions
+  const setDateRange = (days: number | null) => {
+    if (days === null) {
+      // All time - clear date filters
+      handleFilterChange('dateFrom', undefined);
+      handleFilterChange('dateTo', undefined);
+    } else {
+      const fromDate = new Date();
+      fromDate.setDate(fromDate.getDate() - days);
+      const toDate = new Date();
+      
+      const newFilters = { 
+        ...filters, 
+        customerId: searchScope === 'customer' ? customerId : undefined,
+        dateFrom: fromDate,
+        dateTo: toDate,
+        offset: 0 
+      };
+      setFilters(newFilters);
+      performSearch(newFilters);
+    }
   };
 
   // Toggle item selection
@@ -331,7 +371,7 @@ export const SmartQuoteItemSearch: React.FC<SmartQuoteItemSearchProps> = ({
             </p>
             {searchScope === 'global' && (
               <div className="mt-1 text-xs text-blue-600">
-                Global search includes items from all customers and quotes
+                Global search includes items from all customers and quotes (defaults to last 6 months for performance)
               </div>
             )}
           </div>
@@ -450,6 +490,52 @@ export const SmartQuoteItemSearch: React.FC<SmartQuoteItemSearchProps> = ({
             </Button>
           </div>
 
+          {/* Quick Date Range Buttons */}
+          {searchScope === 'global' && (
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Quick Date Filters
+              </label>
+              <div className="flex flex-wrap gap-2">
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  onClick={() => setDateRange(30)}
+                >
+                  Last 30 Days
+                </Button>
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  onClick={() => setDateRange(90)}
+                >
+                  Last 3 Months
+                </Button>
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  onClick={() => setDateRange(180)}
+                >
+                  Last 6 Months
+                </Button>
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  onClick={() => setDateRange(365)}
+                >
+                  Last Year
+                </Button>
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  onClick={() => setDateRange(null)}
+                >
+                  All Time
+                </Button>
+              </div>
+            </div>
+          )}
+
           {/* Bulk Selection Tools */}
           {bulkSelectMode && (
             <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
@@ -491,69 +577,118 @@ export const SmartQuoteItemSearch: React.FC<SmartQuoteItemSearchProps> = ({
 
           {/* Advanced Filters */}
           {showAdvancedFilters && filterOptions && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-50 rounded-lg mb-4">
-              {/* Category Filter */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Category
-                </label>
-                <select
-                  value={filters.category || ''}
-                  onChange={(e) => handleFilterChange('category', e.target.value || undefined)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">All Categories</option>
-                  {filterOptions.categories.map((category: string) => (
-                    <option key={category} value={category}>
-                      {category}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Price Range */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Price Range
-                </label>
-                <div className="flex gap-2">
-                  <Input
-                    type="number"
-                    placeholder="Min"
-                    value={filters.priceMin || ''}
-                    onChange={(e) => handleFilterChange('priceMin', e.target.value ? parseFloat(e.target.value) : undefined)}
-                    className="w-1/2"
-                  />
-                  <Input
-                    type="number"
-                    placeholder="Max"
-                    value={filters.priceMax || ''}
-                    onChange={(e) => handleFilterChange('priceMax', e.target.value ? parseFloat(e.target.value) : undefined)}
-                    className="w-1/2"
-                  />
-                </div>
-              </div>
-
-              {/* Customer Filter - Only show for global search */}
-              {searchScope === 'global' && (
+            <div className="p-4 bg-gray-50 rounded-lg mb-4 space-y-4">
+              {/* Basic Filters Row */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Category Filter */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Customer
+                    Category
                   </label>
                   <select
-                    value={filters.customerId || ''}
-                    onChange={(e) => handleFilterChange('customerId', e.target.value || undefined)}
+                    value={filters.category || ''}
+                    onChange={(e) => handleFilterChange('category', e.target.value || undefined)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="">All Customers</option>
-                    {filterOptions.customers.map((customer: any) => (
-                      <option key={customer.id} value={customer.id}>
-                        {customer.name}
+                    <option value="">All Categories</option>
+                    {filterOptions.categories.map((category: string) => (
+                      <option key={category} value={category}>
+                        {category}
                       </option>
                     ))}
                   </select>
                 </div>
-              )}
+
+                {/* Price Range */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Price Range
+                  </label>
+                  <div className="flex gap-2">
+                    <Input
+                      type="number"
+                      placeholder="Min"
+                      value={filters.priceMin || ''}
+                      onChange={(e) => handleFilterChange('priceMin', e.target.value ? parseFloat(e.target.value) : undefined)}
+                      className="w-1/2"
+                    />
+                    <Input
+                      type="number"
+                      placeholder="Max"
+                      value={filters.priceMax || ''}
+                      onChange={(e) => handleFilterChange('priceMax', e.target.value ? parseFloat(e.target.value) : undefined)}
+                      className="w-1/2"
+                    />
+                  </div>
+                </div>
+
+                {/* Customer Filter - Only show for global search */}
+                {searchScope === 'global' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Customer
+                    </label>
+                    <select
+                      value={filters.customerId || ''}
+                      onChange={(e) => handleFilterChange('customerId', e.target.value || undefined)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">All Customers</option>
+                      {filterOptions.customers.map((customer: any) => (
+                        <option key={customer.id} value={customer.id}>
+                          {customer.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+
+              {/* Date Range Filter */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Custom Date Range
+                </label>
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <label className="block text-xs text-gray-500 mb-1">From Date</label>
+                    <Input
+                      type="date"
+                      value={filters.dateFrom ? filters.dateFrom.toISOString().split('T')[0] : ''}
+                      onChange={(e) => handleFilterChange('dateFrom', e.target.value ? new Date(e.target.value) : undefined)}
+                      className="w-full"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-xs text-gray-500 mb-1">To Date</label>
+                    <Input
+                      type="date"
+                      value={filters.dateTo ? filters.dateTo.toISOString().split('T')[0] : ''}
+                      onChange={(e) => handleFilterChange('dateTo', e.target.value ? new Date(e.target.value) : undefined)}
+                      className="w-full"
+                    />
+                  </div>
+                  <div className="flex items-end">
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={() => {
+                        handleFilterChange('dateFrom', undefined);
+                        handleFilterChange('dateTo', undefined);
+                      }}
+                    >
+                      Clear
+                    </Button>
+                  </div>
+                </div>
+                {filters.dateFrom || filters.dateTo ? (
+                  <div className="text-xs text-blue-600 mt-1">
+                    {filters.dateFrom ? `From: ${filters.dateFrom.toLocaleDateString()}` : 'No start date'}
+                    {filters.dateFrom && filters.dateTo ? ' • ' : ''}
+                    {filters.dateTo ? `To: ${filters.dateTo.toLocaleDateString()}` : ''}
+                  </div>
+                ) : null}
+              </div>
             </div>
           )}
 
@@ -599,6 +734,11 @@ export const SmartQuoteItemSearch: React.FC<SmartQuoteItemSearchProps> = ({
                   {searchTerm && ` for "${searchTerm}"`}
                   {searchScope === 'global' && (
                     <span className="ml-1 text-blue-600">(across all customers)</span>
+                  )}
+                  {searchScope === 'global' && filters.dateFrom && (
+                    <span className="ml-1 text-gray-500">
+                      • Since {filters.dateFrom.toLocaleDateString()}
+                    </span>
                   )}
                 </div>
                 <div className="flex gap-2">
@@ -699,7 +839,7 @@ export const SmartQuoteItemSearch: React.FC<SmartQuoteItemSearchProps> = ({
                   <div className="text-gray-500 mb-2">No items found</div>
                   <div className="text-sm text-gray-400">
                     {searchScope === 'global' ? 
-                      'No items found across all quotes. Try different search terms.' :
+                      'No items found across all quotes. Try different search terms or expand your date range.' :
                       'Try adjusting your search terms or filters'
                     }
                   </div>

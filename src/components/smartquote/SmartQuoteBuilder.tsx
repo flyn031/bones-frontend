@@ -16,13 +16,13 @@ interface SmartQuoteBuilderProps {
 
 export const SmartQuoteBuilder: React.FC<SmartQuoteBuilderProps> = ({
   customerId,
-  customerName: _customerName,  // Prefix with underscore to indicate intentionally unused
+  customerName,
   existingItems,
   onItemsAdded,
   totalValue,
-  mode: _mode = 'full'  // Prefix with underscore to indicate intentionally unused
+  mode = 'full'
 }) => {
-  const [activeTab, setActiveTab] = useState<'search' | 'search-all' | 'suggestions' | 'templates' | 'bundles'>('suggestions');
+  const [activeTab, setActiveTab] = useState<'customer-history' | 'search-all' | 'templates'>('customer-history');
   const [quoteHealth, setQuoteHealth] = useState<QuoteHealthScore | null>(null);
 
   // Helper function to convert any item format to SmartQuoteItem
@@ -67,7 +67,6 @@ export const SmartQuoteBuilder: React.FC<SmartQuoteBuilderProps> = ({
         totalValue
       });
       
-      // Add missing metrics property to match QuoteHealthScore interface
       setQuoteHealth({
         ...analysis,
         metrics: {
@@ -105,70 +104,122 @@ export const SmartQuoteBuilder: React.FC<SmartQuoteBuilderProps> = ({
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      {/* Simplified Tab Interface */}
+      <div className="grid grid-cols-3 gap-3">
         <button type="button"
-          onClick={() => setActiveTab('suggestions')}
-          className="p-3 bg-white rounded-lg border hover:border-blue-300 transition-colors text-left"
+          onClick={() => setActiveTab('customer-history')}
+          className={`p-3 rounded-lg border transition-colors text-left ${
+            activeTab === 'customer-history' 
+              ? 'bg-blue-50 border-blue-300 ring-2 ring-blue-500' 
+              : 'bg-white border-gray-200 hover:border-blue-300'
+          }`}
         >
-          <div className="text-sm font-medium text-gray-900">Customer Suggestions</div>
-          <div className="text-xs text-gray-500">Based on history</div>
-        </button>
-        
-        <button type="button"
-          onClick={() => setActiveTab('search')}
-          className="p-3 bg-white rounded-lg border hover:border-blue-300 transition-colors text-left"
-        >
-          <div className="text-sm font-medium text-gray-900">Search Items</div>
-          <div className="text-xs text-gray-500">From this customer's quotes</div>
+          <div className="text-sm font-medium text-gray-900">Customer History</div>
+          <div className="text-xs text-gray-500">Smart suggestions + search</div>
+          {customerId && (
+            <div className="text-xs text-blue-600 mt-1">
+              {customerName || 'Selected customer'}
+            </div>
+          )}
         </button>
         
         <button type="button"
           onClick={() => setActiveTab('search-all')}
-          className="p-3 bg-white rounded-lg border hover:border-blue-300 transition-colors text-left"
+          className={`p-3 rounded-lg border transition-colors text-left ${
+            activeTab === 'search-all' 
+              ? 'bg-blue-50 border-blue-300 ring-2 ring-blue-500' 
+              : 'bg-white border-gray-200 hover:border-blue-300'
+          }`}
         >
           <div className="text-sm font-medium text-gray-900">Search All Items</div>
-          <div className="text-xs text-gray-500">From all company quotes</div>
+          <div className="text-xs text-gray-500">Recent company quotes</div>
         </button>
         
         <button type="button"
           onClick={() => setActiveTab('templates')}
-          className="p-3 bg-white rounded-lg border hover:border-blue-300 transition-colors text-left"
+          className={`p-3 rounded-lg border transition-colors text-left ${
+            activeTab === 'templates' 
+              ? 'bg-blue-50 border-blue-300 ring-2 ring-blue-500' 
+              : 'bg-white border-gray-200 hover:border-blue-300'
+          }`}
         >
           <div className="text-sm font-medium text-gray-900">Quick Templates</div>
           <div className="text-xs text-gray-500">Pre-built solutions</div>
         </button>
       </div>
 
-      {activeTab === 'suggestions' && (
-        <CustomerSuggestions
-          customerId={customerId || ''}
-          currentItems={existingItems.map(item => item.description)}
-          onItemsSelected={items => handleItemsAdded(convertToSmartQuoteItems(items))}
-        />
+      {/* Customer History - Consolidated Smart Features */}
+      {activeTab === 'customer-history' && (
+        <div className="space-y-4">
+          {customerId ? (
+            <>
+              {/* Smart Suggestions */}
+              <CustomerSuggestions
+                customerId={customerId}
+                customerName={customerName}
+                currentItems={existingItems.map(item => item.description)}
+                onItemsSelected={items => handleItemsAdded(convertToSmartQuoteItems(items))}
+              />
+              
+              {/* Divider */}
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-300" />
+                </div>
+                <div className="relative flex justify-center">
+                  <span className="bg-gray-50 px-2 text-sm text-gray-500">or search this customer's items</span>
+                </div>
+              </div>
+              
+              {/* Customer Search - Fixed Modal Trap */}
+              <SmartQuoteItemSearch
+                customerId={customerId}
+                searchScope="customer"
+                isOpen={false}
+                onClose={() => {}}
+                onItemsSelected={items => handleItemsAdded(convertToSmartQuoteItems(items))}
+                currentItems={existingItems.map(item => item.description)}
+              />
+            </>
+          ) : (
+            <div className="bg-white rounded-lg border-2 border-dashed border-gray-300 p-8 text-center">
+              <div className="text-gray-400 text-4xl mb-4">👤</div>
+              <h4 className="text-lg font-medium text-gray-900 mb-2">Select a Customer</h4>
+              <p className="text-gray-500">
+                Choose a customer to see their purchase history and get intelligent suggestions
+              </p>
+            </div>
+          )}
+        </div>
       )}
       
-      {activeTab === 'search' && (
-        <SmartQuoteItemSearch
-          customerId={customerId}
-          searchScope="customer"
-          isOpen={true}
-          onClose={() => setActiveTab('suggestions')}
-          onItemsSelected={items => handleItemsAdded(convertToSmartQuoteItems(items))}
-          currentItems={existingItems.map(item => item.description)}
-        />
+      {/* Search All Items */}
+      {activeTab === 'search-all' && (
+        <div className="bg-white rounded-lg border border-amber-200 p-4 mb-4">
+          <div className="flex items-start">
+            <div className="text-amber-500 mr-3">⚠️</div>
+            <div>
+              <h4 className="text-sm font-medium text-amber-800">Performance Notice</h4>
+              <p className="text-sm text-amber-700 mt-1">
+                Searching all quotes shows recent items only (last 6 months) for better performance.
+              </p>
+            </div>
+          </div>
+        </div>
       )}
-      
+
       {activeTab === 'search-all' && (
         <SmartQuoteItemSearch
           customerId={undefined}
           searchScope="global"
           isOpen={true}
-          onClose={() => setActiveTab('suggestions')}
+          onClose={() => setActiveTab('customer-history')}
           onItemsSelected={items => handleItemsAdded(convertToSmartQuoteItems(items))}
           currentItems={existingItems.map(item => item.description)}
         />
       )}
       
+      {/* Templates */}
       {activeTab === 'templates' && (
         <QuickAssemblyShortcuts
           onTemplateSelected={items => handleItemsAdded(convertToSmartQuoteItems(items))}

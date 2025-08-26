@@ -270,7 +270,7 @@ export const CustomerSuggestions: React.FC<CustomerSuggestionsProps> = ({
                   {reasonSuggestions.map((suggestion, index) => {
                     const isSelected = (selectedSuggestions || []).some(s => s.itemId === suggestion.itemId);
                     const isCurrentItem = (currentItems || []).some(current => 
-                      current.toLowerCase() === suggestion.itemName.toLowerCase()
+                      current?.toLowerCase() === suggestion.itemName?.toLowerCase()
                     );
 
                     return (
