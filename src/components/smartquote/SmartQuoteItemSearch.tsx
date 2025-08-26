@@ -89,17 +89,17 @@ export const SmartQuoteItemSearch: React.FC<SmartQuoteItemSearchProps> = ({
 
   // Update filters when searchScope or customerId changes
   useEffect(() => {
-    const newFilters = { 
-      customerId: searchScope === 'customer' ? customerId : undefined,
-      offset: 0 // Reset pagination
-    };
-    
-    // Default to 6 months for global search performance
-    if (searchScope === 'global') {
-      const sixMonthsAgo = new Date();
-      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-      newFilters.dateFrom = sixMonthsAgo;
-    }
+    const newFilters: QuoteItemSearchFilters = { 
+  customerId: searchScope === 'customer' ? customerId : undefined,
+  offset: 0 // Reset pagination
+};
+
+// Default to 6 months for global search performance
+if (searchScope === 'global') {
+  const sixMonthsAgo = new Date();
+  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+  newFilters.dateFrom = sixMonthsAgo;
+}
     
     setFilters(newFilters);
   }, [customerId, searchScope]);

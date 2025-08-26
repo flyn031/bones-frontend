@@ -11,7 +11,6 @@ interface SmartQuoteBuilderProps {
   existingItems: any[];
   onItemsAdded: (items: SmartQuoteItem[]) => void;
   totalValue: number;
-  mode?: 'compact' | 'full' | 'suggestions-only';
 }
 
 export const SmartQuoteBuilder: React.FC<SmartQuoteBuilderProps> = ({
@@ -20,7 +19,6 @@ export const SmartQuoteBuilder: React.FC<SmartQuoteBuilderProps> = ({
   existingItems,
   onItemsAdded,
   totalValue,
-  mode = 'full'
 }) => {
   const [activeTab, setActiveTab] = useState<'customer-history' | 'search-all' | 'templates'>('customer-history');
   const [quoteHealth, setQuoteHealth] = useState<QuoteHealthScore | null>(null);

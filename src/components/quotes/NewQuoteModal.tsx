@@ -25,8 +25,8 @@ interface Item {
 interface SelectedItem extends Item {
   quantity: number;
   total: number;
-  source?: string;        // ADDED: Missing property
-  confidence?: number;    // ADDED: Missing property
+  source?: string;
+  confidence?: number;
 }
 
 interface NewQuoteModalProps {
@@ -190,7 +190,6 @@ export default function NewQuoteModal({
   }, [selectedItems]);
 
   const [showSmartBuilder, setShowSmartBuilder] = useState(false);
-  const [smartBuilderMode, setSmartBuilderMode] = useState<'full' | 'compact' | 'suggestions-only'>('compact');
 
   // Get status styling based on current status - FIXED: Use QuoteStatus type
   const getStatusStyles = (status: QuoteStatus) => {
@@ -199,9 +198,6 @@ export default function NewQuoteModal({
 
   // Calculate total value - enhanced for Smart Quote Builder
   const totalValue = selectedItems.reduce((sum, item) => sum + (item.total || item.unitPrice * item.quantity), 0);
-
-  // Get current item names for Smart Quote Builder
-  // const _currentItemNames = selectedItems.map(item => item.name); // Complete the assignment
 
   // 🚀 NEW - Handle items added from Smart Quote Builder with DEBUG
   const handleSmartItemsAdded = (newItems: any[]) => {
@@ -301,7 +297,7 @@ export default function NewQuoteModal({
         console.warn('Material API returned unexpected format, setting empty array');
         setInventoryItems([]);
       }
-    } catch (error: unknown) {
+    } catch (error) {
       console.error("Error fetching materials:", error);
       // Set empty array instead of fallback catalog
       setInventoryItems([]);
@@ -396,7 +392,7 @@ export default function NewQuoteModal({
         console.warn('All attempts failed, using enhanced mock data');
         setJobs(mockJobs);
         
-      } catch (error: unknown) {
+      } catch (error) {
         console.error("Error fetching jobs:", error);
         // Fallback to the enhanced mock jobs if API fails
         setJobs(mockJobs);
@@ -516,7 +512,8 @@ export default function NewQuoteModal({
       
       return null;
     } catch (error: unknown) {
-      if ((error as any)?.response?.status !== 404) console.error("Error fetching customer-specific price:", error);
+      const axiosError = error as { response?: { status?: number } };
+      if (axiosError.response?.status !== 404) console.error("Error fetching customer-specific price:", error);
       return null;
     }
   };
@@ -1363,7 +1360,7 @@ export default function NewQuoteModal({
             {/* Smart Quote Builder */}
             {showSmartBuilder && (
               <div className="border border-blue-200 rounded-lg p-4 bg-gradient-to-br from-blue-50 to-indigo-50 mb-6">
-            <SmartQuoteBuilder 
+                <SmartQuoteBuilder
                   customerId={selectedCustomer?.id}
                   customerName={selectedCustomer?.name}
                   existingItems={selectedItems.map(item => ({
@@ -1375,46 +1372,8 @@ export default function NewQuoteModal({
                   }))}
                   onItemsAdded={handleSmartItemsAdded}
                   totalValue={totalValue}
-                  mode={smartBuilderMode}
                 />
                 
-                {/* Smart Builder Mode Toggle */}
-                <div className="mt-4 flex gap-2">
-                  <span className="text-sm text-gray-600 self-center">Mode:</span>
-                  <button
-                    type="button"
-                    onClick={() => setSmartBuilderMode('compact')}
-                    className={`px-3 py-1 text-sm rounded-md ${
-                      smartBuilderMode === 'compact' 
-                        ? 'bg-blue-600 text-white' 
-                        : 'bg-white text-blue-600 border border-blue-600 hover:bg-blue-50'
-                    }`}
-                  >
-                    Compact
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSmartBuilderMode('full')}
-                    className={`px-3 py-1 text-sm rounded-md ${
-                      smartBuilderMode === 'full' 
-                        ? 'bg-blue-600 text-white' 
-                        : 'bg-white text-blue-600 border border-blue-600 hover:bg-blue-50'
-                    }`}
-                  >
-                    Full Features
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSmartBuilderMode('suggestions-only')}
-                    className={`px-3 py-1 text-sm rounded-md ${
-                      smartBuilderMode === 'suggestions-only' 
-                        ? 'bg-blue-600 text-white' 
-                        : 'bg-white text-blue-600 border border-blue-600 hover:bg-blue-50'
-                    }`}
-                  >
-                    Suggestions Only
-                  </button>
-                </div>
               </div>
             )}
 
@@ -1599,11 +1558,11 @@ export default function NewQuoteModal({
                                   item.source === 'template' ? 'bg-orange-100 text-orange-800' :
                                   'bg-gray-100 text-gray-800'
                                 }`}>
-                                  {item.source === 'smart_builder' ? '🚀 Smart' : 
-                                   item.source === 'historical_search' ? '🔍 History' :
-                                   item.source === 'suggestion' ? '🎯 Suggested' :
-                                   item.source === 'bundle' ? '📦 Bundle' :
-                                   item.source === 'template' ? '⚡ Template' : item.source}
+                                  {item.source === 'smart_builder' ? 'Smart' : 
+                                   item.source === 'historical_search' ? 'History' :
+                                   item.source === 'suggestion' ? 'Suggested' :
+                                   item.source === 'bundle' ? 'Bundle' :
+                                   item.source === 'template' ? 'Template' : item.source}
                                 </span>
                               )}
                             </div>
@@ -1685,7 +1644,7 @@ export default function NewQuoteModal({
                             onClick={() => setShowSmartBuilder(true)}
                             className="mt-2 px-3 py-1 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                           >
-                            🚀 Try Smart Builder
+                            Try Smart Builder
                           </button>
                         )}
                       </div>
