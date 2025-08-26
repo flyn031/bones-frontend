@@ -570,7 +570,7 @@ const apiMethod = isUpdatingDraft ? apiClient.put : apiClient.post;
    }
  };
 
- // WORKING PDF GENERATION - VERIFIED CLEAN
+ // FIXED PDF GENERATION - CORRECT FIELD MAPPING
  const handleGeneratePDF = async (quoteId: string) => {
    const quote = quotes.find(q => q.id === quoteId);
    if (!quote) { 
@@ -586,15 +586,16 @@ const apiMethod = isUpdatingDraft ? apiClient.put : apiClient.post;
      const response = await apiClient.get(`/quotes/${quoteId}`);
      const quoteData = response.data as any;
      
-     // CLEAN: Zero TypeScript errors
+     // FIXED: Interface matches EnhancedQuotePDF UserProfile interface exactly
      interface CleanUserProfile {
        useCompanyDetailsOnQuotes: boolean;
-       id?: string;
-       name?: string;
-       email?: string;
-       company?: string;
-       phone?: string;
-       address?: string;
+       companyName?: string;
+       companyAddress?: string;
+       companyPhone?: string;
+       companyEmail?: string;
+       companyWebsite?: string;
+       companyVatNumber?: string;
+       companyLogo?: string;
      }
      
      let userProfile: CleanUserProfile = { 
@@ -605,20 +606,21 @@ const apiMethod = isUpdatingDraft ? apiClient.put : apiClient.post;
        const profileResponse = await apiClient.get('/auth/profile');
        const profileData = profileResponse.data;
        
-       // CLEAN: Manual property assignment - NO SPREADING
+       // FIXED: Correct field mapping to match UserProfile interface in EnhancedQuotePDF
        if (profileData && typeof profileData === 'object') {
          const pd = profileData as any;
          userProfile = {
            useCompanyDetailsOnQuotes: Boolean(pd.useCompanyDetailsOnQuotes),
-           id: pd.id || undefined,
-           name: pd.name || undefined,
-           email: pd.email || undefined,
-           company: pd.company || undefined,
-           phone: pd.phone || undefined,
-           address: pd.address || undefined
+           companyName: pd.companyName || undefined,
+           companyAddress: pd.companyAddress || undefined,
+           companyPhone: pd.companyPhone || undefined,
+           companyEmail: pd.companyEmail || undefined,
+           companyWebsite: pd.companyWebsite || undefined,
+           companyVatNumber: pd.companyVatNumber || undefined,
+           companyLogo: pd.companyLogo || undefined
          };
        }
-       console.log('User profile loaded for PDF:', userProfile);
+       console.log('✅ User profile loaded for PDF with correct field mapping:', userProfile);
      } catch (profileError) {
        console.warn('Could not load user profile for PDF, using defaults:', profileError);
      }
@@ -655,13 +657,14 @@ const apiMethod = isUpdatingDraft ? apiClient.put : apiClient.post;
      
      // Generate professional PDF
      console.log('Generating professional PDF for quote:', quoteForPDF);
+     console.log('Using user profile:', userProfile);
      const pdf = generateProfessionalQuotePDF(quoteForPDF, userProfile);
      
      // Download the PDF
      const filename = `Quote-${quoteData.quoteNumber || quoteData.quoteReference || quoteId}-v${quoteData.versionNumber || 1}.pdf`;
      pdf.download(filename);
      
-     console.log('Professional PDF generated successfully');
+     console.log('✅ Professional PDF generated successfully');
      
    } catch (error) {
      console.error('Error generating professional PDF:', error);
