@@ -31,7 +31,7 @@ function Navigation() {
           <div className="flex">
             <div className="flex-shrink-0 flex items-center">
               <Link to="/" className="text-2xl font-bold text-gray-900 dark:text-white hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
-                BONES CRM
+                FABRICO-X 
               </Link>
             </div>
             {/* --- Navigation Links --- */}
@@ -174,4 +174,4 @@ function App() {
   );
 }
 
-export default App;// Force rebuild
+export default App;

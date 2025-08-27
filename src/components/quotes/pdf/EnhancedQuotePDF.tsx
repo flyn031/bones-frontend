@@ -1,4 +1,4 @@
-// src/components/quotes/pdf/EnhancedQuotePDF.tsx - CCL-style professional quote PDF
+// src/components/quotes/pdf/EnhancedQuotePDF.tsx - Professional quote PDF with custom terms
 
 import pdfMake from "pdfmake/build/pdfmake";
 import pdfFonts from "pdfmake/build/vfs_fonts";
@@ -10,7 +10,7 @@ if (pdfMake.vfs === undefined) {
     pdfMake.vfs = (pdfFonts as any).pdfMake ? (pdfFonts as any).pdfMake.vfs : pdfFonts;
 }
 
-// Company profile from user profile (maps to existing UserProfile structure)
+// Company profile from user profile - UPDATED with custom terms
 interface UserProfile {
   companyName?: string;
   companyAddress?: string;
@@ -20,14 +20,26 @@ interface UserProfile {
   companyVatNumber?: string;
   companyLogo?: string;
   useCompanyDetailsOnQuotes: boolean;
+  // NEW: Custom quote terms
+  standardWarranty?: string;
+  standardDeliveryTerms?: string;
+  defaultLeadTimeWeeks?: number;
+  standardExclusions?: string; // Comma-separated string
 }
 
-// Generate professional CCL-style quote PDF
+// Generate professional quote PDF with custom terms
 export const generateEnhancedQuotePDF = (
   quote: QuoteData | EnhancedQuoteData, 
   userProfile?: UserProfile,
   companyProfile?: Partial<QuoteCompanyProfile>
 ) => {
+  // 🔍 DEBUG: Log what data the PDF generator receives
+  console.log('=== PDF GENERATOR DEBUG ===');
+  console.log('PDF Generator received userProfile:', userProfile);
+  console.log('PDF Generator received defaultLeadTimeWeeks:', userProfile?.defaultLeadTimeWeeks);
+  console.log('PDF Generator received quote:', quote);
+  console.log('PDF Generator received companyProfile override:', companyProfile);
+  
   // Convert to enhanced format if needed
   const enhancedQuote: EnhancedQuoteData = 'businessTerms' in quote 
     ? quote as EnhancedQuoteData 
@@ -36,7 +48,7 @@ export const generateEnhancedQuotePDF = (
   // Use company details from profile
   const useCompanyDetails = userProfile?.useCompanyDetailsOnQuotes || false;
   
-  // Build company profile from user profile + overrides
+  // Build company profile from user profile + overrides - UPDATED to use custom terms
   const company: QuoteCompanyProfile = {
     companyName: userProfile?.companyName || 'Your Company Name',
     companyAddress: userProfile?.companyAddress || '',
@@ -46,23 +58,32 @@ export const generateEnhancedQuotePDF = (
     companyVatNumber: userProfile?.companyVatNumber || '',
     companyLogo: userProfile?.companyLogo || '',
     
-    // Professional defaults (can be overridden by companyProfile)
-    standardExclusions: [
-      'VAT',
-      'Building Modifications', 
-      'Mains Connections into Panel',
-      'Installation',
-      'Delivery',
-      'Controls',
-      'Any other Items not stated on the quote'
-    ],
-    standardWarranty: 'Central Conveyors Ltd Guarantee their product/equipment to be free of defect in workmanship or material for a period of twelve months from the date of delivery, single shift working 5 days per week or equivalent.',
-    standardDeliveryTerms: 'Delivery will be 4-6 working weeks from receipt of official written order, receipt of deposit payment, and approval of general arrangement drawing.',
-    defaultLeadTimeWeeks: 4,
+    // Use custom terms from user profile OR fall back to sensible defaults
+    standardExclusions: userProfile?.standardExclusions 
+      ? userProfile.standardExclusions.split(',').map(item => item.trim()).filter(item => item)
+      : [
+          'VAT',
+          'Installation',
+          'Delivery',
+          'Controls',
+          'Any other items not stated on the quote'
+        ],
+        
+    standardWarranty: userProfile?.standardWarranty || 
+      'Your Company guarantees equipment to be free of defects in workmanship or material for twelve months from delivery, standard working conditions.',
+      
+    standardDeliveryTerms: userProfile?.standardDeliveryTerms || 
+      'Delivery will be arranged upon order confirmation with standard lead times.',
+      
+    defaultLeadTimeWeeks: userProfile?.defaultLeadTimeWeeks || 4,
     
     // Override with any provided company profile settings
     ...companyProfile
   };
+
+  // 🔍 DEBUG: Log the final company profile that will be used
+  console.log('PDF Generator final company profile:', company);
+  console.log('PDF Generator final defaultLeadTimeWeeks:', company.defaultLeadTimeWeeks);
 
   // Format dates
   const formatDate = (dateString?: string) => {
@@ -117,15 +138,20 @@ export const generateEnhancedQuotePDF = (
     thirtyDays: 10
   };
 
-  // Business terms
-  const businessTerms = enhancedQuote.businessTerms || {
+  // Business terms - ALWAYS use custom terms from user profile when available
+  const existingBusinessTerms = enhancedQuote.businessTerms || {};
+  const businessTerms = {
     deliveryTerms: company.standardDeliveryTerms,
-    leadTimeWeeks: company.defaultLeadTimeWeeks,
+    leadTimeWeeks: company.defaultLeadTimeWeeks,  // Always use user's custom setting
     warranty: company.standardWarranty,
     exclusions: company.standardExclusions,
-    scope: 'Quote subject to our standard terms and conditions.',
-    validityDays: enhancedQuote.validityDays
+    scope: existingBusinessTerms.scope || 'Quote subject to our standard terms and conditions.',
+    validityDays: existingBusinessTerms.validityDays || enhancedQuote.validityDays || 30
   };
+
+  // 🔍 DEBUG: Log the business terms that will be used in the PDF
+  console.log('PDF Generator businessTerms:', businessTerms);
+  console.log('PDF Generator businessTerms.leadTimeWeeks:', businessTerms.leadTimeWeeks);
 
   // Document definition
   const documentDefinition = {
@@ -136,7 +162,7 @@ export const generateEnhancedQuotePDF = (
       title: `Quotation ${enhancedQuote.quoteNumber || enhancedQuote.id}`,
       author: company.companyName,
       subject: enhancedQuote.title,
-      keywords: 'quotation, conveyor systems, professional'
+      keywords: 'quotation, manufacturing, professional'
     },
 
     content: [
@@ -191,9 +217,13 @@ export const generateEnhancedQuotePDF = (
             width: '*',
             stack: [
               { text: `Quotation Date: ${formatDate(enhancedQuote.quotationDate || enhancedQuote.date)}`, style: 'quoteDetails', alignment: 'right' },
-              { text: `Lead time: ${businessTerms.leadTimeWeeks} weeks`, style: 'quoteDetails', alignment: 'right' },
+              { 
+                text: `Lead time: ${businessTerms.leadTimeWeeks} ${businessTerms.leadTimeWeeks === 1 ? 'week' : 'weeks'}`,
+                style: 'quoteDetails', 
+                alignment: 'right'
+              },
               { text: `Quotation ref: ${enhancedQuote.quoteNumber || enhancedQuote.id}`, style: 'quoteDetails', alignment: 'right' },
-              useCompanyDetails ? { text: `CCL Contact: ${enhancedQuote.cclContact || 'Sales Team'}`, style: 'quoteDetails', alignment: 'right' } : {}
+              useCompanyDetails ? { text: `Contact: ${enhancedQuote.cclContact || 'Sales Team'}`, style: 'quoteDetails', alignment: 'right' } : {}
             ]
           }
         ],
@@ -202,7 +232,7 @@ export const generateEnhancedQuotePDF = (
 
       // Professional Introduction
       {
-        text: 'Thank you for your recent enquiry; we have pleasure in supplying the following quotation for your consideration. If there are any details of the quotation omitted or which you do not fully understand please contact the Central Conveyors sales office for further information.',
+        text: `Thank you for your recent enquiry; we have pleasure in supplying the following quotation for your consideration. If there are any details of the quotation omitted or which you do not fully understand please contact the ${company.companyName} sales office for further information.`,
         style: 'introduction',
         margin: [0, 0, 0, 20]
       },
@@ -293,9 +323,9 @@ export const generateEnhancedQuotePDF = (
         margin: [0, 0, 0, 15]
       },
 
-      // Business Terms Sections
-      { text: 'ce', style: 'subsectionHeader' },
-      { text: 'to conform with current health and safety legislation, all of our equipment will carry the relevant CE Marking; either a Declaration of Conformity or Declaration of Incorporation, dependant on whether Central Conveyors Ltd is the prime contractor.', style: 'businessTermsText', margin: [0, 0, 0, 10] },
+      // Business Terms Sections - UPDATED to use custom terms
+      { text: 'compliance', style: 'subsectionHeader' },
+      { text: `To conform with current health and safety legislation, all of our equipment will carry the relevant CE Marking; either a Declaration of Conformity or Declaration of Incorporation, dependant on whether ${company.companyName} is the prime contractor.`, style: 'businessTermsText', margin: [0, 0, 0, 10] },
 
       { text: 'delivery', style: 'subsectionHeader' },
       { text: businessTerms.deliveryTerms, style: 'businessTermsText', margin: [0, 0, 0, 10] },
@@ -314,10 +344,10 @@ export const generateEnhancedQuotePDF = (
       { text: businessTerms.warranty, style: 'businessTermsText', margin: [0, 0, 0, 10] },
 
       { text: 'scope', style: 'subsectionHeader' },
-      { text: `Due to current instabilities in currency, oil and steel values, this quote is only valid for ${businessTerms.validityDays} calendar days.`, style: 'businessTermsText', margin: [0, 0, 0, 10] },
+      { text: `Due to current instabilities in currency, oil and steel values, this quote is only valid for ${businessTerms.validityDays || 30} calendar days.`, style: 'businessTermsText', margin: [0, 0, 0, 10] },
 
       { text: 'General Terms and conditions', style: 'subsectionHeader' },
-      { text: `All quotes and orders are subject to our standard terms and conditions. These can be found on our website at ${company.companyWebsite} Written copies available on request`, style: 'businessTermsText', margin: [0, 0, 0, 20] },
+      { text: `All quotes and orders are subject to our standard terms and conditions. ${company.companyWebsite ? `These can be found on our website at ${company.companyWebsite}` : ''} Written copies available on request`, style: 'businessTermsText', margin: [0, 0, 0, 20] },
 
       // Closing
       { text: 'Warm regards,', style: 'closing', margin: [0, 10, 0, 5] },

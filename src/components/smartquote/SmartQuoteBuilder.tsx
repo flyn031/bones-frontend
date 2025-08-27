@@ -104,7 +104,9 @@ export const SmartQuoteBuilder: React.FC<SmartQuoteBuilderProps> = ({
 
       {/* Simplified Tab Interface */}
       <div className="grid grid-cols-3 gap-3">
-        <button type="button"
+        <button 
+          key="customer-history"
+          type="button"
           onClick={() => setActiveTab('customer-history')}
           className={`p-3 rounded-lg border transition-colors text-left ${
             activeTab === 'customer-history' 
@@ -121,7 +123,9 @@ export const SmartQuoteBuilder: React.FC<SmartQuoteBuilderProps> = ({
           )}
         </button>
         
-        <button type="button"
+        <button 
+          key="search-all"
+          type="button"
           onClick={() => setActiveTab('search-all')}
           className={`p-3 rounded-lg border transition-colors text-left ${
             activeTab === 'search-all' 
@@ -133,7 +137,9 @@ export const SmartQuoteBuilder: React.FC<SmartQuoteBuilderProps> = ({
           <div className="text-xs text-gray-500">Recent company quotes</div>
         </button>
         
-        <button type="button"
+        <button 
+          key="templates"
+          type="button"
           onClick={() => setActiveTab('templates')}
           className={`p-3 rounded-lg border transition-colors text-left ${
             activeTab === 'templates' 

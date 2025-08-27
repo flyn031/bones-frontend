@@ -596,6 +596,11 @@ const apiMethod = isUpdatingDraft ? apiClient.put : apiClient.post;
        companyWebsite?: string;
        companyVatNumber?: string;
        companyLogo?: string;
+       // NEW: Quote terms fields
+       standardWarranty?: string;
+       standardDeliveryTerms?: string;
+       defaultLeadTimeWeeks?: number;
+       standardExclusions?: string;
      }
      
      let userProfile: CleanUserProfile = { 
@@ -617,7 +622,12 @@ const apiMethod = isUpdatingDraft ? apiClient.put : apiClient.post;
            companyEmail: pd.companyEmail || undefined,
            companyWebsite: pd.companyWebsite || undefined,
            companyVatNumber: pd.companyVatNumber || undefined,
-           companyLogo: pd.companyLogo || undefined
+           companyLogo: pd.companyLogo || undefined,
+           // NEW: Quote terms fields
+           standardWarranty: pd.standardWarranty || undefined,
+           standardDeliveryTerms: pd.standardDeliveryTerms || undefined,
+           defaultLeadTimeWeeks: pd.defaultLeadTimeWeeks || undefined,
+           standardExclusions: pd.standardExclusions || undefined
          };
        }
        console.log('✅ User profile loaded for PDF with correct field mapping:', userProfile);
@@ -657,7 +667,7 @@ const apiMethod = isUpdatingDraft ? apiClient.put : apiClient.post;
      
      // Generate professional PDF
      console.log('Generating professional PDF for quote:', quoteForPDF);
-     console.log('Using user profile:', userProfile);
+     console.log('Using user profile (FULL):', JSON.stringify(userProfile, null, 2));
      const pdf = generateProfessionalQuotePDF(quoteForPDF, userProfile);
      
      // Download the PDF

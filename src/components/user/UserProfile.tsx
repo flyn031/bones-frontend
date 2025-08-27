@@ -28,9 +28,14 @@ interface SafeUserProfile {
   companyVatNumber?: string;
   companyLogo?: string;
   useCompanyDetailsOnQuotes?: boolean;
+  // NEW: Quote terms fields
+  standardWarranty?: string;
+  standardDeliveryTerms?: string;
+  defaultLeadTimeWeeks?: number;
+  standardExclusions?: string;
 }
 
-// Safe company details interface
+// Safe company details interface - UPDATED with quote terms
 interface CompanyDetailsState {
   companyName: string;
   companyAddress: string;
@@ -40,6 +45,11 @@ interface CompanyDetailsState {
   companyVatNumber: string;
   companyLogo: string;
   useCompanyDetailsOnQuotes: boolean;
+  // NEW: Quote terms fields
+  standardWarranty: string;
+  standardDeliveryTerms: string;
+  defaultLeadTimeWeeks: number;
+  standardExclusions: string;
 }
 
 /*
@@ -79,12 +89,17 @@ const UserProfile = () => {
     companyWebsite: (user as any).companyWebsite || undefined,
     companyVatNumber: (user as any).companyVatNumber || undefined,
     companyLogo: (user as any).companyLogo || undefined,
-    useCompanyDetailsOnQuotes: Boolean((user as any).useCompanyDetailsOnQuotes)
+    useCompanyDetailsOnQuotes: Boolean((user as any).useCompanyDetailsOnQuotes),
+    // NEW: Quote terms from user
+    standardWarranty: (user as any).standardWarranty || undefined,
+    standardDeliveryTerms: (user as any).standardDeliveryTerms || undefined,
+    defaultLeadTimeWeeks: (user as any).defaultLeadTimeWeeks || undefined,
+    standardExclusions: (user as any).standardExclusions || undefined
   } : {};
 
   const [logoPreview, setLogoPreview] = useState(safeUser.companyLogo || '');
 
-  // Company details state - Fixed: Use proper initialization
+  // Company details state - UPDATED with quote terms defaults
   const [companyDetails, setCompanyDetails] = useState<CompanyDetailsState>({
     companyName: safeUser.companyName || '',
     companyAddress: safeUser.companyAddress || '',
@@ -93,7 +108,12 @@ const UserProfile = () => {
     companyWebsite: safeUser.companyWebsite || '',
     companyVatNumber: safeUser.companyVatNumber || '',
     companyLogo: safeUser.companyLogo || '',
-    useCompanyDetailsOnQuotes: Boolean(safeUser.useCompanyDetailsOnQuotes)
+    useCompanyDetailsOnQuotes: Boolean(safeUser.useCompanyDetailsOnQuotes),
+    // NEW: Quote terms with sensible defaults
+    standardWarranty: safeUser.standardWarranty || 'Your Company guarantees equipment to be free of defects in workmanship or material for twelve months from delivery, standard working conditions.',
+    standardDeliveryTerms: safeUser.standardDeliveryTerms || 'Delivery will be arranged upon order confirmation with standard lead times.',
+    defaultLeadTimeWeeks: Number(safeUser.defaultLeadTimeWeeks) || 4,
+    standardExclusions: safeUser.standardExclusions || 'VAT, Installation, Delivery, Controls, Any other items not stated on the quote'
   });
 
   // Update company details state when user data changes from context
@@ -112,7 +132,12 @@ const UserProfile = () => {
         companyWebsite: (user as any).companyWebsite || undefined,
         companyVatNumber: (user as any).companyVatNumber || undefined,
         companyLogo: (user as any).companyLogo || undefined,
-        useCompanyDetailsOnQuotes: Boolean((user as any).useCompanyDetailsOnQuotes)
+        useCompanyDetailsOnQuotes: Boolean((user as any).useCompanyDetailsOnQuotes),
+        // NEW: Quote terms
+        standardWarranty: (user as any).standardWarranty || undefined,
+        standardDeliveryTerms: (user as any).standardDeliveryTerms || undefined,
+        defaultLeadTimeWeeks: (user as any).defaultLeadTimeWeeks || undefined,
+        standardExclusions: (user as any).standardExclusions || undefined
       };
 
       setCompanyDetails({
@@ -123,7 +148,12 @@ const UserProfile = () => {
         companyWebsite: updatedSafeUser.companyWebsite || '',
         companyVatNumber: updatedSafeUser.companyVatNumber || '',
         companyLogo: updatedSafeUser.companyLogo || '',
-        useCompanyDetailsOnQuotes: Boolean(updatedSafeUser.useCompanyDetailsOnQuotes)
+        useCompanyDetailsOnQuotes: Boolean(updatedSafeUser.useCompanyDetailsOnQuotes),
+        // NEW: Quote terms with defaults if not set
+        standardWarranty: updatedSafeUser.standardWarranty || 'Your Company guarantees equipment to be free of defects in workmanship or material for twelve months from delivery, standard working conditions.',
+        standardDeliveryTerms: updatedSafeUser.standardDeliveryTerms || 'Delivery will be arranged upon order confirmation with standard lead times.',
+        defaultLeadTimeWeeks: Number(updatedSafeUser.defaultLeadTimeWeeks) || 4,
+        standardExclusions: updatedSafeUser.standardExclusions || 'VAT, Installation, Delivery, Controls, Any other items not stated on the quote'
       });
       setLogoPreview(updatedSafeUser.companyLogo || '');
     }
@@ -205,12 +235,14 @@ const UserProfile = () => {
     setPasswordData(prev => ({ ...prev, [name]: value }));
   };
 
-  // Handle input changes for the company details form
-  const handleCompanyDetailsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value, type, checked } = e.target;
+  // Handle input changes for company details form - UPDATED for all field types
+  const handleCompanyDetailsChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value, type } = e.target;
+    const checked = (e.target as HTMLInputElement).checked;
+    
     setCompanyDetails(prev => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value
+      [name]: type === 'checkbox' ? checked : (name === 'defaultLeadTimeWeeks' ? Number(value) || 4 : value)
     }));
   };
 
@@ -254,7 +286,7 @@ const UserProfile = () => {
     setTimeout(() => setProfileMessage({ type: '', text: '' }), 4000);
   };
 
-  // WORKING VERSION: Zero TypeScript errors - Manual property assignment
+  // WORKING VERSION: Zero TypeScript errors - Manual property assignment - UPDATED for new fields
   const handleSaveCompanyDetails = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setProfileMessage({ type: '', text: '' });
@@ -280,6 +312,11 @@ const UserProfile = () => {
         companyVatNumber?: string;
         companyLogo?: string;
         useCompanyDetailsOnQuotes?: boolean;
+        // NEW: Quote terms
+        standardWarranty?: string;
+        standardDeliveryTerms?: string;
+        defaultLeadTimeWeeks?: number;
+        standardExclusions?: string;
         [key: string]: any;
       }
       
@@ -301,6 +338,11 @@ const UserProfile = () => {
         updatedUser.companyVatNumber = (user as any).companyVatNumber;
         updatedUser.companyLogo = (user as any).companyLogo;
         updatedUser.useCompanyDetailsOnQuotes = (user as any).useCompanyDetailsOnQuotes;
+        // NEW: Quote terms
+        updatedUser.standardWarranty = (user as any).standardWarranty;
+        updatedUser.standardDeliveryTerms = (user as any).standardDeliveryTerms;
+        updatedUser.defaultLeadTimeWeeks = (user as any).defaultLeadTimeWeeks;
+        updatedUser.standardExclusions = (user as any).standardExclusions;
       }
       
       // Apply response data manually
@@ -320,9 +362,14 @@ const UserProfile = () => {
         if (rd.companyVatNumber !== undefined) updatedUser.companyVatNumber = rd.companyVatNumber;
         if (rd.companyLogo !== undefined) updatedUser.companyLogo = rd.companyLogo;
         if (rd.useCompanyDetailsOnQuotes !== undefined) updatedUser.useCompanyDetailsOnQuotes = rd.useCompanyDetailsOnQuotes;
+        // NEW: Quote terms
+        if (rd.standardWarranty !== undefined) updatedUser.standardWarranty = rd.standardWarranty;
+        if (rd.standardDeliveryTerms !== undefined) updatedUser.standardDeliveryTerms = rd.standardDeliveryTerms;
+        if (rd.defaultLeadTimeWeeks !== undefined) updatedUser.defaultLeadTimeWeeks = rd.defaultLeadTimeWeeks;
+        if (rd.standardExclusions !== undefined) updatedUser.standardExclusions = rd.standardExclusions;
         
         // Copy any extra properties manually
-        const knownProps = ['id', 'name', 'email', 'role', 'createdAt', 'companyName', 'companyAddress', 'companyPhone', 'companyEmail', 'companyWebsite', 'companyVatNumber', 'companyLogo', 'useCompanyDetailsOnQuotes'];
+        const knownProps = ['id', 'name', 'email', 'role', 'createdAt', 'companyName', 'companyAddress', 'companyPhone', 'companyEmail', 'companyWebsite', 'companyVatNumber', 'companyLogo', 'useCompanyDetailsOnQuotes', 'standardWarranty', 'standardDeliveryTerms', 'defaultLeadTimeWeeks', 'standardExclusions'];
         Object.keys(rd).forEach(key => {
           if (!knownProps.includes(key)) {
             updatedUser[key] = rd[key];
@@ -330,8 +377,12 @@ const UserProfile = () => {
         });
       }
       
-      // Force preserve checkbox value
+      // Force preserve all values from form
       updatedUser.useCompanyDetailsOnQuotes = companyDetails.useCompanyDetailsOnQuotes;
+      updatedUser.standardWarranty = companyDetails.standardWarranty;
+      updatedUser.standardDeliveryTerms = companyDetails.standardDeliveryTerms;
+      updatedUser.defaultLeadTimeWeeks = companyDetails.defaultLeadTimeWeeks;
+      updatedUser.standardExclusions = companyDetails.standardExclusions;
       
       console.log('Clean updated user for context:', updatedUser);
       updateUser(updatedUser);
@@ -380,7 +431,7 @@ const UserProfile = () => {
           className="absolute right-0 mt-2 w-56 origin-top-right rounded-md shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black dark:ring-gray-700 ring-opacity-5 focus:outline-none z-50"
           role="menu"
           aria-orientation="vertical"
-          aria-labelledby="user-menu-button" // Assume the button above has id="user-menu-button" or adjust accordingly
+          aria-labelledby="user-menu-button"
         >
           <div className="py-1 divide-y divide-gray-100 dark:divide-gray-700">
             {/* Profile Info Section */}
@@ -432,7 +483,6 @@ const UserProfile = () => {
       {/* Profile Modal */}
       {showProfileModal && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-black bg-opacity-70 flex items-center justify-center p-4">
-          {/* Increased bg opacity */}
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full m-4 max-h-[90vh] flex flex-col transform transition-all duration-300 ease-out"
                 role="dialog"
                 aria-modal="true"
@@ -491,7 +541,7 @@ const UserProfile = () => {
                         }`}
                         aria-current={activeTab === tab.key ? 'page' : undefined}
                         role="tab"
-                        aria-controls={`tab-panel-${tab.key}`} // Link button to panel for accessibility
+                        aria-controls={`tab-panel-${tab.key}`}
                       >
                         <tab.icon className={`-ml-0.5 mr-2 h-5 w-5 ${activeTab === tab.key ? 'text-indigo-500 dark:text-indigo-400' : 'text-gray-400 group-hover:text-gray-500 dark:text-gray-500 dark:group-hover:text-gray-300'}`} aria-hidden="true" />
                         <span>{tab.label}</span>
@@ -504,9 +554,8 @@ const UserProfile = () => {
                 <div className="p-6">
                     {/* Panel for Account Information */}
                     <div id="tab-panel-info" role="tabpanel" tabIndex={0} hidden={activeTab !== 'info'}>
-                         <h2 className="sr-only">Account Information</h2> {/* Screen reader heading */}
+                         <h2 className="sr-only">Account Information</h2>
                         <div className="space-y-5">
-                            {/* Using simple definition list for key-value pairs */}
                             <dl>
                                 <div className="py-3 sm:grid sm:grid-cols-3 sm:gap-4">
                                     <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Full Name</dt>
@@ -530,7 +579,7 @@ const UserProfile = () => {
                          </div>
                     </div>
 
-                   {/* Panel for Company Details */}
+                   {/* Panel for Company Details - UPDATED with Quote Terms */}
                     <div id="tab-panel-company" role="tabpanel" tabIndex={0} hidden={activeTab !== 'company'}>
                         <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Company Details</h2>
                         {profileMessage.text && profileMessage.type && (
@@ -541,9 +590,9 @@ const UserProfile = () => {
                             />
                         )}
                         <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
-                            Manage your company information used for branding documents like quotes.
+                            Manage your company information and quote templates used for branding documents.
                          </p>
-                        <form onSubmit={handleSaveCompanyDetails} className="space-y-6 max-w-2xl">
+                        <form onSubmit={handleSaveCompanyDetails} className="space-y-6 max-w-3xl">
                             {/* Company Logo Upload Section */}
                            <div className="bg-gray-50 dark:bg-gray-700/30 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Company Logo</label>
@@ -565,7 +614,8 @@ const UserProfile = () => {
                                  </div>
                              </div>
                            </div>
-                            {/* Text fields */}
+                           
+                            {/* Basic Company Info */}
                            <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Company Name</label><Input type="text" name="companyName" value={companyDetails.companyName} onChange={handleCompanyDetailsChange} placeholder="Your Registered Company Name"/></div>
                            <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Company Address</label><Input type="text" name="companyAddress" value={companyDetails.companyAddress} onChange={handleCompanyDetailsChange} placeholder="Full registered address"/></div>
                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -576,13 +626,85 @@ const UserProfile = () => {
                              <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Company Website</label><Input type="url" name="companyWebsite" value={companyDetails.companyWebsite} onChange={handleCompanyDetailsChange} placeholder="https://www.yourcompany.com"/></div>
                               <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">VAT Number</label><Input type="text" name="companyVatNumber" value={companyDetails.companyVatNumber} onChange={handleCompanyDetailsChange} placeholder="e.g., GB123456789"/></div>
                             </div>
+                           
+                           {/* NEW: Quote Terms & Conditions Section */}
+                           <div className="pt-6 border-t border-gray-200 dark:border-gray-700">
+                             <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Quote Terms & Conditions</h3>
+                             <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                               Customize the standard terms that appear on all generated quotes.
+                             </p>
+                             
+                             <div className="space-y-4">
+                               <div>
+                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                   Standard Warranty Text
+                                 </label>
+                                 <textarea 
+                                   name="standardWarranty"
+                                   value={companyDetails.standardWarranty}
+                                   onChange={handleCompanyDetailsChange}
+                                   rows={3}
+                                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
+                                   placeholder="Your standard warranty terms..."
+                                 />
+                               </div>
+                               
+                               <div>
+                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                   Standard Delivery Terms
+                                 </label>
+                                 <textarea 
+                                   name="standardDeliveryTerms"
+                                   value={companyDetails.standardDeliveryTerms}
+                                   onChange={handleCompanyDetailsChange}
+                                   rows={2}
+                                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
+                                   placeholder="Your standard delivery terms..."
+                                 />
+                               </div>
+                               
+                               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                 <div>
+                                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                     Default Lead Time (weeks)
+                                   </label>
+                                   <Input 
+                                     type="number"
+                                     name="defaultLeadTimeWeeks"
+                                     value={companyDetails.defaultLeadTimeWeeks}
+                                     onChange={handleCompanyDetailsChange}
+                                     min="1"
+                                     max="52"
+                                   />
+                                 </div>
+                               </div>
+                               
+                               <div>
+                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                   Standard Exclusions (comma-separated)
+                                 </label>
+                                 <textarea 
+                                   name="standardExclusions"
+                                   value={companyDetails.standardExclusions}
+                                   onChange={handleCompanyDetailsChange}
+                                   rows={2}
+                                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
+                                   placeholder="VAT, Installation, Delivery, Controls, Any other items not stated..."
+                                 />
+                                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                   Separate each exclusion with a comma. These will appear as bullet points on quotes.
+                                 </p>
+                               </div>
+                             </div>
+                           </div>
+                           
                            {/* Toggle */}
                            <div className="flex items-start pt-2">
                              <div className="flex items-center h-5"><input id="useCompanyDetailsOnQuotes" name="useCompanyDetailsOnQuotes" type="checkbox" checked={companyDetails.useCompanyDetailsOnQuotes} onChange={handleCompanyDetailsChange} className="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:checked:bg-indigo-500 rounded"/></div>
-                              <div className="ml-3 text-sm"><label htmlFor="useCompanyDetailsOnQuotes" className="font-medium text-gray-700 dark:text-gray-300">Enable Company Branding on Quotes</label><p className="text-gray-500 dark:text-gray-400 text-xs">Adds logo, name, and address to generated PDF quotes.</p></div>
+                              <div className="ml-3 text-sm"><label htmlFor="useCompanyDetailsOnQuotes" className="font-medium text-gray-700 dark:text-gray-300">Enable Company Branding on Quotes</label><p className="text-gray-500 dark:text-gray-400 text-xs">Adds logo, name, address, and custom terms to generated PDF quotes.</p></div>
                             </div>
                            {/* Save Button */}
-                           <div className="pt-4"><Button type="submit" disabled={profileMessage.type === 'info' /* Disable while only logo change message shows? */}>Save Company Details</Button></div>
+                           <div className="pt-4"><Button type="submit">Save Company Details & Quote Terms</Button></div>
                          </form>
                      </div>
 
@@ -603,7 +725,6 @@ const UserProfile = () => {
                             <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Confirm New Password</label><Input type="password" name="confirmPassword" value={passwordData.confirmPassword} onChange={handleInputChange} required autoComplete="new-password"/></div>
                             <Button type="submit" className="mt-4">Update Password</Button>
                          </form>
-                         {/* Add 2FA settings here later if needed */}
                      </div>
 
                      {/* Panel for Preferences */}
@@ -620,7 +741,6 @@ const UserProfile = () => {
                                <div><h3 className="text-base font-medium text-gray-900 dark:text-gray-200">System Notifications</h3><p className="text-sm text-gray-500 dark:text-gray-400">Enable/disable non-critical system alerts.</p></div>
                                <label className="ml-4 inline-flex relative items-center cursor-pointer"><input type="checkbox" className="sr-only peer" checked={notificationsEnabled} onChange={() => setNotificationsEnabled(!notificationsEnabled)}/><div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-gray-600 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div></label>
                             </div>
-                           {/* Add more preference toggles here */}
                        </div>
                      </div>
 
@@ -649,7 +769,6 @@ const UserProfile = () => {
       {/* System Overview Modal */}
       {showSystemOverview && (
         <div className="fixed inset-0 z-[60] overflow-y-auto bg-black bg-opacity-70 flex items-center justify-center p-4">
-            {/* Higher z-index */}
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-5xl w-full m-4 max-h-[90vh] flex flex-col transform transition-all duration-300 ease-out"
                  role="dialog"
                 aria-modal="true"
@@ -669,18 +788,15 @@ const UserProfile = () => {
              <div className="p-6 flex-grow overflow-y-auto">
                 <h3 className="text-lg font-medium mb-4 text-gray-900 dark:text-white">General System Flow</h3>
                 <div className="p-4 border rounded-lg dark:border-gray-700 mb-8">
-                    <SystemFlowDiagram /> {/* Your general system diagram */}
+                    <SystemFlowDiagram />
                 </div>
 
-                {/* --- START: Added Quote Lifecycle Section --- */}
+                {/* Quote Lifecycle Section */}
                 <section className="pt-6 border-t dark:border-gray-700">
                    <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Quote Lifecycle Management</h3>
                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
                      The quote system follows a structured lifecycle with color-coded statuses to track progress from initial creation to final conversion or closure.
                    </p>
-
-                   {/* Optional: Placeholder for a dedicated visual diagram component */}
-                   {/* <QuoteLifecycleDiagram /> */}
 
                    <div className="space-y-8 md:space-y-0 md:grid md:grid-cols-3 md:gap-x-8 md:gap-y-10">
                         {/* Status Flow Column */}
@@ -743,13 +859,11 @@ const UserProfile = () => {
                         </div>
                    </div>
                 </section>
-                {/* --- END: Added Quote Lifecycle Section --- */}
 
-               {/* System Status & Info (optional) */}
+               {/* System Status & Info */}
                 <div className="mt-8 pt-6 border-t dark:border-gray-700">
                     <h3 className="text-lg font-medium mb-4 text-gray-900 dark:text-white">System Status & Info</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-sm">
-                       {/* ... existing status blocks ... */}
                          <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg shadow-sm">
                            <p className="font-medium text-green-600 dark:text-green-400">API Status: Connected</p>
                          </div>
@@ -759,16 +873,16 @@ const UserProfile = () => {
                         </div>
                          <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg shadow-sm">
                            <p className="text-gray-500 dark:text-gray-400">System Version</p>
-                           <p className="font-medium text-gray-900 dark:text-white">v1.2.0</p> {/* Example */}
+                           <p className="font-medium text-gray-900 dark:text-white">v1.2.0</p>
                          </div>
                     </div>
                  </div>
 
-            </div> {/* End Scrollable Content */}
-           </div> {/* End Modal Card */}
-        </div> /* End Modal Backdrop */
+            </div>
+           </div>
+        </div>
        )}
-     </div> /* End Relative container */
+     </div>
   );
 };
 

@@ -5,7 +5,7 @@ import {
 } from 'recharts';
 import {
   Activity, Users, AlertTriangle, TrendingUp, RefreshCcw,
-  UserCircle, DollarSign, Info, LayoutDashboard, Brain
+  UserCircle, DollarSign, Info, LayoutDashboard, Brain, Settings, Zap
 } from "lucide-react";
 
 // --- UI Component Imports ---
@@ -134,16 +134,16 @@ export default function Dashboard() {
       
       if (item.type === 'order' || (item.projectTitle !== undefined && item.status !== undefined)) { 
         type = 'order'; 
-        title = `Order: ${item.projectTitle || item.id || 'N/A'}`; 
+        title = `Production Order: ${item.projectTitle || item.id || 'N/A'}`; 
       } else if (item.type === 'customer' || (item.email !== undefined && item.status === 'Added')) { 
         type = 'customer'; 
-        title = `Customer: ${item.name || item.id}`; 
+        title = `Client: ${item.name || item.id}`; 
       } else if (item.type === 'quote' || item.quoteRef !== undefined) { 
         type = 'quote'; 
         title = `Quote: ${item.quoteRef || item.id}`; 
       } else if (item.type === 'job') { 
         type = 'job'; 
-        title = `Job: ${item.jobTitle || item.id}`; 
+        title = `Manufacturing Job: ${item.jobTitle || item.id}`; 
       }
 
       const formatDate = (date: Date | string | null | undefined): string => {
@@ -313,10 +313,17 @@ export default function Dashboard() {
 
   // --- Other Helpers ---
   const LoadingState = () => (
-    <div className="p-8 flex justify-center items-center min-h-screen">
-      <div className="text-center">
-        <RefreshCcw className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-500" />
-        <p className="text-neutral-600 dark:text-neutral-400">Loading dashboard...</p>
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800">
+      <div className="p-8 flex justify-center items-center min-h-screen">
+        <div className="text-center">
+          <RefreshCcw className="h-12 w-12 animate-spin mx-auto mb-6 text-cyan-400" />
+          <p className="text-slate-300 text-lg">Loading Manufacturing Dashboard...</p>
+          <div className="mt-4 flex items-center justify-center space-x-1 text-cyan-400">
+            <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce"></div>
+            <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
+            <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -327,7 +334,8 @@ export default function Dashboard() {
     value, 
     description, 
     onClick, 
-    iconColor 
+    iconColor,
+    gradient 
   }: { 
     icon: React.ElementType;
     title: string;
@@ -335,27 +343,39 @@ export default function Dashboard() {
     description: string;
     onClick?: () => void;
     iconColor: string;
+    gradient?: string;
   }) => (
     <div 
       onClick={onClick} 
-      className={`bg-white dark:bg-gray-800 rounded-xl shadow-soft p-4 md:p-6 transition-shadow border dark:border-gray-700 ${
-        onClick ? 'hover:shadow-medium cursor-pointer hover:bg-neutral-50 dark:hover:bg-gray-700 group' : ''
+      className={`bg-white/95 backdrop-blur-sm border border-slate-200/50 rounded-xl shadow-xl p-4 md:p-6 transition-all duration-300 hover:shadow-2xl hover:scale-105 relative overflow-hidden ${
+        onClick ? 'cursor-pointer group' : ''
       }`}
     >
-      <div className="flex items-center justify-between mb-1 md:mb-2">
-        <h3 className="text-xs md:text-sm font-medium text-neutral-700 dark:text-gray-300">
-          {title}
-        </h3>
-        <Icon className={`h-4 w-4 md:h-5 md:w-5 ${iconColor} ${
-          onClick ? 'group-hover:scale-110 transition-transform' : ''
-        }`} />
+      {/* Subtle gradient overlay */}
+      <div className={`absolute inset-0 opacity-5 ${gradient || 'bg-gradient-to-br from-blue-500 to-cyan-500'}`}></div>
+      
+      {/* Content */}
+      <div className="relative z-10">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-xs md:text-sm font-semibold text-slate-700 uppercase tracking-wide">
+            {title}
+          </h3>
+          <div className={`p-2 rounded-lg ${iconColor} bg-white/80 shadow-sm`}>
+            <Icon className="h-4 w-4 md:h-5 md:w-5" />
+          </div>
+        </div>
+        <div className="text-2xl md:text-3xl font-bold text-slate-900 mb-1">
+          {value}
+        </div>
+        <p className="text-xs md:text-sm text-slate-600">
+          {description}
+        </p>
+        
+        {/* Connecting line hint */}
+        {onClick && (
+          <div className="absolute -right-1 top-1/2 w-4 h-px bg-gradient-to-r from-cyan-400 to-transparent opacity-0 group-hover:opacity-60 transition-opacity duration-300"></div>
+        )}
       </div>
-      <div className="text-xl md:text-2xl font-bold text-neutral-900 dark:text-gray-100">
-        {value}
-      </div>
-      <p className="text-xs md:text-sm text-neutral-500 dark:text-gray-400 mt-1">
-        {description}
-      </p>
     </div>
   );
 
@@ -365,319 +385,350 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="p-4 md:p-8 max-w-full xl:max-w-7xl mx-auto">
-      {/* Dashboard Header */}
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h2 
-            onClick={handleRefresh} 
-            className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-neutral-800 to-neutral-600 bg-clip-text text-transparent cursor-pointer select-none dark:from-neutral-300 dark:to-neutral-500"
-          >
-            Dashboard
-          </h2>
-        </div>
-        <Button 
-          variant="ghost" 
-          onClick={handleRefresh} 
-          disabled={isRefreshing} 
-          className={`p-2 text-gray-600 dark:text-gray-400 ${isRefreshing ? 'animate-spin' : ''}`}
-        >
-          <RefreshCcw className="h-5 w-5" />
-        </Button>
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800">
+      {/* Geometric background pattern */}
+      <div className="absolute inset-0 opacity-10">
+        <div className="absolute top-20 left-20 w-32 h-32 border-2 border-cyan-400/30 rounded-lg rotate-12"></div>
+        <div className="absolute top-40 right-40 w-24 h-24 border border-blue-400/20 rounded-full"></div>
+        <div className="absolute bottom-32 left-1/3 w-16 h-16 border border-cyan-300/20 rotate-45"></div>
+        <div className="absolute top-1/3 right-1/4 w-20 h-20 border-2 border-blue-300/20 rounded-lg -rotate-12"></div>
       </div>
-
-      {/* Dashboard View Tabs */}
-      <div className="flex border-b border-gray-200 dark:border-gray-700 mb-6">
-        <button 
-          className={`px-4 py-2 md:px-6 md:py-3 flex items-center space-x-2 border-b-2 font-medium text-sm md:text-base transition-colors duration-150 ${
-            dashboardView === 'overview' 
-              ? 'border-blue-500 text-blue-600 dark:text-blue-400' 
-              : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:border-gray-300 dark:hover:border-gray-600'
-          }`} 
-          onClick={() => setDashboardView('overview')}
-        >
-          <LayoutDashboard className="h-4 w-4 md:h-5 md:w-5 mr-1 md:mr-2" />
-          <span>Overview</span>
-        </button>
-        <button 
-          className={`px-4 py-2 md:px-6 md:py-3 flex items-center space-x-2 border-b-2 font-medium text-sm md:text-base transition-colors duration-150 ${
-            dashboardView === 'customerHealth' 
-              ? 'border-blue-500 text-blue-600 dark:text-blue-400' 
-              : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:border-gray-300 dark:hover:border-gray-600'
-          }`} 
-          onClick={() => setDashboardView('customerHealth')}
-        >
-          <Brain className="h-4 w-4 md:h-5 md:w-5 mr-1 md:mr-2" />
-          <span>Customer Health</span>
-          <span className="ml-1 md:ml-2 px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300">
-            AI
-          </span>
-        </button>
-      </div>
-
-      {/* Error Display */}
-      {error && !isRefreshing && (
-        <Alert type="error" message={error} className="mb-6 md:mb-8" />
-      )}
-
-      {/* Main Content Area */}
-      {dashboardView === 'overview' ? (
-        <>
-          {/* Stats Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 md:gap-6 mb-6 md:mb-8">
-            <StatCard 
-              icon={Activity} 
-              title="Active Orders" 
-              value={stats.activeOrders} 
-              description="In progress" 
-              onClick={() => navigate('/orders')} 
-              iconColor="text-blue-500" 
-            />
-            <StatCard 
-              icon={Users} 
-              title="Suppliers" 
-              value={stats.totalSuppliers} 
-              description="Active partners" 
-              onClick={() => navigate('/suppliers')} 
-              iconColor="text-green-600" 
-            />
-            <StatCard 
-              icon={UserCircle} 
-              title="Customers" 
-              value={stats.totalCustomers} 
-              description="Total active" 
-              onClick={() => navigate('/customers')} 
-              iconColor="text-indigo-600" 
-            />
-            <StatCard 
-              icon={AlertTriangle} 
-              title="Low Stock" 
-              value={stats.lowStock} 
-              description="Items need attention" 
-              onClick={() => navigate('/inventory')} 
-              iconColor="text-red-600" 
-            />
-            <StatCard 
-              icon={TrendingUp} 
-              title="Revenue (MTD)" 
-              value={`£${stats.monthlyRevenue.toLocaleString('en-GB', { 
-                minimumFractionDigits: 0, 
-                maximumFractionDigits: 0 
-              })}`} 
-              description={new Date().toLocaleString('default', { month: 'long' })} 
-              onClick={() => navigate('/financial')} 
-              iconColor="text-purple-600" 
-            />
+      
+      <div className="relative z-10 p-4 md:p-8 max-w-full xl:max-w-7xl mx-auto">
+        {/* Dashboard Header */}
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">
+              Manufacturing Command Center
+            </h1>
+            <div className="flex items-center space-x-2 text-cyan-400">
+              <Zap className="h-5 w-5" />
+              <p className="text-lg">The X-Factor in Manufacturing Management</p>
+            </div>
           </div>
+          <Button 
+            variant="ghost" 
+            onClick={handleRefresh} 
+            disabled={isRefreshing} 
+            className={`p-3 bg-white/10 backdrop-blur-sm border border-white/20 text-white hover:bg-white/20 transition-all duration-300 ${isRefreshing ? 'animate-spin' : 'hover:scale-110'}`}
+          >
+            <RefreshCcw className="h-5 w-5" />
+          </Button>
+        </div>
 
-          {/* Grid Layout */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-            {/* Col 1 */}
-            <div className="space-y-6">
-              <JobStatusOverview jobStats={jobStats} />
-              <MonthlyQuotesWidget />
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 md:p-6 border dark:border-gray-700">
-                <h2 className="text-base md:text-lg font-semibold mb-4 flex items-center text-gray-800 dark:text-gray-200">
-                  <AlertTriangle className="h-5 w-5 mr-2 text-amber-500" />
-                  Inventory Alerts
-                </h2>
-                {inventoryAlerts.length > 0 ? (
-                  <div className="space-y-3">
-                    {inventoryAlerts.map(alert => (
-                      <div 
-                        key={alert.id} 
-                        className={`p-3 rounded-md text-sm ${
-                          alert.status === 'Critical' 
-                            ? 'bg-red-50 dark:bg-red-900/30 border-l-4 border-red-500' 
-                            : alert.status === 'Low' 
-                            ? 'bg-amber-50 dark:bg-amber-900/30 border-l-4 border-amber-500' 
-                            : 'bg-orange-50 dark:bg-orange-900/30 border-l-4 border-orange-500'
-                        }`}
-                      >
-                        <div className="flex justify-between items-center">
-                          <span className="font-medium text-gray-800 dark:text-gray-200">
-                            {alert.materialName}
-                          </span>
-                          <span 
-                            className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                              alert.status === 'Critical' 
-                                ? 'bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100' 
-                                : alert.status === 'Low' 
-                                ? 'bg-amber-100 text-amber-800 dark:bg-amber-700 dark:text-amber-100' 
-                                : 'bg-orange-100 text-orange-800 dark:bg-orange-700 dark:text-orange-100'
-                            }`}
-                          >
-                            {alert.status}
-                          </span>
-                        </div>
-                        <div className="text-gray-600 dark:text-gray-400 mt-1">
-                          Current: {alert.currentStock} | Min: {alert.minStockLevel}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-gray-500 dark:text-gray-400">No inventory alerts.</p>
-                )}
-                <div className="mt-4">
-                  <Button 
-                    variant="link" 
-                    onClick={() => navigate('/inventory')} 
-                    className="text-sm p-0 h-auto text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
-                  >
-                    View inventory →
-                  </Button>
-                </div>
-              </div>
+        {/* Dashboard View Tabs */}
+        <div className="flex border-b border-white/20 mb-8">
+          <button 
+            className={`px-6 py-4 flex items-center space-x-3 border-b-2 font-semibold text-base transition-all duration-300 ${
+              dashboardView === 'overview' 
+                ? 'border-cyan-400 text-cyan-400 bg-white/10' 
+                : 'border-transparent text-white/70 hover:text-white hover:bg-white/5'
+            }`} 
+            onClick={() => setDashboardView('overview')}
+          >
+            <LayoutDashboard className="h-5 w-5" />
+            <span>Production Overview</span>
+          </button>
+          <button 
+            className={`px-6 py-4 flex items-center space-x-3 border-b-2 font-semibold text-base transition-all duration-300 ${
+              dashboardView === 'customerHealth' 
+                ? 'border-cyan-400 text-cyan-400 bg-white/10' 
+                : 'border-transparent text-white/70 hover:text-white hover:bg-white/5'
+            }`} 
+            onClick={() => setDashboardView('customerHealth')}
+          >
+            <Brain className="h-5 w-5" />
+            <span>Client Intelligence</span>
+            <span className="px-2 py-1 text-xs rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-medium">
+              AI
+            </span>
+          </button>
+        </div>
+
+        {/* Error Display */}
+        {error && !isRefreshing && (
+          <div className="mb-8">
+            <Alert type="error" message={error} className="bg-red-900/50 border-red-500/50 text-red-200" />
+          </div>
+        )}
+
+        {/* Main Content Area */}
+        {dashboardView === 'overview' ? (
+          <>
+            {/* Stats Cards */}
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 md:gap-6 mb-8">
+              <StatCard 
+                icon={Activity} 
+                title="Active Production" 
+                value={stats.activeOrders} 
+                description="Orders in progress" 
+                onClick={() => navigate('/orders')} 
+                iconColor="text-blue-600" 
+                gradient="bg-gradient-to-br from-blue-500 to-cyan-500"
+              />
+              <StatCard 
+                icon={Users} 
+                title="Supply Partners" 
+                value={stats.totalSuppliers} 
+                description="Active suppliers" 
+                onClick={() => navigate('/suppliers')} 
+                iconColor="text-emerald-600" 
+                gradient="bg-gradient-to-br from-emerald-500 to-teal-500"
+              />
+              <StatCard 
+                icon={UserCircle} 
+                title="Manufacturing Clients" 
+                value={stats.totalCustomers} 
+                description="Total active" 
+                onClick={() => navigate('/customers')} 
+                iconColor="text-indigo-600" 
+                gradient="bg-gradient-to-br from-indigo-500 to-purple-500"
+              />
+              <StatCard 
+                icon={AlertTriangle} 
+                title="Material Alerts" 
+                value={stats.lowStock} 
+                description="Require attention" 
+                onClick={() => navigate('/inventory')} 
+                iconColor="text-amber-600" 
+                gradient="bg-gradient-to-br from-amber-500 to-orange-500"
+              />
+              <StatCard 
+                icon={TrendingUp} 
+                title="Revenue (MTD)" 
+                value={`£${stats.monthlyRevenue.toLocaleString('en-GB', { 
+                  minimumFractionDigits: 0, 
+                  maximumFractionDigits: 0 
+                })}`} 
+                description={new Date().toLocaleString('default', { month: 'long' })} 
+                onClick={() => navigate('/financial')} 
+                iconColor="text-purple-600" 
+                gradient="bg-gradient-to-br from-purple-500 to-pink-500"
+              />
             </div>
 
-            {/* Col 2 */}
-            <div className="space-y-6">
-              <OrderTrendKPICard />
-              {customerHealth && (
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 md:p-6 border dark:border-gray-700">
-                  <h2 className="text-base md:text-lg font-semibold mb-4 flex items-center text-gray-800 dark:text-gray-200">
-                    <Users className="h-5 w-5 mr-2 text-green-500" />
-                    Customer Health
+            {/* Grid Layout */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+              {/* Col 1 */}
+              <div className="space-y-6">
+                <div className="bg-white/95 backdrop-blur-sm rounded-xl shadow-xl p-6 border border-white/20">
+                  <JobStatusOverview jobStats={jobStats} />
+                </div>
+                
+                <div className="bg-white/95 backdrop-blur-sm rounded-xl shadow-xl p-6 border border-white/20">
+                  <MonthlyQuotesWidget />
+                </div>
+                
+                <div className="bg-white/95 backdrop-blur-sm rounded-xl shadow-xl p-6 border border-white/20">
+                  <h2 className="text-lg font-bold mb-4 flex items-center text-slate-800">
+                    <AlertTriangle className="h-5 w-5 mr-3 text-amber-500" />
+                    Material Stock Alerts
                   </h2>
-                  <div className="h-40 md:h-48">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie 
-                          data={[
-                            { name: 'Low', value: customerHealth.churnRiskBreakdown.low }, 
-                            { name: 'Med', value: customerHealth.churnRiskBreakdown.medium }, 
-                            { name: 'High', value: customerHealth.churnRiskBreakdown.high }
-                          ]} 
-                          cx="50%" 
-                          cy="50%" 
-                          innerRadius="60%" 
-                          outerRadius="80%" 
-                          fill="#8884d8" 
-                          dataKey="value"
+                  {inventoryAlerts.length > 0 ? (
+                    <div className="space-y-3">
+                      {inventoryAlerts.map(alert => (
+                        <div 
+                          key={alert.id} 
+                          className={`p-4 rounded-lg border-l-4 ${
+                            alert.status === 'Critical' 
+                              ? 'bg-red-50 border-red-500' 
+                              : alert.status === 'Low' 
+                              ? 'bg-amber-50 border-amber-500' 
+                              : 'bg-orange-50 border-orange-500'
+                          }`}
                         >
-                          <Cell fill="#4ade80" />
-                          <Cell fill="#fbbf24" />
-                          <Cell fill="#f87171" />
-                        </Pie>
-                        <Tooltip formatter={(value, name) => [`${value} customers`, name]} />
-                        <Legend verticalAlign="bottom" height={36} />
-                      </PieChart>
+                          <div className="flex justify-between items-center">
+                            <span className="font-semibold text-slate-800">
+                              {alert.materialName}
+                            </span>
+                            <span 
+                              className={`px-3 py-1 rounded-full text-xs font-bold ${
+                                alert.status === 'Critical' 
+                                  ? 'bg-red-100 text-red-800' 
+                                  : alert.status === 'Low' 
+                                  ? 'bg-amber-100 text-amber-800' 
+                                  : 'bg-orange-100 text-orange-800'
+                              }`}
+                            >
+                              {alert.status}
+                            </span>
+                          </div>
+                          <div className="text-slate-600 mt-1 text-sm">
+                            Stock: {alert.currentStock} | Min Required: {alert.minStockLevel}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-slate-500">All materials adequately stocked.</p>
+                  )}
+                  <div className="mt-4">
+                    <Button 
+                      variant="link" 
+                      onClick={() => navigate('/inventory')} 
+                      className="text-sm p-0 h-auto text-blue-600 hover:text-blue-800 font-semibold"
+                    >
+                      View Full Inventory →
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Col 2 */}
+              <div className="space-y-6">
+                <div className="bg-white/95 backdrop-blur-sm rounded-xl shadow-xl p-6 border border-white/20">
+                  <OrderTrendKPICard />
+                </div>
+                
+                {customerHealth && (
+                  <div className="bg-white/95 backdrop-blur-sm rounded-xl shadow-xl p-6 border border-white/20">
+                    <h2 className="text-lg font-bold mb-4 flex items-center text-slate-800">
+                      <Users className="h-5 w-5 mr-3 text-emerald-500" />
+                      Client Health Matrix
+                    </h2>
+                    <div className="h-48">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie 
+                            data={[
+                              { name: 'Stable', value: customerHealth.churnRiskBreakdown.low }, 
+                              { name: 'Watch', value: customerHealth.churnRiskBreakdown.medium }, 
+                              { name: 'Risk', value: customerHealth.churnRiskBreakdown.high }
+                            ]} 
+                            cx="50%" 
+                            cy="50%" 
+                            innerRadius="60%" 
+                            outerRadius="85%" 
+                            fill="#8884d8" 
+                            dataKey="value"
+                          >
+                            <Cell fill="#10b981" />
+                            <Cell fill="#f59e0b" />
+                            <Cell fill="#ef4444" />
+                          </Pie>
+                          <Tooltip formatter={(value, name) => [`${value} clients`, name]} />
+                          <Legend verticalAlign="bottom" height={36} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div className="mt-4">
+                      <Button 
+                        variant="link" 
+                        onClick={() => setDashboardView('customerHealth')} 
+                        className="text-sm p-0 h-auto text-blue-600 hover:text-blue-800 font-semibold"
+                      >
+                        View AI Analysis →
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Col 3 */}
+              <div className="space-y-6">
+                <div className="bg-white/95 backdrop-blur-sm rounded-xl shadow-xl p-6 border border-white/20">
+                  <h2 className="text-lg font-bold mb-4 flex items-center text-slate-800">
+                    <DollarSign className="h-5 w-5 mr-3 text-emerald-500" />
+                    Financial Performance
+                  </h2>
+                  <div className="h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={financialData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.3} />
+                        <XAxis dataKey="period" fontSize={12} />
+                        <YAxis fontSize={12} tickFormatter={(value) => `£${value/1000}k`} />
+                        <Tooltip formatter={(value: number) => [`£${value.toLocaleString()}`, '']} />
+                        <Legend />
+                        <Bar dataKey="revenue" fill="#3b82f6" name="Revenue" radius={[2, 2, 0, 0]} />
+                        <Bar dataKey="costs" fill="#64748b" name="Costs" radius={[2, 2, 0, 0]} />
+                        <Bar dataKey="profit" fill="#10b981" name="Profit" radius={[2, 2, 0, 0]} />
+                      </BarChart>
                     </ResponsiveContainer>
                   </div>
                   <div className="mt-4">
                     <Button 
                       variant="link" 
-                      onClick={() => setDashboardView('customerHealth')} 
-                      className="text-sm p-0 h-auto text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                      onClick={() => navigate('/financial')} 
+                      className="text-sm p-0 h-auto text-blue-600 hover:text-blue-800 font-semibold"
                     >
-                      View AI insights →
+                      View Detailed Reports →
                     </Button>
                   </div>
                 </div>
-              )}
-            </div>
-
-            {/* Col 3 */}
-            <div className="space-y-6">
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 md:p-6 border dark:border-gray-700">
-                <h2 className="text-base md:text-lg font-semibold mb-4 flex items-center text-gray-800 dark:text-gray-200">
-                  <DollarSign className="h-5 w-5 mr-2 text-emerald-500" />
-                  Financial Overview
-                </h2>
-                <div className="h-60 md:h-64">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={financialData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
-                      <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.1} />
-                      <XAxis dataKey="period" fontSize={12} />
-                      <YAxis fontSize={12} tickFormatter={(value) => `£${value/1000}k`} />
-                      <Tooltip formatter={(value: number) => [`£${value.toLocaleString()}`, '']} />
-                      <Legend />
-                      <Bar dataKey="revenue" fill="#3b82f6" name="Revenue" />
-                      <Bar dataKey="costs" fill="#9ca3af" name="Costs" />
-                      <Bar dataKey="profit" fill="#10b981" name="Profit" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="mt-4">
-                  <Button 
-                    variant="link" 
-                    onClick={() => navigate('/financial')} 
-                    className="text-sm p-0 h-auto text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
-                  >
-                    View reports →
-                  </Button>
-                </div>
-              </div>
-              
-              {customerHealth && (
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 md:p-6 border dark:border-gray-700">
-                  <h2 className="text-base md:text-lg font-semibold mb-4 flex items-center text-gray-800 dark:text-gray-200">
-                    <Info className="h-5 w-5 mr-2 text-blue-500" />
-                    Key Insights
-                  </h2>
-                  <ul className="space-y-2 text-sm">
-                    {customerHealth.healthScores
-                      .filter(s => s.churnRisk === 'High' || s.potentialUpsell)
-                      .slice(0, 2)
-                      .map((s) => (
-                        <li 
-                          key={s.customerId} 
-                          className="p-2 bg-gray-50 dark:bg-gray-700/50 rounded border border-gray-100 dark:border-gray-700"
-                        >
-                          <span className="block font-medium text-gray-800 dark:text-gray-200">
-                            {s.name}
-                          </span>
-                          <span 
-                            className={`text-gray-600 dark:text-gray-400 ${
-                              s.churnRisk === 'High' 
-                                ? 'text-red-600 dark:text-red-400' 
-                                : s.potentialUpsell 
-                                ? 'text-green-600 dark:text-green-400' 
-                                : ''
-                            }`}
+                
+                {customerHealth && (
+                  <div className="bg-white/95 backdrop-blur-sm rounded-xl shadow-xl p-6 border border-white/20">
+                    <h2 className="text-lg font-bold mb-4 flex items-center text-slate-800">
+                      <Info className="h-5 w-5 mr-3 text-cyan-500" />
+                      Strategic Insights
+                    </h2>
+                    <ul className="space-y-3">
+                      {customerHealth.healthScores
+                        .filter(s => s.churnRisk === 'High' || s.potentialUpsell)
+                        .slice(0, 2)
+                        .map((s) => (
+                          <li 
+                            key={s.customerId} 
+                            className="p-3 bg-slate-50 rounded-lg border border-slate-200"
                           >
-                            {s.churnRisk === 'High' 
-                              ? 'High Churn Risk' 
-                              : s.potentialUpsell 
-                              ? 'Upsell Potential' 
-                              : ''}
-                            {s.insights.length > 0 ? `: ${s.insights[0]}` : ''}
+                            <span className="block font-semibold text-slate-800">
+                              {s.name}
+                            </span>
+                            <span 
+                              className={`text-sm ${
+                                s.churnRisk === 'High' 
+                                  ? 'text-red-600 font-medium' 
+                                  : s.potentialUpsell 
+                                  ? 'text-emerald-600 font-medium' 
+                                  : 'text-slate-600'
+                              }`}
+                            >
+                              {s.churnRisk === 'High' 
+                                ? 'High Churn Risk' 
+                                : s.potentialUpsell 
+                                ? 'Expansion Opportunity' 
+                                : ''}
+                              {s.insights.length > 0 ? `: ${s.insights[0]}` : ''}
+                            </span>
+                          </li>
+                        ))
+                      }
+                      {stats.lowStock > 0 && (
+                        <li className="p-3 bg-amber-50 rounded-lg border border-amber-200">
+                          <span className="font-semibold text-amber-800">Material Alert: </span>
+                          <span className="text-amber-700">
+                            {stats.lowStock} items below minimum stock
                           </span>
                         </li>
-                      ))
-                    }
-                    {stats.lowStock > 0 && (
-                      <li className="p-2 bg-amber-50 dark:bg-amber-900/30 rounded border border-amber-100 dark:border-amber-800/50">
-                        <span className="font-medium text-amber-800 dark:text-amber-300">Inventory: </span>
-                        <span className="text-amber-700 dark:text-amber-400">
-                          {stats.lowStock} items below min. stock
-                        </span>
-                      </li>
-                    )}
-                    {jobStats.inProgress > 0 && (
-                      <li className="p-2 bg-blue-50 dark:bg-blue-900/30 rounded border border-blue-100 dark:border-blue-800/50">
-                        <span className="font-medium text-blue-800 dark:text-blue-300">Jobs: </span>
-                        <span className="text-blue-700 dark:text-blue-400">
-                          {jobStats.inProgress} currently in progress
-                        </span>
-                      </li>
-                    )}
-                    {customerHealth.healthScores.length === 0 && stats.lowStock === 0 && jobStats.inProgress === 0 && (
-                      <li className="text-gray-500 dark:text-gray-400">No specific insights available.</li>
-                    )}
-                  </ul>
-                </div>
-              )}
+                      )}
+                      {jobStats.inProgress > 0 && (
+                        <li className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                          <span className="font-semibold text-blue-800">Production: </span>
+                          <span className="text-blue-700">
+                            {jobStats.inProgress} jobs currently active
+                          </span>
+                        </li>
+                      )}
+                      {customerHealth.healthScores.length === 0 && stats.lowStock === 0 && jobStats.inProgress === 0 && (
+                        <li className="text-slate-500">All systems operating optimally.</li>
+                      )}
+                    </ul>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
 
-          {/* Recent Activity */}
-          <RecentActivitySection activities={recentActivity} isLoading={isLoading || isRefreshing} />
-        </>
-      ) : (
-        <EnhancedCustomerHealthDashboard />
-      )}
+            {/* Recent Activity */}
+            <div className="bg-white/95 backdrop-blur-sm rounded-xl shadow-xl border border-white/20">
+              <RecentActivitySection activities={recentActivity} isLoading={isLoading || isRefreshing} />
+            </div>
+          </>
+        ) : (
+          <div className="bg-white/95 backdrop-blur-sm rounded-xl shadow-xl border border-white/20">
+            <EnhancedCustomerHealthDashboard />
+          </div>
+        )}
+      </div>
     </div>
   );
 }
