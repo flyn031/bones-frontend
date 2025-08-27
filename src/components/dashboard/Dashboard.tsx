@@ -5,7 +5,7 @@ import {
 } from 'recharts';
 import {
   Activity, Users, AlertTriangle, TrendingUp, RefreshCcw,
-  UserCircle, DollarSign, Info, LayoutDashboard, Brain, Settings, Zap
+  UserCircle, DollarSign, Info, LayoutDashboard, Brain, Zap
 } from "lucide-react";
 
 // --- UI Component Imports ---

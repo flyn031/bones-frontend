@@ -145,8 +145,8 @@ export const generateEnhancedQuotePDF = (
     leadTimeWeeks: company.defaultLeadTimeWeeks,  // Always use user's custom setting
     warranty: company.standardWarranty,
     exclusions: company.standardExclusions,
-    scope: existingBusinessTerms.scope || 'Quote subject to our standard terms and conditions.',
-    validityDays: existingBusinessTerms.validityDays || enhancedQuote.validityDays || 30
+    scope: (existingBusinessTerms as any).scope || 'Quote subject to our standard terms and conditions.',
+    validityDays: (existingBusinessTerms as any).validityDays || enhancedQuote.validityDays || 30
   };
 
   // 🔍 DEBUG: Log the business terms that will be used in the PDF
@@ -218,7 +218,7 @@ export const generateEnhancedQuotePDF = (
             stack: [
               { text: `Quotation Date: ${formatDate(enhancedQuote.quotationDate || enhancedQuote.date)}`, style: 'quoteDetails', alignment: 'right' },
               { 
-                text: `Lead time: ${businessTerms.leadTimeWeeks} ${businessTerms.leadTimeWeeks === 1 ? 'week' : 'weeks'}`,
+                text: `Lead time: ${businessTerms.leadTimeWeeks} weeks`, 
                 style: 'quoteDetails', 
                 alignment: 'right'
               },
