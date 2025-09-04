@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { SmartQuoteItemSearch } from './SmartQuoteItemSearch';
 import { CustomerSuggestions } from './CustomerSuggestions';
 import { QuickAssemblyShortcuts } from './QuickAssemblyShortcuts';
+import { ManualItemAdd } from './ManualItemAdd';
 import { SmartQuoteItem, QuoteHealthScore } from '../../types/smartQuote';
 import { analyzeQuoteHealth } from '../../utils/smartQuoteApi';
 
@@ -20,31 +21,22 @@ export const SmartQuoteBuilder: React.FC<SmartQuoteBuilderProps> = ({
   onItemsAdded,
   totalValue,
 }) => {
-  const [activeTab, setActiveTab] = useState<'customer-history' | 'search-all' | 'templates'>('customer-history');
+  const [activeTab, setActiveTab] = useState<'customer-history' | 'search-all' | 'templates' | 'add-item'>('customer-history');
   const [quoteHealth, setQuoteHealth] = useState<QuoteHealthScore | null>(null);
 
   // Helper function to convert any item format to SmartQuoteItem
   const convertToSmartQuoteItems = (items: any[]): SmartQuoteItem[] => {
     return items.map(item => ({
       id: item.id || Math.random().toString(36).substr(2, 9),
-      itemName: item.itemName || item.description || 'Unknown Item',
-      description: item.description || 'No description available',
+      description: item.itemName || item.description || 'Unknown Item',
       quantity: item.quantity || 1,
       unitPrice: item.unitPrice || 0,
-      totalPrice: item.totalPrice || (item.unitPrice * item.quantity) || 0,
       materialId: item.materialId,
       source: item.source || 'manual',
       sourceQuoteId: item.sourceQuoteId,
       sourceQuoteNumber: item.sourceQuoteNumber,
       confidence: item.confidence,
       reason: item.reason,
-      category: item.category,
-      lastUsed: item.lastUsed,
-      usageCount: item.usageCount,
-      required: item.required,
-      templateName: item.templateName,
-      bundleName: item.bundleName,
-      bundleId: item.bundleId,
       material: item.material
     }));
   };
@@ -84,6 +76,10 @@ export const SmartQuoteBuilder: React.FC<SmartQuoteBuilderProps> = ({
     setTimeout(analyzeQuote, 100);
   };
 
+  const handleManualItemAdded = (item: SmartQuoteItem) => {
+    handleItemsAdded([item]);
+  };
+
   return (
     <div className="bg-gray-50 rounded-lg p-4 space-y-4">
       <div className="flex items-center justify-between">
@@ -102,8 +98,8 @@ export const SmartQuoteBuilder: React.FC<SmartQuoteBuilderProps> = ({
         )}
       </div>
 
-      {/* Simplified Tab Interface */}
-      <div className="grid grid-cols-3 gap-3">
+      {/* Updated 4-Tab Interface */}
+      <div className="grid grid-cols-4 gap-3">
         <button 
           key="customer-history"
           type="button"
@@ -149,6 +145,23 @@ export const SmartQuoteBuilder: React.FC<SmartQuoteBuilderProps> = ({
         >
           <div className="text-sm font-medium text-gray-900">Quick Templates</div>
           <div className="text-xs text-gray-500">Pre-built solutions</div>
+        </button>
+
+        <button 
+          key="add-item"
+          type="button"
+          onClick={() => setActiveTab('add-item')}
+          className={`p-3 rounded-lg border transition-colors text-left ${
+            activeTab === 'add-item' 
+              ? 'bg-green-50 border-green-300 ring-2 ring-green-500' 
+              : 'bg-white border-gray-200 hover:border-green-300'
+          }`}
+        >
+          <div className="text-sm font-medium text-gray-900 flex items-center">
+            <span className="mr-1">+</span>
+            Add Item
+          </div>
+          <div className="text-xs text-gray-500">Manual entry</div>
         </button>
       </div>
 
@@ -227,6 +240,14 @@ export const SmartQuoteBuilder: React.FC<SmartQuoteBuilderProps> = ({
       {activeTab === 'templates' && (
         <QuickAssemblyShortcuts
           onTemplateSelected={items => handleItemsAdded(convertToSmartQuoteItems(items))}
+        />
+      )}
+
+      {/* Manual Add Item Tab */}
+      {activeTab === 'add-item' && (
+        <ManualItemAdd
+          onItemAdded={handleManualItemAdded}
+          customerId={customerId}
         />
       )}
     </div>
