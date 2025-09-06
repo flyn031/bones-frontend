@@ -26,19 +26,27 @@ export const SmartQuoteBuilder: React.FC<SmartQuoteBuilderProps> = ({
 
   // Helper function to convert any item format to SmartQuoteItem
   const convertToSmartQuoteItems = (items: any[]): SmartQuoteItem[] => {
-    return items.map(item => ({
-      id: item.id || Math.random().toString(36).substr(2, 9),
-      description: item.itemName || item.description || 'Unknown Item',
-      quantity: item.quantity || 1,
-      unitPrice: item.unitPrice || 0,
-      materialId: item.materialId,
-      source: item.source || 'manual',
-      sourceQuoteId: item.sourceQuoteId,
-      sourceQuoteNumber: item.sourceQuoteNumber,
-      confidence: item.confidence,
-      reason: item.reason,
-      material: item.material
-    }));
+    return items.map(item => {
+      const quantity = item.quantity || 1;
+      const unitPrice = item.unitPrice || 0;
+      const itemName = item.itemName || item.description || 'Unknown Item';
+      
+      return {
+        id: item.id || Math.random().toString(36).substr(2, 9),
+        description: item.description || itemName,
+        itemName: itemName, // Added missing itemName
+        quantity: quantity,
+        unitPrice: unitPrice,
+        totalPrice: quantity * unitPrice, // Added missing totalPrice
+        materialId: item.materialId,
+        source: item.source || 'manual',
+        sourceQuoteId: item.sourceQuoteId,
+        sourceQuoteNumber: item.sourceQuoteNumber,
+        confidence: item.confidence,
+        reason: item.reason,
+        material: item.material
+      };
+    });
   };
 
   useEffect(() => {

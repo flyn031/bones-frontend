@@ -22,25 +22,35 @@ export interface CustomerWithContacts {
   contacts?: CustomerContact[];
 }
 
+// API response types
+interface CustomersApiResponse {
+  customers?: any[];
+  data?: any[];
+}
+
+interface ContactsApiResponse {
+  data?: CustomerContact[];
+}
+
 // Get customers with their contacts
 export const getCustomersWithContacts = async (): Promise<CustomerWithContacts[]> => {
   try {
     const token = localStorage.getItem("token");
     
     // First get all customers
-    const customersResponse = await axios.get(
+    const customersResponse = await axios.get<CustomersApiResponse | any[]>(
       `${API_URL}/customers`,
       { headers: { Authorization: `Bearer ${token}` }}
     );
     
     // FIX: Extract customers array from response object
-    const customers = customersResponse.data.customers || customersResponse.data;
+    const customers = (customersResponse.data as any).customers || customersResponse.data;
     
     // Then get contacts for each customer
     const customersWithContacts = await Promise.all(
       customers.map(async (customer: any) => {
         try {
-          const contactsResponse = await axios.get(
+          const contactsResponse = await axios.get<CustomerContact[]>(
             `${API_URL}/customers/${customer.id}/contacts`,
             { headers: { Authorization: `Bearer ${token}` }}
           );
@@ -70,7 +80,7 @@ export const getCustomersWithContacts = async (): Promise<CustomerWithContacts[]
 export const createCustomerContact = async (customerId: string, contactData: Omit<CustomerContact, 'id' | 'customerId'>): Promise<CustomerContact> => {
   try {
     const token = localStorage.getItem("token");
-    const response = await axios.post(
+    const response = await axios.post<CustomerContact>(
       `${API_URL}/customers/${customerId}/contacts`,
       contactData,
       { headers: { Authorization: `Bearer ${token}` }}

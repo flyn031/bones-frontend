@@ -28,8 +28,10 @@ export const ManualItemAdd: React.FC<ManualItemAddProps> = ({
     const newItem: SmartQuoteItem = {
       id: Math.random().toString(36).substr(2, 9),
       description: formData.description.trim(),
+      itemName: formData.description.trim(), // Added missing itemName
       quantity: formData.quantity,
       unitPrice: formData.unitPrice,
+      totalPrice: formData.quantity * formData.unitPrice, // Added missing totalPrice
       source: 'manual' as any, // We'll update the type definition
       reason: customerId ? 
         `Manually added for customer-specific requirements` : 
