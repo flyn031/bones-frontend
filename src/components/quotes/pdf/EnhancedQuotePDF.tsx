@@ -34,7 +34,6 @@ const parseQuoteTerms = (termsAndConditions?: string) => {
 
   // Try to parse structured terms or use as general terms
   const sections: any = {};
-  const lines = termsAndConditions.split('\n').filter(line => line.trim());
   
   // If it looks like structured content, try to parse it
   if (termsAndConditions.includes('•') || termsAndConditions.includes('-')) {
@@ -149,13 +148,6 @@ export const generateEnhancedQuotePDF = (
     }
   }
 
-  // Payment terms formatting
-  const paymentTerms = enhancedQuote.paymentTerms || {
-    withOrder: 50,
-    beforeDispatch: 40,
-    thirtyDays: 10
-  };
-
   // NEW: Build terms and conditions content
   let termsContent = [];
 
@@ -225,7 +217,7 @@ export const generateEnhancedQuotePDF = (
         style: 'subsectionHeader'
       },
       {
-        text: 'Payment terms: friday night terms',
+        text: `Payment terms: ${originalTermsAndConditions || 'Net 30'}`,
         style: 'customTermsText',
         margin: [0, 0, 0, 10]
       },
@@ -243,7 +235,7 @@ export const generateEnhancedQuotePDF = (
         style: 'subsectionHeader'
       },
       {
-        text: `${originalTermsAndConditions || 'friday night terms - all work subject to these custom terms and conditions.'}`,
+        text: `${originalTermsAndConditions || 'All work is subject to our standard terms and conditions.'}`,
         style: 'customTermsText',
         margin: [0, 0, 0, 10]
       }
