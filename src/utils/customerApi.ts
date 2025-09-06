@@ -28,10 +28,6 @@ interface CustomersApiResponse {
   data?: any[];
 }
 
-interface ContactsApiResponse {
-  data?: CustomerContact[];
-}
-
 // Get customers with their contacts
 export const getCustomersWithContacts = async (): Promise<CustomerWithContacts[]> => {
   try {
