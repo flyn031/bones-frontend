@@ -13,7 +13,7 @@ interface MessageState {
   text: string;
 }
 
-// Add interface for User with company details properties - Fixed: Complete interface
+// CLEANED: Removed quote terms fields from user profile
 interface SafeUserProfile {
   id?: string;
   name?: string;
@@ -28,14 +28,10 @@ interface SafeUserProfile {
   companyVatNumber?: string;
   companyLogo?: string;
   useCompanyDetailsOnQuotes?: boolean;
-  // NEW: Quote terms fields
-  standardWarranty?: string;
-  standardDeliveryTerms?: string;
-  defaultLeadTimeWeeks?: number;
-  standardExclusions?: string;
+  // REMOVED: Quote terms fields - now handled per quote
 }
 
-// Safe company details interface - UPDATED with quote terms
+// CLEANED: Company details without quote terms
 interface CompanyDetailsState {
   companyName: string;
   companyAddress: string;
@@ -45,18 +41,14 @@ interface CompanyDetailsState {
   companyVatNumber: string;
   companyLogo: string;
   useCompanyDetailsOnQuotes: boolean;
-  // NEW: Quote terms fields
-  standardWarranty: string;
-  standardDeliveryTerms: string;
-  defaultLeadTimeWeeks: number;
-  standardExclusions: string;
+  // REMOVED: Quote terms fields - now handled per quote
 }
 
 /*
 This component handles the user profile dropdown menu, profile settings modal,
 and the system overview modal. It includes features for updating company details,
 changing passwords, managing preferences (like dark mode), and viewing recent activity.
-The quote lifecycle documentation has also been added to the System Overview modal for user reference.
+Quote terms are now handled individually per quote for maximum flexibility.
 */
 
 const UserProfile = () => {
@@ -75,7 +67,7 @@ const UserProfile = () => {
   const [passwordMessage, setPasswordMessage] = useState<MessageState>({ type: '', text: '' });
   const [profileMessage, setProfileMessage] = useState<MessageState>({ type: '', text: '' });
   
-  // Convert user to SafeUserProfile safely
+  // Convert user to SafeUserProfile safely - CLEANED: Removed quote terms
   const safeUser: SafeUserProfile = user ? {
     id: user.id || undefined,
     name: user.name || undefined,
@@ -89,17 +81,13 @@ const UserProfile = () => {
     companyWebsite: (user as any).companyWebsite || undefined,
     companyVatNumber: (user as any).companyVatNumber || undefined,
     companyLogo: (user as any).companyLogo || undefined,
-    useCompanyDetailsOnQuotes: Boolean((user as any).useCompanyDetailsOnQuotes),
-    // NEW: Quote terms from user
-    standardWarranty: (user as any).standardWarranty || undefined,
-    standardDeliveryTerms: (user as any).standardDeliveryTerms || undefined,
-    defaultLeadTimeWeeks: (user as any).defaultLeadTimeWeeks || undefined,
-    standardExclusions: (user as any).standardExclusions || undefined
+    useCompanyDetailsOnQuotes: Boolean((user as any).useCompanyDetailsOnQuotes)
+    // REMOVED: Quote terms - now handled per quote
   } : {};
 
   const [logoPreview, setLogoPreview] = useState(safeUser.companyLogo || '');
 
-  // Company details state - UPDATED with quote terms defaults
+  // Company details state - CLEANED: Removed quote terms
   const [companyDetails, setCompanyDetails] = useState<CompanyDetailsState>({
     companyName: safeUser.companyName || '',
     companyAddress: safeUser.companyAddress || '',
@@ -108,15 +96,11 @@ const UserProfile = () => {
     companyWebsite: safeUser.companyWebsite || '',
     companyVatNumber: safeUser.companyVatNumber || '',
     companyLogo: safeUser.companyLogo || '',
-    useCompanyDetailsOnQuotes: Boolean(safeUser.useCompanyDetailsOnQuotes),
-    // NEW: Quote terms with sensible defaults
-    standardWarranty: safeUser.standardWarranty || 'Your Company guarantees equipment to be free of defects in workmanship or material for twelve months from delivery, standard working conditions.',
-    standardDeliveryTerms: safeUser.standardDeliveryTerms || 'Delivery will be arranged upon order confirmation with standard lead times.',
-    defaultLeadTimeWeeks: Number(safeUser.defaultLeadTimeWeeks) || 4,
-    standardExclusions: safeUser.standardExclusions || 'VAT, Installation, Delivery, Controls, Any other items not stated on the quote'
+    useCompanyDetailsOnQuotes: Boolean(safeUser.useCompanyDetailsOnQuotes)
+    // REMOVED: Quote terms - now handled per quote
   });
 
-  // Update company details state when user data changes from context
+  // Update company details state when user data changes from context - CLEANED
   useEffect(() => {
     if (user) {
       const updatedSafeUser: SafeUserProfile = {
@@ -132,12 +116,8 @@ const UserProfile = () => {
         companyWebsite: (user as any).companyWebsite || undefined,
         companyVatNumber: (user as any).companyVatNumber || undefined,
         companyLogo: (user as any).companyLogo || undefined,
-        useCompanyDetailsOnQuotes: Boolean((user as any).useCompanyDetailsOnQuotes),
-        // NEW: Quote terms
-        standardWarranty: (user as any).standardWarranty || undefined,
-        standardDeliveryTerms: (user as any).standardDeliveryTerms || undefined,
-        defaultLeadTimeWeeks: (user as any).defaultLeadTimeWeeks || undefined,
-        standardExclusions: (user as any).standardExclusions || undefined
+        useCompanyDetailsOnQuotes: Boolean((user as any).useCompanyDetailsOnQuotes)
+        // REMOVED: Quote terms - now handled per quote
       };
 
       setCompanyDetails({
@@ -148,12 +128,8 @@ const UserProfile = () => {
         companyWebsite: updatedSafeUser.companyWebsite || '',
         companyVatNumber: updatedSafeUser.companyVatNumber || '',
         companyLogo: updatedSafeUser.companyLogo || '',
-        useCompanyDetailsOnQuotes: Boolean(updatedSafeUser.useCompanyDetailsOnQuotes),
-        // NEW: Quote terms with defaults if not set
-        standardWarranty: updatedSafeUser.standardWarranty || 'Your Company guarantees equipment to be free of defects in workmanship or material for twelve months from delivery, standard working conditions.',
-        standardDeliveryTerms: updatedSafeUser.standardDeliveryTerms || 'Delivery will be arranged upon order confirmation with standard lead times.',
-        defaultLeadTimeWeeks: Number(updatedSafeUser.defaultLeadTimeWeeks) || 4,
-        standardExclusions: updatedSafeUser.standardExclusions || 'VAT, Installation, Delivery, Controls, Any other items not stated on the quote'
+        useCompanyDetailsOnQuotes: Boolean(updatedSafeUser.useCompanyDetailsOnQuotes)
+        // REMOVED: Quote terms - now handled per quote
       });
       setLogoPreview(updatedSafeUser.companyLogo || '');
     }
@@ -173,6 +149,13 @@ const UserProfile = () => {
     logout();
     // Navigation to login page is typically handled inside the logout function
     // or via context state change redirecting in App.tsx/Routes.tsx
+  };
+
+  // Handle direct profile access - NEW FUNCTION
+  const handleProfileClick = () => {
+    setShowProfileModal(true);
+    setActiveTab('info'); // Default to account info tab
+    setIsMenuOpen(false); // Close dropdown if open
   };
 
   // Toggle dark/light theme
@@ -235,14 +218,14 @@ const UserProfile = () => {
     setPasswordData(prev => ({ ...prev, [name]: value }));
   };
 
-  // Handle input changes for company details form - UPDATED for all field types
+  // Handle input changes for company details form - CLEANED: Simplified
   const handleCompanyDetailsChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
     const checked = (e.target as HTMLInputElement).checked;
     
     setCompanyDetails(prev => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : (name === 'defaultLeadTimeWeeks' ? Number(value) || 4 : value)
+      [name]: type === 'checkbox' ? checked : value
     }));
   };
 
@@ -286,7 +269,7 @@ const UserProfile = () => {
     setTimeout(() => setProfileMessage({ type: '', text: '' }), 4000);
   };
 
-  // WORKING VERSION: Zero TypeScript errors - Manual property assignment - UPDATED for new fields
+  // CLEANED: Simplified company details save without quote terms
   const handleSaveCompanyDetails = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setProfileMessage({ type: '', text: '' });
@@ -297,7 +280,7 @@ const UserProfile = () => {
       
       console.log('Server response:', response.data);
       
-      // CLEAN: Manual property assignment - zero spreading
+      // CLEANED: Manual property assignment without quote terms
       interface CleanUserData {
         id?: string;
         name?: string;
@@ -312,11 +295,7 @@ const UserProfile = () => {
         companyVatNumber?: string;
         companyLogo?: string;
         useCompanyDetailsOnQuotes?: boolean;
-        // NEW: Quote terms
-        standardWarranty?: string;
-        standardDeliveryTerms?: string;
-        defaultLeadTimeWeeks?: number;
-        standardExclusions?: string;
+        // REMOVED: Quote terms - now handled per quote
         [key: string]: any;
       }
       
@@ -338,11 +317,7 @@ const UserProfile = () => {
         updatedUser.companyVatNumber = (user as any).companyVatNumber;
         updatedUser.companyLogo = (user as any).companyLogo;
         updatedUser.useCompanyDetailsOnQuotes = (user as any).useCompanyDetailsOnQuotes;
-        // NEW: Quote terms
-        updatedUser.standardWarranty = (user as any).standardWarranty;
-        updatedUser.standardDeliveryTerms = (user as any).standardDeliveryTerms;
-        updatedUser.defaultLeadTimeWeeks = (user as any).defaultLeadTimeWeeks;
-        updatedUser.standardExclusions = (user as any).standardExclusions;
+        // REMOVED: Quote terms - now handled per quote
       }
       
       // Apply response data manually
@@ -362,14 +337,10 @@ const UserProfile = () => {
         if (rd.companyVatNumber !== undefined) updatedUser.companyVatNumber = rd.companyVatNumber;
         if (rd.companyLogo !== undefined) updatedUser.companyLogo = rd.companyLogo;
         if (rd.useCompanyDetailsOnQuotes !== undefined) updatedUser.useCompanyDetailsOnQuotes = rd.useCompanyDetailsOnQuotes;
-        // NEW: Quote terms
-        if (rd.standardWarranty !== undefined) updatedUser.standardWarranty = rd.standardWarranty;
-        if (rd.standardDeliveryTerms !== undefined) updatedUser.standardDeliveryTerms = rd.standardDeliveryTerms;
-        if (rd.defaultLeadTimeWeeks !== undefined) updatedUser.defaultLeadTimeWeeks = rd.defaultLeadTimeWeeks;
-        if (rd.standardExclusions !== undefined) updatedUser.standardExclusions = rd.standardExclusions;
+        // REMOVED: Quote terms - now handled per quote
         
-        // Copy any extra properties manually
-        const knownProps = ['id', 'name', 'email', 'role', 'createdAt', 'companyName', 'companyAddress', 'companyPhone', 'companyEmail', 'companyWebsite', 'companyVatNumber', 'companyLogo', 'useCompanyDetailsOnQuotes', 'standardWarranty', 'standardDeliveryTerms', 'defaultLeadTimeWeeks', 'standardExclusions'];
+        // Copy any extra properties manually (excluding removed quote terms)
+        const knownProps = ['id', 'name', 'email', 'role', 'createdAt', 'companyName', 'companyAddress', 'companyPhone', 'companyEmail', 'companyWebsite', 'companyVatNumber', 'companyLogo', 'useCompanyDetailsOnQuotes'];
         Object.keys(rd).forEach(key => {
           if (!knownProps.includes(key)) {
             updatedUser[key] = rd[key];
@@ -377,12 +348,8 @@ const UserProfile = () => {
         });
       }
       
-      // Force preserve all values from form
+      // Force preserve company details from form
       updatedUser.useCompanyDetailsOnQuotes = companyDetails.useCompanyDetailsOnQuotes;
-      updatedUser.standardWarranty = companyDetails.standardWarranty;
-      updatedUser.standardDeliveryTerms = companyDetails.standardDeliveryTerms;
-      updatedUser.defaultLeadTimeWeeks = companyDetails.defaultLeadTimeWeeks;
-      updatedUser.standardExclusions = companyDetails.standardExclusions;
       
       console.log('Clean updated user for context:', updatedUser);
       updateUser(updatedUser);
@@ -413,17 +380,30 @@ const UserProfile = () => {
   // JSX for the component rendering
   return (
     <div className="relative">
-      {/* Profile Button */}
-      <button
-        onClick={() => setIsMenuOpen(!isMenuOpen)}
-        className="flex items-center space-x-2 rounded-full bg-white dark:bg-gray-700 p-1 sm:p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-        aria-haspopup="true"
-        aria-expanded={isMenuOpen}
-        aria-label="User profile menu"
-      >
-        <User className="h-5 w-5" />
-        <span className="hidden md:inline text-sm font-medium">{safeUser?.name?.split(' ')[0] || 'Profile'}</span>
-      </button>
+      {/* Profile Button - UPDATED with clickable user name */}
+      <div className="flex items-center">
+        {/* Clickable User Name - NEW */}
+        <button
+          onClick={handleProfileClick}
+          className="hidden md:inline-block mr-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 rounded px-2 py-1 transition-colors"
+          aria-label="Open profile settings"
+        >
+          {safeUser?.name?.split(' ')[0] || 'Profile'}
+        </button>
+
+        {/* Profile Menu Button */}
+        <button
+          onClick={() => setIsMenuOpen(!isMenuOpen)}
+          className="flex items-center space-x-2 rounded-full bg-white dark:bg-gray-700 p-1 sm:p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+          aria-haspopup="true"
+          aria-expanded={isMenuOpen}
+          aria-label="User profile menu"
+        >
+          <User className="h-5 w-5" />
+          {/* Show name on mobile/small screens only since it's separate on desktop */}
+          <span className="inline md:hidden text-sm font-medium">{safeUser?.name?.split(' ')[0] || 'Profile'}</span>
+        </button>
+      </div>
 
       {/* Dropdown Menu */}
       {isMenuOpen && (
@@ -579,7 +559,7 @@ const UserProfile = () => {
                          </div>
                     </div>
 
-                   {/* Panel for Company Details - UPDATED with Quote Terms */}
+                   {/* Panel for Company Details - CLEANED: Removed Quote Terms Section */}
                     <div id="tab-panel-company" role="tabpanel" tabIndex={0} hidden={activeTab !== 'company'}>
                         <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Company Details</h2>
                         {profileMessage.text && profileMessage.type && (
@@ -590,7 +570,7 @@ const UserProfile = () => {
                             />
                         )}
                         <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
-                            Manage your company information and quote templates used for branding documents.
+                            Manage your company information used for branding documents.
                          </p>
                         <form onSubmit={handleSaveCompanyDetails} className="space-y-6 max-w-3xl">
                             {/* Company Logo Upload Section */}
@@ -627,72 +607,17 @@ const UserProfile = () => {
                               <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">VAT Number</label><Input type="text" name="companyVatNumber" value={companyDetails.companyVatNumber} onChange={handleCompanyDetailsChange} placeholder="e.g., GB123456789"/></div>
                             </div>
                            
-                           {/* NEW: Quote Terms & Conditions Section */}
+                           {/* CLEANED: Removed Quote Terms Section - Now Handled Per Quote */}
                            <div className="pt-6 border-t border-gray-200 dark:border-gray-700">
-                             <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Quote Terms & Conditions</h3>
+                             <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Quote Settings</h3>
                              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                               Customize the standard terms that appear on all generated quotes.
+                               Terms and conditions are now managed individually per quote for maximum flexibility.
                              </p>
-                             
                              <div className="space-y-4">
-                               <div>
-                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                   Standard Warranty Text
-                                 </label>
-                                 <textarea 
-                                   name="standardWarranty"
-                                   value={companyDetails.standardWarranty}
-                                   onChange={handleCompanyDetailsChange}
-                                   rows={3}
-                                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
-                                   placeholder="Your standard warranty terms..."
-                                 />
-                               </div>
-                               
-                               <div>
-                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                   Standard Delivery Terms
-                                 </label>
-                                 <textarea 
-                                   name="standardDeliveryTerms"
-                                   value={companyDetails.standardDeliveryTerms}
-                                   onChange={handleCompanyDetailsChange}
-                                   rows={2}
-                                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
-                                   placeholder="Your standard delivery terms..."
-                                 />
-                               </div>
-                               
-                               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                 <div>
-                                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                     Default Lead Time (weeks)
-                                   </label>
-                                   <Input 
-                                     type="number"
-                                     name="defaultLeadTimeWeeks"
-                                     value={companyDetails.defaultLeadTimeWeeks}
-                                     onChange={handleCompanyDetailsChange}
-                                     min="1"
-                                     max="52"
-                                   />
-                                 </div>
-                               </div>
-                               
-                               <div>
-                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                   Standard Exclusions (comma-separated)
-                                 </label>
-                                 <textarea 
-                                   name="standardExclusions"
-                                   value={companyDetails.standardExclusions}
-                                   onChange={handleCompanyDetailsChange}
-                                   rows={2}
-                                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
-                                   placeholder="VAT, Installation, Delivery, Controls, Any other items not stated..."
-                                 />
-                                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                   Separate each exclusion with a comma. These will appear as bullet points on quotes.
+                               <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                                 <p className="text-sm text-blue-800 dark:text-blue-200">
+                                   <strong>Note:</strong> Quote terms and conditions are now set individually when creating each quote. 
+                                   This allows for customer-specific terms and greater flexibility.
                                  </p>
                                </div>
                              </div>
@@ -701,10 +626,10 @@ const UserProfile = () => {
                            {/* Toggle */}
                            <div className="flex items-start pt-2">
                              <div className="flex items-center h-5"><input id="useCompanyDetailsOnQuotes" name="useCompanyDetailsOnQuotes" type="checkbox" checked={companyDetails.useCompanyDetailsOnQuotes} onChange={handleCompanyDetailsChange} className="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:checked:bg-indigo-500 rounded"/></div>
-                              <div className="ml-3 text-sm"><label htmlFor="useCompanyDetailsOnQuotes" className="font-medium text-gray-700 dark:text-gray-300">Enable Company Branding on Quotes</label><p className="text-gray-500 dark:text-gray-400 text-xs">Adds logo, name, address, and custom terms to generated PDF quotes.</p></div>
+                              <div className="ml-3 text-sm"><label htmlFor="useCompanyDetailsOnQuotes" className="font-medium text-gray-700 dark:text-gray-300">Enable Company Branding on Quotes</label><p className="text-gray-500 dark:text-gray-400 text-xs">Adds logo, name, and address to generated PDF quotes.</p></div>
                             </div>
                            {/* Save Button */}
-                           <div className="pt-4"><Button type="submit">Save Company Details & Quote Terms</Button></div>
+                           <div className="pt-4"><Button type="submit">Save Company Details</Button></div>
                          </form>
                      </div>
 
@@ -842,6 +767,7 @@ const UserProfile = () => {
                                <li>Color-coded status tags in lists.</li>
                                <li>Status change validation logic.</li>
                                <li>Confirmation dialogues for key actions.</li>
+                               <li>Quote-specific terms and conditions.</li>
                                <li>(Future: Detailed status history logs).</li>
                             </ul>
                        </div>

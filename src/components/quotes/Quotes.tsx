@@ -4,6 +4,7 @@ import NewQuoteModal from './NewQuoteModal';
 // Removed unused import: generateQuotePDF
 import { generateProfessionalQuotePDF } from './pdf/EnhancedQuotePDF'; // NEW: Enhanced PDF import
 import { apiClient } from '../../utils/api';
+import { getCustomersWithContacts, CustomerWithContacts } from '../../utils/customerApi';
 import { Customer, QuoteData, QuoteVersion, QuoteStatus } from '../../types/quote';
 
 // --- Interfaces ---
@@ -115,7 +116,7 @@ export default function Quotes() {
  const [hideConverted, setHideConverted] = useState(true);
  const [isNewQuoteModalOpen, setIsNewQuoteModalOpen] = useState(false);
  const [quoteToEdit, setQuoteToEdit] = useState<QuoteVersion | null>(null);
- const [customers, setCustomers] = useState<Customer[]>([]);
+ const [customers, setCustomers] = useState<CustomerWithContacts[]>([]);
  const [refreshKey, setRefreshKey] = useState(0);
  const [loading, setLoading] = useState(true); 
  const [quoteHistory, setQuoteHistory] = useState<QuoteVersion[]>([]);
@@ -201,36 +202,53 @@ export default function Quotes() {
  }, []);
 
  const fetchCustomers = useCallback(async () => {
-    console.log("[Quotes.tsx] fetchCustomers starting...");
+    console.log("[Quotes.tsx] fetchCustomers starting with contacts...");
     try {
-      const token = localStorage.getItem('token');
-      if (!token) { 
-        console.error("[Quotes.tsx] Auth token not found for fetchCustomers."); 
-        setCustomers([]);
-        throw new Error("Auth token not found."); 
+      // Use the new API that includes contacts
+      const customersWithContacts = await getCustomersWithContacts();
+      
+      console.log("[Quotes.tsx] fetchCustomers with contacts SUCCESS:", customersWithContacts);
+      console.log("[Quotes.tsx] Number of customers:", customersWithContacts.length);
+      
+      // Log the first customer to see if contacts are included
+      if (customersWithContacts.length > 0) {
+        console.log("[Quotes.tsx] First customer with contacts:", customersWithContacts[0]);
+        console.log("[Quotes.tsx] First customer contacts:", customersWithContacts[0].contacts);
       }
-      const response = await apiClient.get('/customers', { 
-          headers: { 'Authorization': `Bearer ${token}` } 
-      });
-
-      console.log("[Quotes.tsx] fetchCustomers RAW RESPONSE.DATA:", response.data);
-      const data = response.data as PaginatedCustomersResponse;
-      if (data && Array.isArray(data.customers)) {
-        // Fixed: Handle phone null conversion for customers
-        const processedCustomers = data.customers.map(customer => ({
-          ...customer,
-          phone: customer.phone || undefined
-        }));
-        setCustomers(processedCustomers);
-        console.log("[Quotes.tsx] fetchCustomers SUCCESS. Number of customers:", processedCustomers.length);
-      } else {
-        console.warn("[Quotes.tsx] fetchCustomers response.data.customers is NOT an array or response.data is malformed:", data);
-        setCustomers([]); 
-      }
+      
+      setCustomers(customersWithContacts);
+      
     } catch (error) {
-      console.error('[Quotes.tsx] fetchCustomers ERROR:', (error as any).response?.data || (error as any).message);
-      setCustomers([]);
-    } 
+      console.error('[Quotes.tsx] fetchCustomers with contacts ERROR:', error);
+      
+      // Fallback to original API if new one fails
+      try {
+        console.log("[Quotes.tsx] Falling back to original customer API...");
+        const token = localStorage.getItem('token');
+        const response = await apiClient.get('/customers', { 
+            headers: { 'Authorization': `Bearer ${token}` } 
+        });
+
+        console.log("[Quotes.tsx] fetchCustomers FALLBACK RAW RESPONSE:", response.data);
+        const data = response.data as PaginatedCustomersResponse;
+        if (data && Array.isArray(data.customers)) {
+          // Handle phone null conversion for customers
+          const processedCustomers = data.customers.map(customer => ({
+            ...customer,
+            phone: customer.phone || undefined,
+            contacts: [] // Add empty contacts array for fallback
+          }));
+          setCustomers(processedCustomers);
+          console.log("[Quotes.tsx] fetchCustomers FALLBACK SUCCESS. Number of customers:", processedCustomers.length);
+        } else {
+          console.warn("[Quotes.tsx] fetchCustomers fallback response malformed:", data);
+          setCustomers([]); 
+        }
+      } catch (fallbackError) {
+        console.error('[Quotes.tsx] fetchCustomers FALLBACK also failed:', fallbackError);
+        setCustomers([]);
+      }
+    }
   }, []);
 
  const loadData = useCallback(async () => {

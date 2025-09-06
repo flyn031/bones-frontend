@@ -1,4 +1,4 @@
-// src/components/quotes/pdf/EnhancedQuotePDF.tsx - Professional quote PDF with custom terms
+// src/components/quotes/pdf/EnhancedQuotePDF.tsx - Professional quote PDF with quote-specific terms
 
 import pdfMake from "pdfmake/build/pdfmake";
 import pdfFonts from "pdfmake/build/vfs_fonts";
@@ -10,7 +10,7 @@ if (pdfMake.vfs === undefined) {
     pdfMake.vfs = (pdfFonts as any).pdfMake ? (pdfFonts as any).pdfMake.vfs : pdfFonts;
 }
 
-// Company profile from user profile - UPDATED with custom terms
+// Simplified company profile - REMOVED profile-level terms
 interface UserProfile {
   companyName?: string;
   companyAddress?: string;
@@ -20,35 +20,68 @@ interface UserProfile {
   companyVatNumber?: string;
   companyLogo?: string;
   useCompanyDetailsOnQuotes: boolean;
-  // NEW: Custom quote terms
-  standardWarranty?: string;
-  standardDeliveryTerms?: string;
-  defaultLeadTimeWeeks?: number;
-  standardExclusions?: string; // Comma-separated string
+  // REMOVED: All the standard terms fields - these should be quote-specific now
 }
 
-// Generate professional quote PDF with custom terms
+// Helper function to parse quote-specific terms
+const parseQuoteTerms = (termsAndConditions?: string) => {
+  if (!termsAndConditions) {
+    return {
+      hasCustomTerms: false,
+      sections: {}
+    };
+  }
+
+  // Try to parse structured terms or use as general terms
+  const sections: any = {};
+  const lines = termsAndConditions.split('\n').filter(line => line.trim());
+  
+  // If it looks like structured content, try to parse it
+  if (termsAndConditions.includes('•') || termsAndConditions.includes('-')) {
+    // Parse bullet points as exclusions or terms
+    const bullets = termsAndConditions.match(/[•-]\s*(.+)/g);
+    if (bullets) {
+      sections.exclusions = bullets.map(bullet => bullet.replace(/[•-]\s*/, '').trim());
+    }
+  }
+  
+  // For now, use the entire content as general terms
+  sections.generalTerms = termsAndConditions;
+  
+  return {
+    hasCustomTerms: true,
+    sections
+  };
+};
+
+// Generate professional quote PDF with quote-specific terms
 export const generateEnhancedQuotePDF = (
   quote: QuoteData | EnhancedQuoteData, 
   userProfile?: UserProfile,
   companyProfile?: Partial<QuoteCompanyProfile>
 ) => {
-  // 🔍 DEBUG: Log what data the PDF generator receives
   console.log('=== PDF GENERATOR DEBUG ===');
-  console.log('PDF Generator received userProfile:', userProfile);
-  console.log('PDF Generator received defaultLeadTimeWeeks:', userProfile?.defaultLeadTimeWeeks);
   console.log('PDF Generator received quote:', quote);
-  console.log('PDF Generator received companyProfile override:', companyProfile);
+  console.log('PDF Generator quote.termsAndConditions:', (quote as QuoteData).termsAndConditions);
+  console.log('PDF Generator received userProfile:', userProfile);
+  
+  // NEW: Extract termsAndConditions BEFORE conversion to avoid losing it
+  const originalTermsAndConditions = (quote as QuoteData).termsAndConditions;
+  console.log('PDF Generator originalTermsAndConditions:', originalTermsAndConditions);
   
   // Convert to enhanced format if needed
   const enhancedQuote: EnhancedQuoteData = 'businessTerms' in quote 
     ? quote as EnhancedQuoteData 
     : enhanceQuoteData(quote as QuoteData);
 
+  // NEW: Parse quote-specific terms using the original value
+  const quoteTerms = parseQuoteTerms(originalTermsAndConditions);
+  console.log('PDF Generator parsed quote terms:', quoteTerms);
+
   // Use company details from profile
   const useCompanyDetails = userProfile?.useCompanyDetailsOnQuotes || false;
   
-  // Build company profile from user profile + overrides - UPDATED to use custom terms
+  // Build company profile from user profile + overrides - REMOVED custom terms
   const company: QuoteCompanyProfile = {
     companyName: userProfile?.companyName || 'Your Company Name',
     companyAddress: userProfile?.companyAddress || '',
@@ -58,32 +91,17 @@ export const generateEnhancedQuotePDF = (
     companyVatNumber: userProfile?.companyVatNumber || '',
     companyLogo: userProfile?.companyLogo || '',
     
-    // Use custom terms from user profile OR fall back to sensible defaults
-    standardExclusions: userProfile?.standardExclusions 
-      ? userProfile.standardExclusions.split(',').map(item => item.trim()).filter(item => item)
-      : [
-          'VAT',
-          'Installation',
-          'Delivery',
-          'Controls',
-          'Any other items not stated on the quote'
-        ],
-        
-    standardWarranty: userProfile?.standardWarranty || 
-      'Your Company guarantees equipment to be free of defects in workmanship or material for twelve months from delivery, standard working conditions.',
-      
-    standardDeliveryTerms: userProfile?.standardDeliveryTerms || 
-      'Delivery will be arranged upon order confirmation with standard lead times.',
-      
-    defaultLeadTimeWeeks: userProfile?.defaultLeadTimeWeeks || 4,
+    // REMOVED: All standard terms - these are now quote-specific
+    standardExclusions: [], // Will be overridden by quote terms
+    standardWarranty: '', // Will be overridden by quote terms
+    standardDeliveryTerms: '', // Will be overridden by quote terms
+    defaultLeadTimeWeeks: 4, // Keep as basic default
     
     // Override with any provided company profile settings
     ...companyProfile
   };
 
-  // 🔍 DEBUG: Log the final company profile that will be used
   console.log('PDF Generator final company profile:', company);
-  console.log('PDF Generator final defaultLeadTimeWeeks:', company.defaultLeadTimeWeeks);
 
   // Format dates
   const formatDate = (dateString?: string) => {
@@ -138,20 +156,99 @@ export const generateEnhancedQuotePDF = (
     thirtyDays: 10
   };
 
-  // Business terms - ALWAYS use custom terms from user profile when available
-  const existingBusinessTerms = enhancedQuote.businessTerms || {};
-  const businessTerms = {
-    deliveryTerms: company.standardDeliveryTerms,
-    leadTimeWeeks: company.defaultLeadTimeWeeks,  // Always use user's custom setting
-    warranty: company.standardWarranty,
-    exclusions: company.standardExclusions,
-    scope: (existingBusinessTerms as any).scope || 'Quote subject to our standard terms and conditions.',
-    validityDays: (existingBusinessTerms as any).validityDays || enhancedQuote.validityDays || 30
-  };
+  // NEW: Build terms and conditions content
+  let termsContent = [];
 
-  // 🔍 DEBUG: Log the business terms that will be used in the PDF
-  console.log('PDF Generator businessTerms:', businessTerms);
-  console.log('PDF Generator businessTerms.leadTimeWeeks:', businessTerms.leadTimeWeeks);
+  if (quoteTerms.hasCustomTerms) {
+    // Use the quote-specific terms
+    console.log('Using quote-specific terms');
+    
+    if (quoteTerms.sections.generalTerms) {
+      termsContent.push({
+        text: 'Terms & Conditions',
+        style: 'sectionHeader',
+        pageBreak: 'before',
+        margin: [0, 0, 0, 15]
+      });
+      
+      // Split by paragraphs and format nicely
+      const paragraphs = quoteTerms.sections.generalTerms.split('\n\n').filter((p: string) => p.trim());
+      
+      paragraphs.forEach((paragraph: string, index: number) => {
+        const trimmedParagraph = paragraph.trim();
+        
+        // Check if it looks like a heading (short line, ends with colon, etc.)
+        if (trimmedParagraph.length < 50 && (trimmedParagraph.endsWith(':') || trimmedParagraph.toLowerCase().includes('terms'))) {
+          termsContent.push({
+            text: trimmedParagraph.replace(':', ''),
+            style: 'subsectionHeader',
+            margin: [0, index > 0 ? 10 : 0, 0, 5]
+          });
+        } else if (trimmedParagraph.includes('•') || trimmedParagraph.includes('-')) {
+          // Handle bullet points
+          const bullets = trimmedParagraph.split(/[•-]/).filter(item => item.trim()).map(item => item.trim());
+          if (bullets.length > 1) {
+            termsContent.push({
+              ul: bullets,
+              style: 'customTermsList',
+              margin: [0, 0, 0, 10]
+            });
+          } else {
+            termsContent.push({
+              text: trimmedParagraph,
+              style: 'customTermsText',
+              margin: [0, 0, 0, 10]
+            });
+          }
+        } else {
+          // Regular paragraph
+          termsContent.push({
+            text: trimmedParagraph,
+            style: 'customTermsText',
+            margin: [0, 0, 0, 10]
+          });
+        }
+      });
+    }
+  } else {
+    // Fallback to minimal default terms if no quote-specific terms
+    console.log('No quote-specific terms, using minimal defaults');
+    termsContent.push(
+      {
+        text: 'Terms & Conditions',
+        style: 'sectionHeader',
+        pageBreak: 'before',
+        margin: [0, 0, 0, 15]
+      },
+      {
+        text: 'Payment Terms',
+        style: 'subsectionHeader'
+      },
+      {
+        text: 'Payment terms: friday night terms',
+        style: 'customTermsText',
+        margin: [0, 0, 0, 10]
+      },
+      {
+        text: 'Validity',
+        style: 'subsectionHeader'
+      },
+      {
+        text: `This quotation is valid for ${enhancedQuote.validityDays || 30} days from the date of issue.`,
+        style: 'customTermsText',
+        margin: [0, 0, 0, 10]
+      },
+      {
+        text: 'General',
+        style: 'subsectionHeader'
+      },
+      {
+        text: `${originalTermsAndConditions || 'friday night terms - all work subject to these custom terms and conditions.'}`,
+        style: 'customTermsText',
+        margin: [0, 0, 0, 10]
+      }
+    );
+  }
 
   // Document definition
   const documentDefinition = {
@@ -217,13 +314,9 @@ export const generateEnhancedQuotePDF = (
             width: '*',
             stack: [
               { text: `Quotation Date: ${formatDate(enhancedQuote.quotationDate || enhancedQuote.date)}`, style: 'quoteDetails', alignment: 'right' },
-              { 
-                text: `Lead time: ${businessTerms.leadTimeWeeks} weeks`, 
-                style: 'quoteDetails', 
-                alignment: 'right'
-              },
               { text: `Quotation ref: ${enhancedQuote.quoteNumber || enhancedQuote.id}`, style: 'quoteDetails', alignment: 'right' },
-              useCompanyDetails ? { text: `Contact: ${enhancedQuote.cclContact || 'Sales Team'}`, style: 'quoteDetails', alignment: 'right' } : {}
+              { text: `Valid for: ${enhancedQuote.validityDays || 30} days`, style: 'quoteDetails', alignment: 'right' },
+              useCompanyDetails ? { text: `Contact: Sales Team`, style: 'quoteDetails', alignment: 'right' } : {}
             ]
           }
         ],
@@ -232,7 +325,7 @@ export const generateEnhancedQuotePDF = (
 
       // Professional Introduction
       {
-        text: `Thank you for your recent enquiry; we have pleasure in supplying the following quotation for your consideration. If there are any details of the quotation omitted or which you do not fully understand please contact the ${company.companyName} sales office for further information.`,
+        text: `Thank you for your enquiry. We are pleased to provide the following quotation for your consideration.`,
         style: 'introduction',
         margin: [0, 0, 0, 20]
       },
@@ -300,58 +393,26 @@ export const generateEnhancedQuotePDF = (
         margin: [0, 0, 0, 30]
       },
 
-      // Payment Terms
-      {
-        text: 'Payment Terms:',
-        style: 'sectionHeader',
-        margin: [0, 0, 0, 5]
-      },
-      {
-        columns: [
-          { text: `With order: ${paymentTerms.withOrder}%`, style: 'paymentTerms' },
-          { text: `Prior to despatch: ${paymentTerms.beforeDispatch}%`, style: 'paymentTerms' },
-          { text: `30-days terms: ${paymentTerms.thirtyDays}%`, style: 'paymentTerms' }
-        ],
-        margin: [0, 0, 0, 20]
-      },
+      // Payment Terms (if not included in custom terms)
+      ...(enhancedQuote.terms && !quoteTerms.hasCustomTerms ? [
+        {
+          text: 'Payment Terms:',
+          style: 'sectionHeader',
+          margin: [0, 0, 0, 5]
+        },
+        {
+          text: enhancedQuote.terms,
+          style: 'paymentTerms',
+          margin: [0, 0, 0, 20]
+        }
+      ] : []),
 
-      // Quote Exclusions and Notes
-      {
-        text: 'Quote Exclusions and Notes',
-        style: 'sectionHeader',
-        pageBreak: 'before',
-        margin: [0, 0, 0, 15]
-      },
-
-      // Business Terms Sections - UPDATED to use custom terms
-      { text: 'compliance', style: 'subsectionHeader' },
-      { text: `To conform with current health and safety legislation, all of our equipment will carry the relevant CE Marking; either a Declaration of Conformity or Declaration of Incorporation, dependant on whether ${company.companyName} is the prime contractor.`, style: 'businessTermsText', margin: [0, 0, 0, 10] },
-
-      { text: 'delivery', style: 'subsectionHeader' },
-      { text: businessTerms.deliveryTerms, style: 'businessTermsText', margin: [0, 0, 0, 10] },
-
-      { text: 'drawings', style: 'subsectionHeader' },
-      { text: 'Mechanical Layout and Electrical schematic circuit diagrams will be prepared. Three (3) copies of the fitted drawing will be provided on the completion of equipment.', style: 'businessTermsText', margin: [0, 0, 0, 10] },
-
-      { text: 'exclusions', style: 'subsectionHeader' },
-      {
-        ul: businessTerms.exclusions,
-        style: 'exclusionsList',
-        margin: [0, 0, 0, 10]
-      },
-
-      { text: 'warranty', style: 'subsectionHeader' },
-      { text: businessTerms.warranty, style: 'businessTermsText', margin: [0, 0, 0, 10] },
-
-      { text: 'scope', style: 'subsectionHeader' },
-      { text: `Due to current instabilities in currency, oil and steel values, this quote is only valid for ${businessTerms.validityDays || 30} calendar days.`, style: 'businessTermsText', margin: [0, 0, 0, 10] },
-
-      { text: 'General Terms and conditions', style: 'subsectionHeader' },
-      { text: `All quotes and orders are subject to our standard terms and conditions. ${company.companyWebsite ? `These can be found on our website at ${company.companyWebsite}` : ''} Written copies available on request`, style: 'businessTermsText', margin: [0, 0, 0, 20] },
+      // NEW: Quote-specific terms content
+      ...termsContent,
 
       // Closing
-      { text: 'Warm regards,', style: 'closing', margin: [0, 10, 0, 5] },
-      { text: enhancedQuote.cclContact || company.companyName, style: 'signature' }
+      { text: 'Thank you for your consideration.', style: 'closing', margin: [0, 20, 0, 5] },
+      { text: company.companyName, style: 'signature' }
     ],
 
     // Styles
@@ -428,13 +489,15 @@ export const generateEnhancedQuotePDF = (
       paymentTerms: {
         fontSize: 11
       },
-      businessTermsText: {
+      // NEW: Styles for custom terms
+      customTermsText: {
         fontSize: 10,
         lineHeight: 1.4,
         alignment: 'justify'
       },
-      exclusionsList: {
-        fontSize: 10
+      customTermsList: {
+        fontSize: 10,
+        lineHeight: 1.3
       },
       closing: {
         fontSize: 11

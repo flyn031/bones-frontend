@@ -1,15 +1,16 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { X, Search, UserPlus, Plus, History, Clock, Save, RefreshCw, Check, Clock3, X as XIcon, AlertTriangle, Zap } from "lucide-react";
+import { X, Search, UserPlus, Plus, History, Clock, Save, RefreshCw, Check, Clock3, X as XIcon, AlertTriangle, Zap, User, Phone, Mail } from "lucide-react";
 import axios from "axios";
 import { API_URL } from "../../config/constants";
 import FrequentItemSelector from "./FrequentItemSelector";
 import BundleSelector from "./BundleSelector";
 import PriceHistoryDisplay from "./PriceHistoryDisplay";
 import SaveTemplateModal from "./SaveTemplateModal";
+import { CustomerContactSelector } from "./CustomerContactSelector";
 // Smart Quote Builder Import
 import { SmartQuoteBuilder } from "../smartquote";
 import { JobsResponse, MaterialPriceResponse, CreateCustomerResponse, ApiErrorResponse } from "../../types/api";
-import { Customer, QuoteData, QuoteItem, QuoteStatus } from "../../types/quote";
+import { Customer, CustomerWithContacts, CustomerContact, QuoteData, QuoteItem, QuoteStatus } from "../../types/quote";
 
 // Define conveyors and materials
 interface Item {
@@ -34,7 +35,7 @@ interface NewQuoteModalProps {
   onClose: () => void;
   onSubmit: (data: QuoteData) => void;
   editQuote?: QuoteData | null;
-  customers?: Customer[];
+  customers?: CustomerWithContacts[]; // Updated to support contacts
 }
 
 // ✅ FIXED - Job interface with proper typing
@@ -129,9 +130,8 @@ export default function NewQuoteModal({
   editQuote,
   customers = [],
 }: NewQuoteModalProps) {
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
-    null
-  );
+  const [selectedCustomer, setSelectedCustomer] = useState<CustomerWithContacts | null>(null);
+  const [selectedContact, setSelectedContact] = useState<CustomerContact | null>(null); // NEW: Contact state
   const [showNewCustomerForm, setShowNewCustomerForm] = useState(false);
   const [newCustomer, setNewCustomer] = useState<Partial<Customer>>({
     name: "",
@@ -140,6 +140,9 @@ export default function NewQuoteModal({
     address: "",
     contactPerson: "",
   });
+
+  // NEW: Terms and Conditions state
+  const [termsAndConditions, setTermsAndConditions] = useState('');
 
   const [quoteData, setQuoteData] = useState<Partial<QuoteData>>({
     title: "",
@@ -151,6 +154,7 @@ export default function NewQuoteModal({
     jobId: "",
     validityDays: 30,
     terms: "Net 30",
+    termsAndConditions: "", // NEW: Initialize terms and conditions
     notes: "",
     items: [],
     customerReference: "", // Initialize customer reference field
@@ -190,6 +194,19 @@ export default function NewQuoteModal({
   }, [selectedItems]);
 
   const [showSmartBuilder, setShowSmartBuilder] = useState(false);
+
+  // NEW: Contact selection handler
+  const handleContactSelected = (contact: CustomerContact) => {
+    setSelectedContact(contact);
+    
+    // Auto-populate contact fields
+    setQuoteData({
+      ...quoteData,
+      contactPerson: contact.name,
+      contactEmail: contact.email,
+      contactPhone: contact.phone || "",
+    });
+  };
 
   // Get status styling based on current status - FIXED: Use QuoteStatus type
   const getStatusStyles = (status: QuoteStatus) => {
@@ -422,11 +439,15 @@ export default function NewQuoteModal({
         jobId: editQuote.jobId || "",
         validityDays: editQuote.validityDays || 30,
         terms: editQuote.terms || "Net 30",
+        termsAndConditions: editQuote.termsAndConditions || "", // NEW: Initialize T&C from edit data
         notes: editQuote.notes || "",
         quoteNumber: editQuote.quoteNumber || "", // Set quote number if available
         customerReference: editQuote.customerReference || "", // Set customer reference if available
         status: editQuote.status || "DRAFT" // Set status if available - FIXED: Use valid QuoteStatus
       });
+
+      // NEW: Set the standalone terms and conditions state
+      setTermsAndConditions(editQuote.termsAndConditions || "");
 
       // Set selected customer if available
       if (editQuote.customerId) {
@@ -573,18 +594,36 @@ export default function NewQuoteModal({
   const calculateTotal = (): number =>
     selectedItems.reduce((sum, item) => sum + item.total, 0);
 
-  // Select a customer
-  const handleSelectCustomer = (customer: Customer) => {
+  // UPDATED: Select a customer with contact handling
+  const handleSelectCustomer = (customer: CustomerWithContacts) => {
     console.log("Selected customer:", customer);
     setSelectedCustomer(customer);
-    setQuoteData({
-      ...quoteData,
-      customer: customer.name || "",
-      customerId: customer.id || "",
-      contactPerson: customer.contactPerson || "",
-      contactEmail: customer.email || "",
-      contactPhone: customer.phone || "",
-    });
+    setSelectedContact(null); // Reset selected contact
+    
+    // Auto-select primary contact if available
+    const primaryContact = customer.contacts?.find(c => c.isPrimary) || customer.contacts?.[0];
+    if (primaryContact) {
+      setSelectedContact(primaryContact);
+      setQuoteData({
+        ...quoteData,
+        customer: customer.name || "",
+        customerId: customer.id || "",
+        contactPerson: primaryContact.name,
+        contactEmail: primaryContact.email,
+        contactPhone: primaryContact.phone || "",
+      });
+    } else {
+      // Fallback to legacy customer data
+      setQuoteData({
+        ...quoteData,
+        customer: customer.name || "",
+        customerId: customer.id || "",
+        contactPerson: customer.contactPerson || "",
+        contactEmail: customer.email || "",
+        contactPhone: customer.phone || "",
+      });
+    }
+    
     setShowCustomerDropdown(false);
   };
 
@@ -738,7 +777,7 @@ export default function NewQuoteModal({
       const customerData = response.data as CreateCustomerResponse;
 
       // Use the returned customer or create a fallback if API response is unexpected
-      const createdCustomer: Customer =
+      const createdCustomer: CustomerWithContacts =
         customerData && typeof customerData === "object"
           ? {
               id: customerData.id || `cust${Date.now()}`,
@@ -748,6 +787,7 @@ export default function NewQuoteModal({
               address: customerData.address || newCustomer.address || undefined,
               contactPerson:
                 customerData.contactPerson || newCustomer.contactPerson || undefined,
+              contacts: [] // New customers start with no structured contacts
             }
           : {
               id: `cust${Date.now()}`,
@@ -756,6 +796,7 @@ export default function NewQuoteModal({
               phone: newCustomer.phone || undefined,
               address: newCustomer.address || undefined,
               contactPerson: newCustomer.contactPerson || undefined,
+              contacts: []
             };
 
       // Select the new customer
@@ -782,13 +823,14 @@ export default function NewQuoteModal({
 
       // Even on error, create a temporary customer for the quote
       // This allows the user to continue without losing their work
-      const tempCustomer: Customer = {
+      const tempCustomer: CustomerWithContacts = {
         id: `temp_${Date.now()}`,
         name: newCustomer.name || "",
         email: newCustomer.email || "",
         phone: newCustomer.phone || undefined,
         address: newCustomer.address || undefined,
         contactPerson: newCustomer.contactPerson || undefined,
+        contacts: []
       };
 
       handleSelectCustomer(tempCustomer);
@@ -811,11 +853,12 @@ export default function NewQuoteModal({
 
   // Submit the quote
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    console.log("NewQuoteModal: handleSubmit triggered!"); // ADDED LOG
-    console.log("🚀 [DEBUG] selectedItems at submission:", selectedItems);
-    
-    const totalValue = calculateTotal();
+  e.preventDefault();
+  console.log("NewQuoteModal: handleSubmit triggered!");
+  console.log("🚀 [DEBUG] selectedItems at submission:", selectedItems);
+  console.log("TERMS CHECK:", termsAndConditions); // Add this line
+  
+  const totalValue = calculateTotal();
 
     // Format items for submission
     const formattedItems: QuoteItem[] = selectedItems.map((item) => ({
@@ -834,6 +877,7 @@ export default function NewQuoteModal({
       ...(quoteData as QuoteData),
       items: formattedItems,
       totalAmount: totalValue, // Fixed: Use totalAmount instead of value
+      termsAndConditions: termsAndConditions.trim(), // NEW: Include terms and conditions
       date: new Date().toISOString().split("T")[0],
       validUntil: new Date(
         Date.now() + (quoteData.validityDays || 30) * 24 * 60 * 60 * 1000
@@ -1211,115 +1255,227 @@ export default function NewQuoteModal({
             </div>
           </div>
 
-          {/* Contact Information */}
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Contact Person
-              </label>
-              <input
-                type="text"
-                value={quoteData.contactPerson || ""}
-                onChange={(e) =>
-                  setQuoteData({ ...quoteData, contactPerson: e.target.value })
-                }
-                className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-              />
+          {/* ENHANCED Contact Information with Contact Selector */}
+          {selectedCustomer && (
+            <div className="border-t border-gray-200 pt-4">
+              <h4 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                <User className="h-5 w-5 mr-2 text-blue-600" />
+                Contact Information
+              </h4>
+              
+              {/* Contact Selector - only show if customer has multiple contacts */}
+              {selectedCustomer.contacts && selectedCustomer.contacts.length > 0 && (
+                <div className="mb-6">
+                  <CustomerContactSelector
+                    customer={selectedCustomer}
+                    selectedContactId={selectedContact?.id}
+                    onContactSelected={handleContactSelected}
+                  />
+                </div>
+              )}
+              
+              {/* Contact fields - auto-populated but editable */}
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Contact Person
+                    {selectedContact && (
+                      <span className="ml-1 text-xs text-green-600 font-medium">
+                        (Auto-filled from {selectedContact.isPrimary ? 'primary ' : ''}contact)
+                      </span>
+                    )}
+                  </label>
+                  <input
+                    type="text"
+                    value={quoteData.contactPerson || ""}
+                    onChange={(e) => {
+                      setQuoteData({ ...quoteData, contactPerson: e.target.value });
+                      // Clear selected contact if manually edited
+                      if (selectedContact && e.target.value !== selectedContact.name) {
+                        setSelectedContact(null);
+                      }
+                    }}
+                    className={`w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-colors ${
+                      selectedContact ? 'bg-green-50 border-green-300' : 'border-gray-300'
+                    }`}
+                    placeholder="Enter contact name"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Contact Email
+                    {selectedContact && (
+                      <span className="ml-1 text-xs text-green-600 font-medium">
+                        (Auto-filled)
+                      </span>
+                    )}
+                  </label>
+                  <input
+                    type="email"
+                    value={quoteData.contactEmail || ""}
+                    onChange={(e) => {
+                      setQuoteData({ ...quoteData, contactEmail: e.target.value });
+                      // Clear selected contact if manually edited
+                      if (selectedContact && e.target.value !== selectedContact.email) {
+                        setSelectedContact(null);
+                      }
+                    }}
+                    className={`w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-colors ${
+                      selectedContact ? 'bg-green-50 border-green-300' : 'border-gray-300'
+                    }`}
+                    placeholder="Enter contact email"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Contact Phone
+                    {selectedContact && (
+                      <span className="ml-1 text-xs text-green-600 font-medium">
+                        (Auto-filled)
+                      </span>
+                    )}
+                  </label>
+                  <input
+                    type="tel"
+                    value={quoteData.contactPhone || ""}
+                    onChange={(e) => {
+                      setQuoteData({ ...quoteData, contactPhone: e.target.value });
+                      // Clear selected contact if manually edited
+                      if (selectedContact && e.target.value !== (selectedContact.phone || "")) {
+                        setSelectedContact(null);
+                      }
+                    }}
+                    className={`w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-colors ${
+                      selectedContact ? 'bg-green-50 border-green-300' : 'border-gray-300'
+                    }`}
+                    placeholder="Enter contact phone"
+                  />
+                </div>
+              </div>
+              
+              {/* Show additional contact details if selected */}
+              {selectedContact && (selectedContact.title || selectedContact.department) && (
+                <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="text-sm text-blue-800">
+                    <strong>Role:</strong> {selectedContact.title}
+                    {selectedContact.department && ` • ${selectedContact.department}`}
+                  </div>
+                </div>
+              )}
+              
+              {/* Show legacy fallback notice */}
+              {selectedCustomer && (!selectedCustomer.contacts || selectedCustomer.contacts.length === 0) && (
+                <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                  <div className="text-sm text-amber-800">
+                    Using legacy contact information. Consider adding structured contacts for this customer.
+                  </div>
+                </div>
+              )}
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Contact Email
-              </label>
-              <input
-                type="email"
-                value={quoteData.contactEmail || ""}
-                onChange={(e) =>
-                  setQuoteData({ ...quoteData, contactEmail: e.target.value })
-                }
-                className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Contact Phone
-              </label>
-              <input
-                type="tel"
-                value={quoteData.contactPhone || ""}
-                onChange={(e) =>
-                  setQuoteData({ ...quoteData, contactPhone: e.target.value })
-                }
-                className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-          </div>
+          )}
 
-          {/* References, Job Linking and Terms */}
-          <div className="grid grid-cols-4 gap-4">
-            {/* New field for customer reference */}
+          {/* NEW: ENHANCED References, Job Linking, Payment Terms, and Terms & Conditions */}
+          <div className="grid grid-cols-2 gap-6">
+            {/* Left Column */}
+            <div className="space-y-4">
+              {/* Customer Reference */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Customer Reference
+                </label>
+                <input
+                  type="text"
+                  value={quoteData.customerReference || ""}
+                  onChange={handleCustomerReferenceChange}
+                  placeholder="Customer's PO# or reference"
+                  className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              {/* Job Linking */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Link to Job
+                </label>
+                <select
+                  value={quoteData.jobId || ""}
+                  onChange={(e) =>
+                    setQuoteData({ ...quoteData, jobId: e.target.value })
+                  }
+                  className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">No Job</option>
+                  {jobs.map((job) => (
+                    <option key={job.id} value={job.id}>
+                      {job.projectTitle}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Validity Days */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Valid For (Days)
+                </label>
+                <input
+                  type="number"
+                  value={quoteData.validityDays || 30}
+                  onChange={(e) =>
+                    setQuoteData({
+                      ...quoteData,
+                      validityDays: parseInt(e.target.value),
+                    })
+                  }
+                  className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              {/* Payment Terms */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Payment Terms
+                </label>
+                <select
+                  value={quoteData.terms || "Net 30"}
+                  onChange={(e) =>
+                    setQuoteData({ ...quoteData, terms: e.target.value })
+                  }
+                  className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="Net 30">Net 30</option>
+                  <option value="Net 60">Net 60</option>
+                  <option value="50% Deposit">50% Deposit</option>
+                  <option value="100% Advance">100% Advance</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Right Column - Terms & Conditions */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Customer Reference
+                Terms & Conditions
+                <span className="text-gray-500 text-xs ml-1">(Quote specific)</span>
               </label>
-              <input
-                type="text"
-                value={quoteData.customerReference || ""}
-                onChange={handleCustomerReferenceChange}
-                placeholder="Customer's PO# or reference"
-                className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+              <textarea
+                value={termsAndConditions}
+                onChange={(e) => {
+                  setTermsAndConditions(e.target.value);
+                  setQuoteData({ ...quoteData, termsAndConditions: e.target.value });
+                }}
+                placeholder="Enter specific terms and conditions for this quote, or copy/paste your standard terms...
+
+Examples:
+• Payment due within 30 days of invoice date
+• Materials subject to availability
+• Installation not included unless specified
+• Quote valid for 30 days from date issued"
+                className="w-full h-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                rows={8}
               />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Link to Job
-              </label>
-              <select
-                value={quoteData.jobId || ""}
-                onChange={(e) =>
-                  setQuoteData({ ...quoteData, jobId: e.target.value })
-                }
-                className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">No Job</option>
-                {jobs.map((job) => (
-                  <option key={job.id} value={job.id}>
-                    {job.projectTitle}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Valid For (Days)
-              </label>
-              <input
-                type="number"
-                value={quoteData.validityDays || 30}
-                onChange={(e) =>
-                  setQuoteData({
-                    ...quoteData,
-                    validityDays: parseInt(e.target.value),
-                  })
-                }
-                className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Payment Terms
-              </label>
-              <select
-                value={quoteData.terms || "Net 30"}
-                onChange={(e) =>
-                  setQuoteData({ ...quoteData, terms: e.target.value })
-                }
-                className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="Net 30">Net 30</option>
-                <option value="Net 60">Net 60</option>
-                <option value="50% Deposit">50% Deposit</option>
-                <option value="100% Advance">100% Advance</option>
-              </select>
+              <p className="text-xs text-gray-500 mt-1">
+                These terms will override any default terms in the quote PDF
+              </p>
             </div>
           </div>
 
@@ -1454,8 +1610,8 @@ export default function NewQuoteModal({
                   {inventoryItems.length} items available. {materialsLoading ? 'Refreshing materials...' : 'Click the refresh button to load latest items.'}
                 </div>
 
-                {/* Available Items */}
-                <div className="mb-4 max-h-40 overflow-y-auto border rounded-lg">
+                {/* FIXED: Available Items - Changed overflow-y-auto to overflow-y-scroll */}
+                <div className="mb-4 max-h-40 overflow-y-scroll border rounded-lg">
                   {materialsLoading ? (
                     <div className="p-4 text-center text-gray-500">
                       Loading materials...
