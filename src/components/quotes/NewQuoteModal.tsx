@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { X, Search, UserPlus, Plus, History, Clock, Save, RefreshCw, Check, Clock3, X as XIcon, AlertTriangle, Zap, User, Phone, Mail } from "lucide-react";
+import { X, Search, UserPlus, Plus, History, Clock, Save, RefreshCw, Check, Clock3, X as XIcon, AlertTriangle, Zap, User } from "lucide-react";
 import axios from "axios";
 import { API_URL } from "../../config/constants";
 import FrequentItemSelector from "./FrequentItemSelector";
