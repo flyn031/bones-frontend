@@ -380,18 +380,18 @@ const UserProfile = () => {
   // JSX for the component rendering
   return (
     <div className="relative">
-      {/* Profile Button - UPDATED with clickable user name */}
+      {/* Profile Button - UPDATED with company logo display */}
       <div className="flex items-center">
-        {/* Clickable User Name - NEW */}
+        {/* Clickable User Name - Show company name if available */}
         <button
           onClick={handleProfileClick}
           className="hidden md:inline-block mr-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 rounded px-2 py-1 transition-colors"
           aria-label="Open profile settings"
         >
-          {safeUser?.name?.split(' ')[0] || 'Profile'}
+          {safeUser?.companyName || safeUser?.name?.split(' ')[0] || 'Profile'}
         </button>
 
-        {/* Profile Menu Button */}
+        {/* Profile Menu Button - UPDATED: Show company logo or fallback */}
         <button
           onClick={() => setIsMenuOpen(!isMenuOpen)}
           className="flex items-center space-x-2 rounded-full bg-white dark:bg-gray-700 p-1 sm:p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
@@ -399,9 +399,25 @@ const UserProfile = () => {
           aria-expanded={isMenuOpen}
           aria-label="User profile menu"
         >
-          <User className="h-5 w-5" />
+          {/* NEW: Company logo display with fallbacks */}
+          {logoPreview ? (
+            <img 
+              src={logoPreview} 
+              alt="Company Logo" 
+              className="h-6 w-6 rounded-full object-cover border border-gray-200 dark:border-gray-600" 
+            />
+          ) : (
+            <div className="h-6 w-6 rounded-full bg-indigo-500 flex items-center justify-center text-white text-xs font-bold">
+              {safeUser?.companyName?.charAt(0).toUpperCase() || 
+               safeUser?.name?.charAt(0).toUpperCase() || 
+               <User className="h-4 w-4" />}
+            </div>
+          )}
+          
           {/* Show name on mobile/small screens only since it's separate on desktop */}
-          <span className="inline md:hidden text-sm font-medium">{safeUser?.name?.split(' ')[0] || 'Profile'}</span>
+          <span className="inline md:hidden text-sm font-medium">
+            {safeUser?.companyName || safeUser?.name?.split(' ')[0] || 'Profile'}
+          </span>
         </button>
       </div>
 
@@ -414,14 +430,19 @@ const UserProfile = () => {
           aria-labelledby="user-menu-button"
         >
           <div className="py-1 divide-y divide-gray-100 dark:divide-gray-700">
-            {/* Profile Info Section */}
+            {/* Profile Info Section - UPDATED: Show company info */}
             <div className="px-4 py-3">
               <p className="text-sm font-medium text-gray-900 dark:text-white" role="none">
-                {safeUser?.name || 'Current User'}
+                {safeUser?.companyName || safeUser?.name || 'Current User'}
               </p>
               <p className="text-sm text-gray-500 dark:text-gray-400 truncate" role="none">
                 {safeUser?.email || 'No email provided'}
               </p>
+              {safeUser?.companyName && safeUser?.name && (
+                <p className="text-xs text-gray-400 dark:text-gray-500 truncate" role="none">
+                  {safeUser.name}
+                </p>
+              )}
             </div>
 
             {/* Actions Section */}
@@ -582,7 +603,7 @@ const UserProfile = () => {
                                                 : (<Image className="h-10 w-10 text-gray-400 dark:text-gray-500" />)}
                                </div>
                                 <div className="flex-grow space-y-2">
-                                   <p className="text-xs text-gray-500 dark:text-gray-400">Max 500KB. Appears on PDFs if enabled below.</p>
+                                   <p className="text-xs text-gray-500 dark:text-gray-400">Max 500KB. Appears on PDFs and in the header if enabled below.</p>
                                   <div className="flex flex-wrap items-center gap-2">
                                     <label htmlFor="logo-upload-input" className="cursor-pointer inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 shadow-sm text-sm font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-indigo-500">
                                        <Upload className="h-4 w-4 mr-2" />
