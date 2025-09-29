@@ -27,6 +27,7 @@ interface MockSavedQuotePayload {
     jobId?: string;
     validityDays: number;
     terms: string;
+    termsAndConditions?: string; // ADD: Include terms and conditions
     notes?: string;
     customerReference?: string;
     status: QuoteStatus; // Fixed: Use QuoteStatus string union
@@ -160,6 +161,7 @@ export default function Quotes() {
                 status: ((q.status || 'DRAFT').toUpperCase() as QuoteStatus), // Fixed: Cast to QuoteStatus
                 title: q.title,
                 description: q.description,
+                termsAndConditions: q.termsAndConditions, // FIXED: Add termsAndConditions
                 customerId: q.customerId ?? undefined,
                 customerName: q.customer?.name || q.customerName || 'Unknown',
                 customer: q.customer, 
@@ -334,6 +336,7 @@ const handleModalSaveSuccess = useCallback((data: QuoteData) => {
         ...data,
         totalAmount: data.totalAmount,
         status: data.status, // Fixed: Direct use of QuoteStatus
+        termsAndConditions: data.termsAndConditions, // FIXED: Include terms and conditions
         // Fixed: Convert items to expected format with all required properties
         items: data.items.map(item => ({
             description: item.description,
@@ -666,6 +669,7 @@ const apiMethod = isUpdatingDraft ? apiClient.put : apiClient.post;
        validUntil: quoteData.validUntil || undefined,
        validityDays: 30,
        terms: quoteData.terms || 'Net 30',
+       termsAndConditions: quoteData.termsAndConditions || undefined, // FIXED: Include terms and conditions for PDF
        notes: quoteData.notes || undefined,
        items: (quoteData.lineItems || []).map((item: any) => ({
          id: item.id,
@@ -713,6 +717,7 @@ const apiMethod = isUpdatingDraft ? apiClient.put : apiClient.post;
          validUntil: quote.validUntil || undefined,
          validityDays: 30,
          terms: 'Net 30',
+         termsAndConditions: quote.termsAndConditions || undefined, // FIXED: Include terms and conditions for fallback PDF
          notes: quote.notes || undefined,
          items: quote.lineItems.map(item => ({
            id: item.id,
@@ -743,7 +748,7 @@ const apiMethod = isUpdatingDraft ? apiClient.put : apiClient.post;
    }
  };
 
- // Fixed: Convert QuoteVersion to QuoteData for modal compatibility
+ // FIXED: Convert QuoteVersion to QuoteData for modal compatibility
  const convertQuoteVersionToQuoteData = (quote: QuoteVersion): QuoteData => ({
     id: quote.id,
     title: quote.title,
@@ -755,6 +760,7 @@ const apiMethod = isUpdatingDraft ? apiClient.put : apiClient.post;
     jobId: quote.jobId ?? undefined,
     validityDays: 30,
     terms: '',
+    termsAndConditions: quote.termsAndConditions ?? undefined, // FIXED: Include terms and conditions
     notes: quote.notes ?? undefined,
     customerReference: quote.customerReference ?? undefined,
     status: quote.status, // Fixed: Use status directly from QuoteStatus union

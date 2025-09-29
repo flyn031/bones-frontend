@@ -76,6 +76,9 @@ export const generateEnhancedQuotePDF = (
   // NEW: Parse quote-specific terms using the original value
   const quoteTerms = parseQuoteTerms(originalTermsAndConditions);
   console.log('PDF Generator parsed quote terms:', quoteTerms);
+  console.log('🐛 FORCE DEBUG - originalTermsAndConditions:', originalTermsAndConditions);
+  console.log('🐛 FORCE DEBUG - quoteTerms.hasCustomTerms:', quoteTerms.hasCustomTerms);
+
 
   // Use company details from profile
   const useCompanyDetails = userProfile?.useCompanyDetailsOnQuotes || false;

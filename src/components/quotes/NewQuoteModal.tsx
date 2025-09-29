@@ -423,6 +423,8 @@ export default function NewQuoteModal({
   useEffect(() => {
     if (editQuote) {
       console.log("Initializing edit quote data:", editQuote);
+      console.log("🔍 EDIT QUOTE DEBUG:", editQuote);
+      console.log("🔍 TERMS IN EDIT QUOTE:", editQuote.termsAndConditions);
       
       // Check for items in different possible locations
       const quoteItems = editQuote.items || editQuote.lineItems || [];
@@ -885,7 +887,8 @@ export default function NewQuoteModal({
         .toISOString()
         .split("T")[0],
     };
-
+    console.log("🔥 FORM SUBMISSION - completeQuoteData:", completeQuoteData);
+    console.log("🔥 FORM SUBMISSION - termsAndConditions in data:", completeQuoteData.termsAndConditions);
     onSubmit(completeQuoteData);
     console.log("NewQuoteModal: onSubmit (prop) called with data:", completeQuoteData); // ADDED LOG
   };
