@@ -2,9 +2,8 @@ import { useState, useEffect } from 'react';
 import { User, LogOut, Info, X, Settings, Activity, Shield, Building, Upload, Image } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { apiClient as api } from '../../utils/api';
-// Removed unused import: User as UserType
-import SystemFlowDiagram from '../dashboard/SystemFlowDiagram'; // Assuming this component exists
-import { Button, Input, Alert } from '../ui'; // Assuming these UI components exist
+import SystemFlowDiagram from '../dashboard/SystemFlowDiagram';
+import { Button, Input, Alert } from '../ui';
 
 type AlertType = 'info' | 'success' | 'warning' | 'error';
 
@@ -13,7 +12,6 @@ interface MessageState {
   text: string;
 }
 
-// CLEANED: Removed quote terms fields from user profile
 interface SafeUserProfile {
   id?: string;
   name?: string;
@@ -28,10 +26,13 @@ interface SafeUserProfile {
   companyVatNumber?: string;
   companyLogo?: string;
   useCompanyDetailsOnQuotes?: boolean;
-  // REMOVED: Quote terms fields - now handled per quote
+  // Company defaults for quotes
+  standardWarranty?: string;
+  standardDeliveryTerms?: string;
+  defaultLeadTimeWeeks?: number;
+  standardExclusions?: string;
 }
 
-// CLEANED: Company details without quote terms
 interface CompanyDetailsState {
   companyName: string;
   companyAddress: string;
@@ -41,15 +42,12 @@ interface CompanyDetailsState {
   companyVatNumber: string;
   companyLogo: string;
   useCompanyDetailsOnQuotes: boolean;
-  // REMOVED: Quote terms fields - now handled per quote
+  // Company defaults for quotes
+  standardWarranty: string;
+  standardDeliveryTerms: string;
+  defaultLeadTimeWeeks: number;
+  standardExclusions: string;
 }
-
-/*
-This component handles the user profile dropdown menu, profile settings modal,
-and the system overview modal. It includes features for updating company details,
-changing passwords, managing preferences (like dark mode), and viewing recent activity.
-Quote terms are now handled individually per quote for maximum flexibility.
-*/
 
 const UserProfile = () => {
   const { user, logout, updateUser } = useAuth();
@@ -67,7 +65,6 @@ const UserProfile = () => {
   const [passwordMessage, setPasswordMessage] = useState<MessageState>({ type: '', text: '' });
   const [profileMessage, setProfileMessage] = useState<MessageState>({ type: '', text: '' });
   
-  // Convert user to SafeUserProfile safely - CLEANED: Removed quote terms
   const safeUser: SafeUserProfile = user ? {
     id: user.id || undefined,
     name: user.name || undefined,
@@ -81,13 +78,15 @@ const UserProfile = () => {
     companyWebsite: (user as any).companyWebsite || undefined,
     companyVatNumber: (user as any).companyVatNumber || undefined,
     companyLogo: (user as any).companyLogo || undefined,
-    useCompanyDetailsOnQuotes: Boolean((user as any).useCompanyDetailsOnQuotes)
-    // REMOVED: Quote terms - now handled per quote
+    useCompanyDetailsOnQuotes: Boolean((user as any).useCompanyDetailsOnQuotes),
+    standardWarranty: (user as any).standardWarranty || undefined,
+    standardDeliveryTerms: (user as any).standardDeliveryTerms || undefined,
+    defaultLeadTimeWeeks: (user as any).defaultLeadTimeWeeks || undefined,
+    standardExclusions: (user as any).standardExclusions || undefined,
   } : {};
 
   const [logoPreview, setLogoPreview] = useState(safeUser.companyLogo || '');
 
-  // Company details state - CLEANED: Removed quote terms
   const [companyDetails, setCompanyDetails] = useState<CompanyDetailsState>({
     companyName: safeUser.companyName || '',
     companyAddress: safeUser.companyAddress || '',
@@ -96,11 +95,13 @@ const UserProfile = () => {
     companyWebsite: safeUser.companyWebsite || '',
     companyVatNumber: safeUser.companyVatNumber || '',
     companyLogo: safeUser.companyLogo || '',
-    useCompanyDetailsOnQuotes: Boolean(safeUser.useCompanyDetailsOnQuotes)
-    // REMOVED: Quote terms - now handled per quote
+    useCompanyDetailsOnQuotes: Boolean(safeUser.useCompanyDetailsOnQuotes),
+    standardWarranty: safeUser.standardWarranty || '',
+    standardDeliveryTerms: safeUser.standardDeliveryTerms || '',
+    defaultLeadTimeWeeks: safeUser.defaultLeadTimeWeeks || 4,
+    standardExclusions: safeUser.standardExclusions || '',
   });
 
-  // Update company details state when user data changes from context - CLEANED
   useEffect(() => {
     if (user) {
       const updatedSafeUser: SafeUserProfile = {
@@ -116,8 +117,11 @@ const UserProfile = () => {
         companyWebsite: (user as any).companyWebsite || undefined,
         companyVatNumber: (user as any).companyVatNumber || undefined,
         companyLogo: (user as any).companyLogo || undefined,
-        useCompanyDetailsOnQuotes: Boolean((user as any).useCompanyDetailsOnQuotes)
-        // REMOVED: Quote terms - now handled per quote
+        useCompanyDetailsOnQuotes: Boolean((user as any).useCompanyDetailsOnQuotes),
+        standardWarranty: (user as any).standardWarranty || undefined,
+        standardDeliveryTerms: (user as any).standardDeliveryTerms || undefined,
+        defaultLeadTimeWeeks: (user as any).defaultLeadTimeWeeks || undefined,
+        standardExclusions: (user as any).standardExclusions || undefined,
       };
 
       setCompanyDetails({
@@ -128,14 +132,16 @@ const UserProfile = () => {
         companyWebsite: updatedSafeUser.companyWebsite || '',
         companyVatNumber: updatedSafeUser.companyVatNumber || '',
         companyLogo: updatedSafeUser.companyLogo || '',
-        useCompanyDetailsOnQuotes: Boolean(updatedSafeUser.useCompanyDetailsOnQuotes)
-        // REMOVED: Quote terms - now handled per quote
+        useCompanyDetailsOnQuotes: Boolean(updatedSafeUser.useCompanyDetailsOnQuotes),
+        standardWarranty: updatedSafeUser.standardWarranty || '',
+        standardDeliveryTerms: updatedSafeUser.standardDeliveryTerms || '',
+        defaultLeadTimeWeeks: updatedSafeUser.defaultLeadTimeWeeks || 4,
+        standardExclusions: updatedSafeUser.standardExclusions || '',
       });
       setLogoPreview(updatedSafeUser.companyLogo || '');
     }
   }, [user]);
 
-  // Recent activity simulation - Replace with actual API call in a real application
   const recentActivity = [
     { id: 1, action: 'Logged in', timestamp: '2025-03-10 09:45 AM' },
     { id: 2, action: 'Updated job #JB-1234', timestamp: '2025-03-09 03:22 PM' },
@@ -144,21 +150,16 @@ const UserProfile = () => {
     { id: 5, action: 'Viewed inventory report', timestamp: '2025-03-07 10:33 AM' }
   ];
 
-  // Handle user logout
   const handleLogout = () => {
     logout();
-    // Navigation to login page is typically handled inside the logout function
-    // or via context state change redirecting in App.tsx/Routes.tsx
   };
 
-  // Handle direct profile access - NEW FUNCTION
   const handleProfileClick = () => {
     setShowProfileModal(true);
-    setActiveTab('info'); // Default to account info tab
-    setIsMenuOpen(false); // Close dropdown if open
+    setActiveTab('info');
+    setIsMenuOpen(false);
   };
 
-  // Toggle dark/light theme
   const handleThemeToggle = () => {
     const newTheme = !isDarkMode ? 'dark' : 'light';
     setIsDarkMode(!isDarkMode);
@@ -171,12 +172,10 @@ const UserProfile = () => {
     }
   };
 
-  // Handle password change submission
   const handlePasswordChange = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setPasswordMessage({ type: '', text: '' }); // Clear previous messages
+    setPasswordMessage({ type: '', text: '' });
 
-    // Frontend validation
     if (passwordData.newPassword !== passwordData.confirmPassword) {
       setPasswordMessage({ type: 'error', text: 'New passwords do not match' });
       return;
@@ -186,21 +185,14 @@ const UserProfile = () => {
       return;
     }
 
-    // API Call (Replace with your actual API endpoint)
     try {
       console.log('Attempting password change...');
-      // Example API call structure:
-      // await api.post('/auth/change-password', {
-      //   currentPassword: passwordData.currentPassword,
-      //   newPassword: passwordData.newPassword,
-      // });
-      await new Promise(resolve => setTimeout(resolve, 750)); // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, 750));
       console.log('Password changed successfully (simulated).');
 
       setPasswordMessage({ type: 'success', text: 'Password updated successfully' });
-      setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' }); // Reset form
+      setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
 
-      // Auto-clear message after a few seconds
       setTimeout(() => setPasswordMessage({ type: '', text: '' }), 4000);
 
     } catch (error: any) {
@@ -212,46 +204,41 @@ const UserProfile = () => {
     }
   };
 
-  // Handle input changes for the password form
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setPasswordData(prev => ({ ...prev, [name]: value }));
   };
 
-  // Handle input changes for company details form - CLEANED: Simplified
   const handleCompanyDetailsChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
     const checked = (e.target as HTMLInputElement).checked;
     
     setCompanyDetails(prev => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value
+      [name]: type === 'checkbox' ? checked : (name === 'defaultLeadTimeWeeks' ? Number(value) : value)
     }));
   };
 
-  // Handle company logo file selection
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    setProfileMessage({ type: '', text: '' }); // Clear previous messages
+    setProfileMessage({ type: '', text: '' });
     if (!file) return;
 
-    // Validation
     if (!file.type.startsWith('image/')) {
       setProfileMessage({ type: 'error', text: 'Please select an image file (PNG, JPG, GIF etc.)' });
       return;
     }
-    if (file.size > 500 * 1024) { // Max 500KB
+    if (file.size > 500 * 1024) {
       setProfileMessage({ type: 'error', text: 'Logo image must be smaller than 500KB' });
       return;
     }
 
-    // Read file as Base64
     const reader = new FileReader();
     reader.onloadend = () => {
       const base64String = reader.result as string;
-      setLogoPreview(base64String); // Show preview
-      setCompanyDetails(prev => ({ ...prev, companyLogo: base64String })); // Store base64 in state
-      setProfileMessage({ type: 'info', text: 'New logo selected. Remember to save changes.' }); // Inform user
+      setLogoPreview(base64String);
+      setCompanyDetails(prev => ({ ...prev, companyLogo: base64String }));
+      setProfileMessage({ type: 'info', text: 'New logo selected. Remember to save changes.' });
       setTimeout(() => setProfileMessage({ type: '', text: '' }), 4000);
     };
     reader.onerror = (error) => {
@@ -261,7 +248,6 @@ const UserProfile = () => {
     reader.readAsDataURL(file);
   };
 
-  // Handle removing the company logo
   const handleClearLogo = () => {
     setLogoPreview('');
     setCompanyDetails(prev => ({ ...prev, companyLogo: '' }));
@@ -269,7 +255,6 @@ const UserProfile = () => {
     setTimeout(() => setProfileMessage({ type: '', text: '' }), 4000);
   };
 
-  // CLEANED: Simplified company details save without quote terms
   const handleSaveCompanyDetails = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setProfileMessage({ type: '', text: '' });
@@ -280,7 +265,6 @@ const UserProfile = () => {
       
       console.log('Server response:', response.data);
       
-      // CLEANED: Manual property assignment without quote terms
       interface CleanUserData {
         id?: string;
         name?: string;
@@ -295,14 +279,15 @@ const UserProfile = () => {
         companyVatNumber?: string;
         companyLogo?: string;
         useCompanyDetailsOnQuotes?: boolean;
-        // REMOVED: Quote terms - now handled per quote
+        standardWarranty?: string;
+        standardDeliveryTerms?: string;
+        defaultLeadTimeWeeks?: number;
+        standardExclusions?: string;
         [key: string]: any;
       }
       
-      // Start fresh
       const updatedUser: CleanUserData = {};
       
-      // Copy existing user data manually
       if (user) {
         updatedUser.id = user.id;
         updatedUser.name = user.name;
@@ -317,10 +302,12 @@ const UserProfile = () => {
         updatedUser.companyVatNumber = (user as any).companyVatNumber;
         updatedUser.companyLogo = (user as any).companyLogo;
         updatedUser.useCompanyDetailsOnQuotes = (user as any).useCompanyDetailsOnQuotes;
-        // REMOVED: Quote terms - now handled per quote
+        updatedUser.standardWarranty = (user as any).standardWarranty;
+        updatedUser.standardDeliveryTerms = (user as any).standardDeliveryTerms;
+        updatedUser.defaultLeadTimeWeeks = (user as any).defaultLeadTimeWeeks;
+        updatedUser.standardExclusions = (user as any).standardExclusions;
       }
       
-      // Apply response data manually
       if (response.data && typeof response.data === 'object') {
         const rd = response.data as any;
         
@@ -337,10 +324,12 @@ const UserProfile = () => {
         if (rd.companyVatNumber !== undefined) updatedUser.companyVatNumber = rd.companyVatNumber;
         if (rd.companyLogo !== undefined) updatedUser.companyLogo = rd.companyLogo;
         if (rd.useCompanyDetailsOnQuotes !== undefined) updatedUser.useCompanyDetailsOnQuotes = rd.useCompanyDetailsOnQuotes;
-        // REMOVED: Quote terms - now handled per quote
+        if (rd.standardWarranty !== undefined) updatedUser.standardWarranty = rd.standardWarranty;
+        if (rd.standardDeliveryTerms !== undefined) updatedUser.standardDeliveryTerms = rd.standardDeliveryTerms;
+        if (rd.defaultLeadTimeWeeks !== undefined) updatedUser.defaultLeadTimeWeeks = rd.defaultLeadTimeWeeks;
+        if (rd.standardExclusions !== undefined) updatedUser.standardExclusions = rd.standardExclusions;
         
-        // Copy any extra properties manually (excluding removed quote terms)
-        const knownProps = ['id', 'name', 'email', 'role', 'createdAt', 'companyName', 'companyAddress', 'companyPhone', 'companyEmail', 'companyWebsite', 'companyVatNumber', 'companyLogo', 'useCompanyDetailsOnQuotes'];
+        const knownProps = ['id', 'name', 'email', 'role', 'createdAt', 'companyName', 'companyAddress', 'companyPhone', 'companyEmail', 'companyWebsite', 'companyVatNumber', 'companyLogo', 'useCompanyDetailsOnQuotes', 'standardWarranty', 'standardDeliveryTerms', 'defaultLeadTimeWeeks', 'standardExclusions'];
         Object.keys(rd).forEach(key => {
           if (!knownProps.includes(key)) {
             updatedUser[key] = rd[key];
@@ -348,8 +337,11 @@ const UserProfile = () => {
         });
       }
       
-      // Force preserve company details from form
       updatedUser.useCompanyDetailsOnQuotes = companyDetails.useCompanyDetailsOnQuotes;
+      updatedUser.standardWarranty = companyDetails.standardWarranty;
+      updatedUser.standardDeliveryTerms = companyDetails.standardDeliveryTerms;
+      updatedUser.defaultLeadTimeWeeks = companyDetails.defaultLeadTimeWeeks;
+      updatedUser.standardExclusions = companyDetails.standardExclusions;
       
       console.log('Clean updated user for context:', updatedUser);
       updateUser(updatedUser);
@@ -377,12 +369,10 @@ const UserProfile = () => {
     }
   };
 
-  // JSX for the component rendering
   return (
     <div className="relative">
-      {/* Profile Button - UPDATED with company logo display */}
+      {/* Profile Button */}
       <div className="flex items-center">
-        {/* Clickable User Name - Show company name if available */}
         <button
           onClick={handleProfileClick}
           className="hidden md:inline-block mr-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 rounded px-2 py-1 transition-colors"
@@ -391,7 +381,6 @@ const UserProfile = () => {
           {safeUser?.companyName || safeUser?.name?.split(' ')[0] || 'Profile'}
         </button>
 
-        {/* Profile Menu Button - UPDATED: Show company logo or fallback */}
         <button
           onClick={() => setIsMenuOpen(!isMenuOpen)}
           className="flex items-center space-x-2 rounded-full bg-white dark:bg-gray-700 p-1 sm:p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
@@ -399,7 +388,6 @@ const UserProfile = () => {
           aria-expanded={isMenuOpen}
           aria-label="User profile menu"
         >
-          {/* NEW: Company logo display with fallbacks */}
           {logoPreview ? (
             <img 
               src={logoPreview} 
@@ -414,7 +402,6 @@ const UserProfile = () => {
             </div>
           )}
           
-          {/* Show name on mobile/small screens only since it's separate on desktop */}
           <span className="inline md:hidden text-sm font-medium">
             {safeUser?.companyName || safeUser?.name?.split(' ')[0] || 'Profile'}
           </span>
@@ -430,7 +417,6 @@ const UserProfile = () => {
           aria-labelledby="user-menu-button"
         >
           <div className="py-1 divide-y divide-gray-100 dark:divide-gray-700">
-            {/* Profile Info Section - UPDATED: Show company info */}
             <div className="px-4 py-3">
               <p className="text-sm font-medium text-gray-900 dark:text-white" role="none">
                 {safeUser?.companyName || safeUser?.name || 'Current User'}
@@ -445,7 +431,6 @@ const UserProfile = () => {
               )}
             </div>
 
-            {/* Actions Section */}
             <div className="py-1" role="none">
                 <button
                   className="flex items-center w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
@@ -466,7 +451,6 @@ const UserProfile = () => {
                 </button>
             </div>
 
-            {/* Logout Section */}
             <div className="py-1" role="none">
                 <button
                 className="flex items-center w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30"
@@ -488,7 +472,6 @@ const UserProfile = () => {
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="profile-modal-title">
-            {/* Modal Header */}
             <div className="p-5 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center flex-shrink-0 sticky top-0 bg-white dark:bg-gray-800 z-20">
               <h2 id="profile-modal-title" className="text-xl font-semibold text-gray-900 dark:text-white">My Profile & Settings</h2>
               <button
@@ -500,7 +483,6 @@ const UserProfile = () => {
               </button>
             </div>
 
-            {/* Profile User Header */}
             <div className="p-6 bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
               <div className="flex items-center">
                  {logoPreview ? (
@@ -520,9 +502,7 @@ const UserProfile = () => {
               </div>
             </div>
 
-             {/* Main Modal Content Area - Scrollable */}
              <div className="flex-grow overflow-y-auto">
-                {/* Tabs Navigation */}
                 <div className="border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 sticky top-0 z-10">
                   <nav className="-mb-px flex space-x-4 sm:space-x-6 px-4 sm:px-6 overflow-x-auto" aria-label="Tabs">
                      {[
@@ -551,9 +531,8 @@ const UserProfile = () => {
                    </nav>
                 </div>
 
-                {/* Tab Panels */}
                 <div className="p-6">
-                    {/* Panel for Account Information */}
+                    {/* Account Info Tab */}
                     <div id="tab-panel-info" role="tabpanel" tabIndex={0} hidden={activeTab !== 'info'}>
                          <h2 className="sr-only">Account Information</h2>
                         <div className="space-y-5">
@@ -580,7 +559,7 @@ const UserProfile = () => {
                          </div>
                     </div>
 
-                   {/* Panel for Company Details - CLEANED: Removed Quote Terms Section */}
+                   {/* Company Tab - NEW: With Default Quote Terms */}
                     <div id="tab-panel-company" role="tabpanel" tabIndex={0} hidden={activeTab !== 'company'}>
                         <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Company Details</h2>
                         {profileMessage.text && profileMessage.type && (
@@ -591,10 +570,10 @@ const UserProfile = () => {
                             />
                         )}
                         <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
-                            Manage your company information used for branding documents.
+                            Manage your company information and default quote terms.
                          </p>
                         <form onSubmit={handleSaveCompanyDetails} className="space-y-6 max-w-3xl">
-                            {/* Company Logo Upload Section */}
+                           {/* Company Logo */}
                            <div className="bg-gray-50 dark:bg-gray-700/30 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Company Logo</label>
                              <div className="flex flex-col sm:flex-row items-start gap-4">
@@ -603,20 +582,20 @@ const UserProfile = () => {
                                                 : (<Image className="h-10 w-10 text-gray-400 dark:text-gray-500" />)}
                                </div>
                                 <div className="flex-grow space-y-2">
-                                   <p className="text-xs text-gray-500 dark:text-gray-400">Max 500KB. Appears on PDFs and in the header if enabled below.</p>
+                                   <p className="text-xs text-gray-500 dark:text-gray-400">Max 500KB. Appears on PDFs and in the header.</p>
                                   <div className="flex flex-wrap items-center gap-2">
-                                    <label htmlFor="logo-upload-input" className="cursor-pointer inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 shadow-sm text-sm font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-indigo-500">
+                                    <label htmlFor="logo-upload-input" className="cursor-pointer inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 shadow-sm text-sm font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
                                        <Upload className="h-4 w-4 mr-2" />
                                         <span>{logoPreview ? 'Change' : 'Upload'}</span>
                                      </label>
-                                      {logoPreview && (<button type="button" onClick={handleClearLogo} className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"><X className="h-4 w-4 mr-1" /> Remove</button>)}
+                                      {logoPreview && (<button type="button" onClick={handleClearLogo} className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30"><X className="h-4 w-4 mr-1" /> Remove</button>)}
                                    </div>
-                                   <input id="logo-upload-input" name="logo-upload-input" type="file" accept="image/*" onChange={handleLogoUpload} className="sr-only"/>
+                                   <input id="logo-upload-input" type="file" accept="image/*" onChange={handleLogoUpload} className="sr-only"/>
                                  </div>
                              </div>
                            </div>
                            
-                            {/* Basic Company Info */}
+                           {/* Basic Company Info */}
                            <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Company Name</label><Input type="text" name="companyName" value={companyDetails.companyName} onChange={handleCompanyDetailsChange} placeholder="Your Registered Company Name"/></div>
                            <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Company Address</label><Input type="text" name="companyAddress" value={companyDetails.companyAddress} onChange={handleCompanyDetailsChange} placeholder="Full registered address"/></div>
                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -628,18 +607,74 @@ const UserProfile = () => {
                               <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">VAT Number</label><Input type="text" name="companyVatNumber" value={companyDetails.companyVatNumber} onChange={handleCompanyDetailsChange} placeholder="e.g., GB123456789"/></div>
                             </div>
                            
-                           {/* CLEANED: Removed Quote Terms Section - Now Handled Per Quote */}
+                           {/* NEW: Default Quote Terms Section */}
                            <div className="pt-6 border-t border-gray-200 dark:border-gray-700">
-                             <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Quote Settings</h3>
+                             <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">Default Quote Terms</h3>
                              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                               Terms and conditions are now managed individually per quote for maximum flexibility.
+                               Set default terms that will be inherited by new quotes. You can customize these for each individual quote.
                              </p>
+                             
                              <div className="space-y-4">
-                               <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-                                 <p className="text-sm text-blue-800 dark:text-blue-200">
-                                   <strong>Note:</strong> Quote terms and conditions are now set individually when creating each quote. 
-                                   This allows for customer-specific terms and greater flexibility.
-                                 </p>
+                               <div>
+                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Payment Terms</label>
+                                 <textarea
+                                   name="standardWarranty"
+                                   value={companyDetails.standardWarranty}
+                                   onChange={handleCompanyDetailsChange}
+                                   rows={2}
+                                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white text-sm"
+                                   placeholder="e.g., Net 30 days from invoice date"
+                                 />
+                               </div>
+                               
+                               <div>
+                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Delivery Terms</label>
+                                 <textarea
+                                   name="standardDeliveryTerms"
+                                   value={companyDetails.standardDeliveryTerms}
+                                   onChange={handleCompanyDetailsChange}
+                                   rows={2}
+                                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white text-sm"
+                                   placeholder="e.g., 4-6 weeks from order confirmation"
+                                 />
+                               </div>
+                               
+                               <div>
+                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Default Lead Time (weeks)</label>
+                                 <Input
+                                   type="number"
+                                   name="defaultLeadTimeWeeks"
+                                   value={companyDetails.defaultLeadTimeWeeks}
+                                   onChange={handleCompanyDetailsChange}
+                                   min="1"
+                                   max="52"
+                                   placeholder="4"
+                                 />
+                               </div>
+                               
+                               <div>
+                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Warranty</label>
+                                 <textarea
+                                   name="standardWarranty"
+                                   value={companyDetails.standardWarranty}
+                                   onChange={handleCompanyDetailsChange}
+                                   rows={3}
+                                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white text-sm"
+                                   placeholder="e.g., 12 months warranty covering workmanship and materials"
+                                 />
+                               </div>
+                               
+                               <div>
+                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Standard Exclusions</label>
+                                 <textarea
+                                   name="standardExclusions"
+                                   value={companyDetails.standardExclusions}
+                                   onChange={handleCompanyDetailsChange}
+                                   rows={3}
+                                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white text-sm"
+                                   placeholder="e.g., VAT, Installation, Delivery charges"
+                                 />
+                                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">List items that are typically excluded from quotes</p>
                                </div>
                              </div>
                            </div>
@@ -649,12 +684,12 @@ const UserProfile = () => {
                              <div className="flex items-center h-5"><input id="useCompanyDetailsOnQuotes" name="useCompanyDetailsOnQuotes" type="checkbox" checked={companyDetails.useCompanyDetailsOnQuotes} onChange={handleCompanyDetailsChange} className="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:checked:bg-indigo-500 rounded"/></div>
                               <div className="ml-3 text-sm"><label htmlFor="useCompanyDetailsOnQuotes" className="font-medium text-gray-700 dark:text-gray-300">Enable Company Branding on Quotes</label><p className="text-gray-500 dark:text-gray-400 text-xs">Adds logo, name, and address to generated PDF quotes.</p></div>
                             </div>
-                           {/* Save Button */}
+                           
                            <div className="pt-4"><Button type="submit">Save Company Details</Button></div>
                          </form>
                      </div>
 
-                     {/* Panel for Security */}
+                     {/* Security Tab */}
                     <div id="tab-panel-security" role="tabpanel" tabIndex={0} hidden={activeTab !== 'security'}>
                         <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Security Settings</h2>
                          {passwordMessage.text && passwordMessage.type && (
@@ -673,16 +708,14 @@ const UserProfile = () => {
                          </form>
                      </div>
 
-                     {/* Panel for Preferences */}
+                     {/* Preferences Tab */}
                     <div id="tab-panel-preferences" role="tabpanel" tabIndex={0} hidden={activeTab !== 'preferences'}>
                         <h2 className="text-lg font-semibold mb-6 text-gray-900 dark:text-white">Interface Preferences</h2>
                        <div className="space-y-8 max-w-lg">
-                           {/* Theme Toggle */}
                             <div className="flex items-center justify-between p-4 border rounded-lg dark:border-gray-700 bg-gray-50 dark:bg-gray-700/30">
                                <div><h3 className="text-base font-medium text-gray-900 dark:text-gray-200">Dark Mode</h3><p className="text-sm text-gray-500 dark:text-gray-400">Switch between light and dark themes.</p></div>
                                 <label className="ml-4 inline-flex relative items-center cursor-pointer"><input type="checkbox" className="sr-only peer" checked={isDarkMode} onChange={handleThemeToggle}/><div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-gray-600 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div></label>
                              </div>
-                            {/* Notifications Toggle */}
                              <div className="flex items-center justify-between p-4 border rounded-lg dark:border-gray-700 bg-gray-50 dark:bg-gray-700/30">
                                <div><h3 className="text-base font-medium text-gray-900 dark:text-gray-200">System Notifications</h3><p className="text-sm text-gray-500 dark:text-gray-400">Enable/disable non-critical system alerts.</p></div>
                                <label className="ml-4 inline-flex relative items-center cursor-pointer"><input type="checkbox" className="sr-only peer" checked={notificationsEnabled} onChange={() => setNotificationsEnabled(!notificationsEnabled)}/><div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-gray-600 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div></label>
@@ -690,7 +723,7 @@ const UserProfile = () => {
                        </div>
                      </div>
 
-                    {/* Panel for Recent Activity */}
+                    {/* Activity Tab */}
                     <div id="tab-panel-activity" role="tabpanel" tabIndex={0} hidden={activeTab !== 'activity'}>
                         <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Recent Account Activity</h2>
                          <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">Shows the last few actions performed by your account (simulation).</p>
@@ -699,132 +732,37 @@ const UserProfile = () => {
                                <thead className="bg-gray-50 dark:bg-gray-700/50"><tr className="text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"><th scope="col" className="px-6 py-3">Action</th><th scope="col" className="px-6 py-3">Timestamp</th></tr></thead>
                                 <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                                   {recentActivity.map((item) => (<tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50"><td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-gray-200">{item.action}</td><td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{item.timestamp}</td></tr>))}
-                                  {recentActivity.length === 0 && (<tr><td colSpan={2} className="px-6 py-10 text-center text-sm text-gray-500 dark:text-gray-400 italic">No recent activity to display.</td></tr>)}
                                 </tbody>
                             </table>
                          </div>
                      </div>
 
-                 </div> {/* End Tab Panels */}
-             </div> {/* End Scrollable Content Area */}
+                 </div>
+             </div>
 
-          </div> {/* End Modal Card */}
-        </div> // End Modal Backdrop
+          </div>
+        </div>
       )}
 
       {/* System Overview Modal */}
       {showSystemOverview && (
         <div className="fixed inset-0 z-[60] overflow-y-auto bg-black bg-opacity-70 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-5xl w-full m-4 max-h-[90vh] flex flex-col transform transition-all duration-300 ease-out"
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-5xl w-full m-4 max-h-[90vh] flex flex-col"
                  role="dialog"
                 aria-modal="true"
                 aria-labelledby="system-overview-title">
-             {/* Modal Header */}
-            <div className="p-5 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center flex-shrink-0 sticky top-0 bg-white dark:bg-gray-800 z-10">
+            <div className="p-5 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
               <h2 id="system-overview-title" className="text-xl font-semibold text-gray-900 dark:text-white">System Overview & Flow</h2>
               <button
                 onClick={() => setShowSystemOverview(false)}
-                 className="p-1 rounded-full text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                 className="p-1 rounded-full text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
                  aria-label="Close system overview"
                >
                  <X className="h-6 w-6" />
                </button>
              </div>
-             {/* Scrollable Content */}
              <div className="p-6 flex-grow overflow-y-auto">
-                <h3 className="text-lg font-medium mb-4 text-gray-900 dark:text-white">General System Flow</h3>
-                <div className="p-4 border rounded-lg dark:border-gray-700 mb-8">
-                    <SystemFlowDiagram />
-                </div>
-
-                {/* Quote Lifecycle Section */}
-                <section className="pt-6 border-t dark:border-gray-700">
-                   <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Quote Lifecycle Management</h3>
-                   <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
-                     The quote system follows a structured lifecycle with color-coded statuses to track progress from initial creation to final conversion or closure.
-                   </p>
-
-                   <div className="space-y-8 md:space-y-0 md:grid md:grid-cols-3 md:gap-x-8 md:gap-y-10">
-                        {/* Status Flow Column */}
-                        <div>
-                            <h4 className="text-base font-medium mb-3 text-gray-800 dark:text-gray-200">Status Flow & Description</h4>
-                            <ul className="space-y-3 text-sm">
-                                <li className="flex items-start">
-                                    <span className="flex-shrink-0 w-5 h-5 rounded-full bg-red-100 dark:bg-red-900 border border-red-300 dark:border-red-700 mr-3 mt-0.5"></span>
-                                    <span className="text-gray-700 dark:text-gray-300"><strong>Draft</strong>: Initial creation stage; editable.</span>
-                                </li>
-                                <li className="flex items-start">
-                                     <span className="flex-shrink-0 w-5 h-5 rounded-full bg-orange-100 dark:bg-orange-900 border border-orange-300 dark:border-orange-700 mr-3 mt-0.5"></span>
-                                    <span className="text-gray-700 dark:text-gray-300"><strong>Sent</strong>: Emailed/delivered to customer for review.</span>
-                                </li>
-                                <li className="flex items-start">
-                                     <span className="flex-shrink-0 w-5 h-5 rounded-full bg-yellow-100 dark:bg-yellow-900 border border-yellow-300 dark:border-yellow-700 mr-3 mt-0.5"></span>
-                                    <span className="text-gray-700 dark:text-gray-300"><strong>Pending</strong>: Customer actively considering; decision expected.</span>
-                                 </li>
-                                <li className="flex items-start">
-                                     <span className="flex-shrink-0 w-5 h-5 rounded-full bg-green-100 dark:bg-green-900 border border-green-300 dark:border-green-700 mr-3 mt-0.5"></span>
-                                     <span className="text-gray-700 dark:text-gray-300"><strong>Approved</strong>: Customer accepted; ready for conversion.</span>
-                                 </li>
-                                <li className="flex items-start">
-                                     <span className="flex-shrink-0 w-5 h-5 rounded-full bg-red-100 dark:bg-red-900 border border-red-300 dark:border-red-700 mr-3 mt-0.5"></span>
-                                    <span className="text-gray-700 dark:text-gray-300"><strong>Declined</strong>: Customer rejected; can be revised.</span>
-                                </li>
-                                 <li className="flex items-start">
-                                    <span className="flex-shrink-0 w-5 h-5 rounded-full bg-purple-100 dark:bg-purple-900 border border-purple-300 dark:border-purple-700 mr-3 mt-0.5"></span>
-                                     <span className="text-gray-700 dark:text-gray-300"><strong>Expired</strong>: Passed validity date; inactive.</span>
-                                 </li>
-                                <li className="flex items-start">
-                                     <span className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900 border border-blue-300 dark:border-blue-700 mr-3 mt-0.5"></span>
-                                    <span className="text-gray-700 dark:text-gray-300"><strong>Converted</strong>: Successfully made into an order; locked.</span>
-                                </li>
-                             </ul>
-                       </div>
-
-                        {/* Key Features Column */}
-                        <div>
-                           <h4 className="text-base font-medium mb-3 text-gray-800 dark:text-gray-200">Key Features</h4>
-                             <ul className="list-disc list-outside pl-5 space-y-2 text-sm text-gray-700 dark:text-gray-300">
-                               <li>Visual progress bar representation.</li>
-                               <li>Color-coded status tags in lists.</li>
-                               <li>Status change validation logic.</li>
-                               <li>Confirmation dialogues for key actions.</li>
-                               <li>Quote-specific terms and conditions.</li>
-                               <li>(Future: Detailed status history logs).</li>
-                            </ul>
-                       </div>
-
-                       {/* Status Permissions Column */}
-                        <div>
-                           <h4 className="text-base font-medium mb-3 text-gray-800 dark:text-gray-200">Status Change Permissions</h4>
-                           <ul className="list-disc list-outside pl-5 space-y-2 text-sm text-gray-700 dark:text-gray-300">
-                               <li><strong>Draft</strong> → Sent, Pending, Approved, etc.</li>
-                               <li><strong>Sent/Pending</strong> → Approved, Declined, Expired.</li>
-                               <li><strong>Approved</strong> → Converted, Expired.</li>
-                               <li><strong>Declined/Expired</strong> → Can often revert to Draft.</li>
-                               <li><strong>Converted</strong> → Locked, no further changes.</li>
-                            </ul>
-                        </div>
-                   </div>
-                </section>
-
-               {/* System Status & Info */}
-                <div className="mt-8 pt-6 border-t dark:border-gray-700">
-                    <h3 className="text-lg font-medium mb-4 text-gray-900 dark:text-white">System Status & Info</h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-sm">
-                         <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg shadow-sm">
-                           <p className="font-medium text-green-600 dark:text-green-400">API Status: Connected</p>
-                         </div>
-                         <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg shadow-sm">
-                           <p className="text-gray-500 dark:text-gray-400">Current User Role</p>
-                           <p className="font-medium text-gray-900 dark:text-white">{safeUser?.role || 'N/A'}</p>
-                        </div>
-                         <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg shadow-sm">
-                           <p className="text-gray-500 dark:text-gray-400">System Version</p>
-                           <p className="font-medium text-gray-900 dark:text-white">v1.2.0</p>
-                         </div>
-                    </div>
-                 </div>
-
+                <SystemFlowDiagram />
             </div>
            </div>
         </div>

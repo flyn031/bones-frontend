@@ -1,99 +1,63 @@
 // src/types/enhancedQuote.ts - Professional quote enhancements for CCL-style quotes
 
-// Removed unused import: QuoteStatus
 import { QuoteData, QuoteItem, Customer } from './quote';
 
-// Enhanced payment terms structure
-export interface PaymentTerms {
-  withOrder: number;        // Percentage (e.g. 50)
-  beforeDispatch: number;   // Percentage (e.g. 40) 
-  thirtyDays: number;       // Percentage (e.g. 10)
-  description?: string;     // Custom payment terms text
+// Enhanced payment terms structure (renamed to avoid conflict)
+export interface StructuredPaymentTerms {
+  withOrder: number;
+  beforeDispatch: number;
+  thirtyDays: number;
+  description?: string;
 }
 
-// Enhanced customer address structure
 export interface CustomerAddress {
-  line1: string;           // "Unit 3 Charles Park"
-  line2?: string;          // "Cinderhill Road"
-  town: string;            // "Nottingham"
-  postcode: string;        // "NG6 8RE"
-  fullAddress?: string;    // Fallback for existing simple address
+  line1: string;
+  line2?: string;
+  town: string;
+  postcode: string;
+  fullAddress?: string;
 }
 
-// Enhanced customer for professional quotes
 export interface EnhancedCustomer extends Customer {
   structuredAddress?: CustomerAddress;
   companyNumber?: string;
   vatNumber?: string;
 }
 
-// Detailed quote item with technical specifications
 export interface DetailedQuoteItem extends QuoteItem {
-  // Technical specifications (multi-line)
   technicalSpecs?: string[];
-  
-  // Item categorization
   category?: 'CONVEYOR' | 'COMPONENT' | 'SERVICE' | 'CONSUMABLE' | 'OTHER';
-  
-  // Additional details
   partNumber?: string;
   manufacturer?: string;
   notes?: string;
-  
-  // Delivery/lead time specific to this item
   leadTimeWeeks?: number;
 }
 
-// Professional business terms
 export interface BusinessTerms {
-  // Delivery terms
-  deliveryTerms: string;           // "Delivery will be 4-6 working weeks..."
-  leadTimeWeeks: number;           // 4-6 weeks
-  
-  // Warranty
-  warranty: string;                // "Central Conveyors Ltd Guarantee..."
-  
-  // Standard exclusions
-  exclusions: string[];            // ["VAT", "Building Modifications", ...]
-  
-  // Professional scope/notes
-  scope: string;                   // "Due to current instabilities..."
-  
-  // Validity period  
-  validityDays: number;            // 14 days
+  deliveryTerms: string;
+  leadTimeWeeks: number;
+  warranty: string;
+  exclusions: string[];
+  scope: string;
+  validityDays: number;
 }
 
-// Enhanced quote data for professional quotes
+// CHANGED: paymentTerms is now string to match QuoteData
 export interface EnhancedQuoteData extends Omit<QuoteData, 'items' | 'customer'> {
-  // Enhanced customer data
-  customer: string | EnhancedCustomer;  // Support both string and object
+  customer: string | EnhancedCustomer;
   enhancedCustomer?: EnhancedCustomer;
-  
-  // Enhanced items with technical specs
   items: DetailedQuoteItem[];
-  
-  // Professional payment terms
-  paymentTerms?: PaymentTerms;
-  
-  // Professional business terms
+  paymentTerms?: string; // CHANGED: Now string instead of StructuredPaymentTerms
   businessTerms?: BusinessTerms;
-  
-  // Contact person details (enhanced)
-  contactPersonTitle?: string;      // "Simon Unwin"
-  
-  // Quote metadata
-  leadTimeWeeks?: number;          // Overall project lead time
-  cclContact?: string;             // "Glyn Aylward" 
-  projectDescription?: string;      // Enhanced description
-  
-  // Internal tracking
+  contactPersonTitle?: string;
+  leadTimeWeeks?: number;
+  cclContact?: string;
+  projectDescription?: string;
   enquiryDate?: string;
   quotationDate?: string;
 }
 
-// Company profile for quote generation (extends existing user profile)
 export interface QuoteCompanyProfile {
-  // Basic details (from existing user profile)
   companyName: string;
   companyAddress: string;
   companyPhone: string;
@@ -101,22 +65,17 @@ export interface QuoteCompanyProfile {
   companyWebsite: string;
   companyVatNumber: string;
   companyLogo?: string;
-  
-  // Professional additions for quotes
-  defaultPaymentTerms?: PaymentTerms;
+  defaultPaymentTerms?: StructuredPaymentTerms;
   standardExclusions: string[];
   standardWarranty: string;
   standardDeliveryTerms: string;
   defaultLeadTimeWeeks: number;
-  
-  // Company registration details
   companyRegistrationNumber?: string;
   companyAddress2?: string;
   companyPostcode?: string;
   companyTown?: string;
 }
 
-// Quote generation options
 export interface QuoteGenerationOptions {
   includeCompanyBranding: boolean;
   includeTechnicalSpecs: boolean;
@@ -125,7 +84,6 @@ export interface QuoteGenerationOptions {
   template: 'standard' | 'professional' | 'ccl_style';
 }
 
-// Backward compatibility - convert existing QuoteData to EnhancedQuoteData
 export function enhanceQuoteData(quote: QuoteData): EnhancedQuoteData {
   return {
     ...quote,
@@ -134,12 +92,7 @@ export function enhanceQuoteData(quote: QuoteData): EnhancedQuoteData {
       category: 'OTHER' as const,
       technicalSpecs: item.description ? [item.description] : []
     })),
-    paymentTerms: {
-      withOrder: 50,
-      beforeDispatch: 40, 
-      thirtyDays: 10,
-      description: quote.terms
-    },
+    paymentTerms: quote.paymentTerms || quote.terms, // CHANGED: Use string
     businessTerms: {
       deliveryTerms: "Delivery will be arranged upon order confirmation.",
       leadTimeWeeks: Math.ceil(quote.validityDays / 7),
@@ -152,7 +105,6 @@ export function enhanceQuoteData(quote: QuoteData): EnhancedQuoteData {
   };
 }
 
-// Convert EnhancedQuoteData back to standard QuoteData for API compatibility
 export function normalizeQuoteData(enhancedQuote: EnhancedQuoteData): QuoteData {
   return {
     ...enhancedQuote,
@@ -167,6 +119,6 @@ export function normalizeQuoteData(enhancedQuote: EnhancedQuoteData): QuoteData 
       total: item.total,
       materialId: item.materialId
     })),
-    terms: enhancedQuote.paymentTerms?.description || enhancedQuote.terms
+    terms: enhancedQuote.paymentTerms || enhancedQuote.terms // CHANGED: paymentTerms is now string
   };
 }

@@ -162,6 +162,10 @@ export default function Quotes() {
                 title: q.title,
                 description: q.description,
                 termsAndConditions: q.termsAndConditions, // FIXED: Add termsAndConditions
+                paymentTerms: q.paymentTerms, // ADD
+                deliveryTerms: q.deliveryTerms, // ADD
+                warranty: q.warranty, // ADD
+                exclusions: q.exclusions, // ADD
                 customerId: q.customerId ?? undefined,
                 customerName: q.customer?.name || q.customerName || 'Unknown',
                 customer: q.customer, 
@@ -761,6 +765,10 @@ const apiMethod = isUpdatingDraft ? apiClient.put : apiClient.post;
     validityDays: 30,
     terms: '',
     termsAndConditions: quote.termsAndConditions ?? undefined, // FIXED: Include terms and conditions
+    paymentTerms: quote.paymentTerms ?? undefined, // ADD
+    deliveryTerms: quote.deliveryTerms ?? undefined, // ADD
+    warranty: quote.warranty ?? undefined, // ADD
+    exclusions: quote.exclusions ?? undefined, // ADD
     notes: quote.notes ?? undefined,
     customerReference: quote.customerReference ?? undefined,
     status: quote.status, // Fixed: Use status directly from QuoteStatus union

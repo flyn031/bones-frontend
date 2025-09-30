@@ -131,7 +131,6 @@ export default function NewQuoteModal({
   editQuote,
   customers = [],
 }: NewQuoteModalProps) {
-  const { user } = useAuth();
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerWithContacts | null>(null);
   const [selectedContact, setSelectedContact] = useState<CustomerContact | null>(null); // NEW: Contact state
   const [showNewCustomerForm, setShowNewCustomerForm] = useState(false);
@@ -145,10 +144,6 @@ export default function NewQuoteModal({
 
   // NEW: Terms and Conditions state
   const [termsAndConditions, setTermsAndConditions] = useState('');
-  const [paymentTerms, setPaymentTerms] = useState('');
-  const [deliveryTerms, setDeliveryTerms] = useState('');
-  const [warranty, setWarranty] = useState('');
-  const [exclusions, setExclusions] = useState('');
 
   const [quoteData, setQuoteData] = useState<Partial<QuoteData>>({
     title: "",
@@ -452,10 +447,6 @@ export default function NewQuoteModal({
         validityDays: editQuote.validityDays || 30,
         terms: editQuote.terms || "Net 30",
         termsAndConditions: editQuote.termsAndConditions || "", // NEW: Initialize T&C from edit data
-        paymentTerms: editQuote.paymentTerms || "",
-        deliveryTerms: editQuote.deliveryTerms || "",
-        warranty: editQuote.warranty || "",
-        exclusions: editQuote.exclusions || "",
         notes: editQuote.notes || "",
         quoteNumber: editQuote.quoteNumber || "", // Set quote number if available
         customerReference: editQuote.customerReference || "", // Set customer reference if available
@@ -464,10 +455,6 @@ export default function NewQuoteModal({
 
       // NEW: Set the standalone terms and conditions state
       setTermsAndConditions(editQuote.termsAndConditions || "");
-      setPaymentTerms(editQuote.paymentTerms || "");
-      setDeliveryTerms(editQuote.deliveryTerms || "");
-      setWarranty(editQuote.warranty || "");
-      setExclusions(editQuote.exclusions || "");
 
       // Set selected customer if available
       if (editQuote.customerId) {
@@ -509,18 +496,6 @@ export default function NewQuoteModal({
       }
     }
   }, [editQuote, customers, inventoryItems]);
-
-  useEffect(() => {
-  if (!editQuote && user && isOpen && !quoteData.id) {
-    const userAny = user as any;
-    
-    // Only set if fields are currently empty
-    if (!paymentTerms) setPaymentTerms(userAny.standardPaymentTerms || '');
-    if (!deliveryTerms) setDeliveryTerms(userAny.standardDeliveryTerms || '');
-    if (!warranty) setWarranty(userAny.standardWarranty || '');
-    if (!exclusions) setExclusions(userAny.standardExclusions || '');
-  }
-}, [editQuote, user, isOpen]);
 
   // Debug customers data
   useEffect(() => {
@@ -910,10 +885,6 @@ export default function NewQuoteModal({
       items: formattedItems,
       totalAmount: totalValue, // Fixed: Use totalAmount instead of value
       termsAndConditions: termsAndConditions.trim(), // NEW: Include terms and conditions
-      paymentTerms: paymentTerms.trim(),
-      deliveryTerms: deliveryTerms.trim(),
-      warranty: warranty.trim(),
-      exclusions: exclusions.trim(),
       date: new Date().toISOString().split("T")[0],
       validUntil: new Date(
         Date.now() + (quoteData.validityDays || 30) * 24 * 60 * 60 * 1000
@@ -1488,24 +1459,31 @@ export default function NewQuoteModal({
               </div>
             </div>
 
-            {/* Right Column - Replaced with 4 new fields */}
-            <div className="space-y-2">
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Payment Terms</label>
-                    <textarea value={paymentTerms} onChange={(e) => setPaymentTerms(e.target.value)} rows={3} className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm" placeholder="e.g., 50% deposit, 50% on completion"></textarea>
-                </div>
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Delivery Terms</label>
-                    <textarea value={deliveryTerms} onChange={(e) => setDeliveryTerms(e.target.value)} rows={3} className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm" placeholder="e.g., Free delivery within 50 miles"></textarea>
-                </div>
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Warranty</label>
-                    <textarea value={warranty} onChange={(e) => setWarranty(e.target.value)} rows={3} className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm" placeholder="e.g., 12 months parts and labor"></textarea>
-                </div>
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Exclusions</label>
-                    <textarea value={exclusions} onChange={(e) => setExclusions(e.target.value)} rows={3} className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm" placeholder="e.g., Installation not included"></textarea>
-                </div>
+            {/* Right Column - Terms & Conditions */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Terms & Conditions
+                <span className="text-gray-500 text-xs ml-1">(Quote specific)</span>
+              </label>
+              <textarea
+                value={termsAndConditions}
+                onChange={(e) => {
+                  setTermsAndConditions(e.target.value);
+                  setQuoteData({ ...quoteData, termsAndConditions: e.target.value });
+                }}
+                placeholder="Enter specific terms and conditions for this quote, or copy/paste your standard terms...
+
+Examples:
+• Payment due within 30 days of invoice date
+• Materials subject to availability
+• Installation not included unless specified
+• Quote valid for 30 days from date issued"
+                className="w-full h-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                rows={8}
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                These terms will override any default terms in the quote PDF
+              </p>
             </div>
           </div>
 

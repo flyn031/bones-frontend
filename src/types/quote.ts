@@ -15,7 +15,7 @@ export interface Customer {
   id: string;
   name: string;
   email: string;
-  phone?: string;  // Unified as optional string
+  phone?: string;
   address?: string | null;
   contactPerson?: string | null;
 }
@@ -26,9 +26,9 @@ export interface CustomerContact {
   name: string;
   email: string;
   phone?: string;
-  title?: string; // Job title like "Procurement Manager", "Site Engineer"
+  title?: string;
   department?: string;
-  isPrimary?: boolean; // Mark one contact as primary
+  isPrimary?: boolean;
   customerId: string;
 }
 
@@ -41,7 +41,6 @@ export interface CustomerWithContacts extends Customer {
 export const getPrimaryContact = (customer: Customer): CustomerContact | null => {
   const custWithContacts = customer as CustomerWithContacts;
   if (!custWithContacts.contacts || custWithContacts.contacts.length === 0) {
-    // Fallback to legacy single contact
     if (customer.contactPerson || customer.email) {
       return {
         id: `legacy-${customer.id}`,
@@ -55,7 +54,6 @@ export const getPrimaryContact = (customer: Customer): CustomerContact | null =>
     return null;
   }
   
-  // Find primary contact or return first one
   return custWithContacts.contacts.find(contact => contact.isPrimary) || custWithContacts.contacts[0];
 };
 
@@ -83,8 +81,8 @@ export interface QuoteItem {
 export interface QuoteData {
   id?: string;
   title: string;
-  customer: string;           // Customer name as string
-  customerId?: string;        // Customer ID reference
+  customer: string;
+  customerId?: string;
   contactPerson?: string;
   contactEmail?: string;
   contactPhone?: string;
@@ -93,13 +91,17 @@ export interface QuoteData {
   validUntil?: string;
   validityDays: number;
   terms: string;
-  termsAndConditions?: string;  // NEW: Quote-specific terms and conditions
+  termsAndConditions?: string;  // Additional notes
+  paymentTerms?: string;        // NEW: Structured payment terms
+  deliveryTerms?: string;       // NEW: Structured delivery terms
+  warranty?: string;            // NEW: Structured warranty
+  exclusions?: string;          // NEW: Structured exclusions
   notes?: string;
   items: QuoteItem[];
-  lineItems?: QuoteLineItem[]; // For backend compatibility
-  totalAmount: number;         // Always required
-  value?: number;             // Legacy support
-  status: QuoteStatus;        // Fixed: Use QuoteStatus type
+  lineItems?: QuoteLineItem[];
+  totalAmount: number;
+  value?: number;
+  status: QuoteStatus;
   quoteNumber?: string;
   quoteReference?: string;
   versionNumber?: number;
@@ -114,7 +116,7 @@ export interface QuoteVersion {
   quoteReference: string;
   versionNumber: number;
   isLatestVersion: boolean;
-  status: QuoteStatus;        // Fixed: Use QuoteStatus type
+  status: QuoteStatus;
   title: string;
   description?: string | null;
   customerId: string;
@@ -137,6 +139,10 @@ export interface QuoteVersion {
   sentDate?: string | null;
   notes?: string | null;
   customerReference?: string | null;
-  termsAndConditions?: string | null;  // NEW: Added to version interface too
+  termsAndConditions?: string | null;
+  paymentTerms?: string | null;        // NEW: Structured payment terms
+  deliveryTerms?: string | null;       // NEW: Structured delivery terms
+  warranty?: string | null;            // NEW: Structured warranty
+  exclusions?: string | null;          // NEW: Structured exclusions
   value?: number;
 }

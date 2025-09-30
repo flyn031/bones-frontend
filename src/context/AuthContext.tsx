@@ -18,6 +18,10 @@ interface User {
   companyVatNumber?: string | null;
   companyLogo?: string | null;
   useCompanyDetailsOnQuotes?: boolean;
+  standardWarranty?: string | null;
+  standardDeliveryTerms?: string | null;
+  defaultLeadTimeWeeks?: number | null;
+  standardExclusions?: string | null;
 }
 
 // Define the shape of the context value
