@@ -4,11 +4,10 @@ import OrderModal from './OrderModal';
 import OrdersTableView from './OrdersTableView';
 import { apiClient } from '../../utils/api';
 
-// ✅ FIXED: Updated to match backend OrderStatus enum values
 const statusColors: Record<string, string> = {
   IN_PRODUCTION: "bg-blue-100 text-blue-800",
   ON_HOLD: "bg-yellow-100 text-yellow-800", 
-  READY_FOR_DELIVERY: "bg-green-100 text-green-800",  // This was "APPROVED"
+  READY_FOR_DELIVERY: "bg-green-100 text-green-800",
   DELIVERED: "bg-purple-100 text-purple-800",
   COMPLETED: "bg-gray-100 text-gray-700",
 };
@@ -19,7 +18,6 @@ const priorityIconsMap: Record<string, JSX.Element> = {
   LOW: <CheckCircle className="h-4 w-4 text-green-500" />
 };
 
-// ✅ FIXED: Unified OrderItem interface to match OrderModal.tsx
 export interface OrderItem {
   id: string;
   name: string;
@@ -30,7 +28,6 @@ export interface OrderItem {
   unit: string;
   category: string;
   total: number;
-  // Legacy fields for backward compatibility
   materialId?: string | null;
   materialCode?: string | null;
 }
@@ -38,6 +35,7 @@ export interface OrderItem {
 export interface Order {
   id: string;
   projectTitle: string;
+  customerReference?: string;  // ADDED: Customer's own reference number
   customerName: string;
   status: string;
   priority?: string | null;
@@ -69,10 +67,10 @@ export interface Order {
   } | null;
 }
 
-// ✅ ADDED: OrderData interface to match expected modal prop types
 interface OrderData {
   id?: string;
   projectTitle: string;
+  customerReference?: string;  // ADDED: Customer's own reference number
   customerName: string;
   status: string;
   priority?: string;
@@ -87,7 +85,7 @@ interface OrderData {
   paymentTerms?: string;
   quoteRef: string;
   customerId?: string;
-  contactPerson?: string; // ✅ FIXED: string | undefined instead of string | null
+  contactPerson?: string;
   contactEmail?: string;
   contactPhone?: string;
   marginPercent?: number;
@@ -100,7 +98,6 @@ interface OrderData {
 }
 
 export default function Orders() {
-  // Inline formatDate function to avoid import issues
   const formatDate = (date: string | Date | null | undefined): string => {
     if (!date) return 'N/A';
     try {
@@ -132,7 +129,6 @@ export default function Orders() {
   const [currentPage, setCurrentPage] = useState(1);
 
   const ITEMS_PER_PAGE = viewMode === 'grid' ? 9 : 10; 
-  // ✅ FIXED: Updated to match backend OrderStatus enum values
   const availableOrderStatuses = ['IN_PRODUCTION', 'ON_HOLD', 'READY_FOR_DELIVERY', 'DELIVERED', 'COMPLETED'];
 
   const fetchOrders = useCallback(async () => {
@@ -217,7 +213,6 @@ export default function Orders() {
     setIsStatusModalOpen(true);
   };
 
-  // ✅ UPDATED: Enhanced status update with job creation feedback
   const confirmStatusUpdate = async (newStatus: string) => { 
     if (!selectedOrderForStatusUpdate || !selectedOrderForStatusUpdate.id) return;
     const orderIdToUpdate = selectedOrderForStatusUpdate.id;
@@ -225,21 +220,18 @@ export default function Orders() {
     try {
       const response = await apiClient.patch(`/orders/${orderIdToUpdate}/status`, { status: newStatus });
       
-      // Handle the enhanced response from orderController
       const data = response.data as any;
       if (data.order) {
         setOrders(prevOrders => prevOrders.map(order => 
             order.id === orderIdToUpdate ? data.order : order
         ));
         
-        // Show feedback if a job was auto-created
         if (data.jobCreated && data.jobId) {
-          alert(`✅ Order ready for delivery!\n🏭 Job automatically created: ${data.jobId}\n\nThe job is now ACTIVE and ready for work to begin.`);
+          alert(`Order ready for delivery!\nJob automatically created: ${data.jobId}\n\nThe job is now ACTIVE and ready for work to begin.`);
         }
         
         console.log(`[Orders.tsx] Status updated for order ${orderIdToUpdate} to ${newStatus}. Job created: ${data.jobCreated}`);
       } else {
-        // Fallback for simpler response format
         setOrders(prevOrders => prevOrders.map(order => 
             order.id === orderIdToUpdate ? { ...order, status: newStatus } : order
         ));
@@ -264,7 +256,6 @@ export default function Orders() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // ✅ ADDED: Helper function to convert Order to OrderData (null to undefined)
   const convertOrderToOrderData = (order: Order): Partial<OrderData> => {
     return {
       ...order,
@@ -283,6 +274,7 @@ export default function Orders() {
       sourceQuoteId: order.sourceQuoteId ?? undefined,
       jobId: order.jobId ?? undefined,
       priority: order.priority ?? undefined,
+      customerReference: order.customerReference ?? undefined,
     };
   };
 
@@ -291,6 +283,7 @@ export default function Orders() {
     const matchesSearch = !searchTerm || 
       (order.projectTitle?.toLowerCase().includes(lowerSearchTerm)) ||
       (order.customerName?.toLowerCase().includes(lowerSearchTerm)) ||
+      (order.customerReference?.toLowerCase().includes(lowerSearchTerm)) ||
       (order.id?.toLowerCase().includes(lowerSearchTerm)) ||
       (order.quoteRef?.toLowerCase().includes(lowerSearchTerm));
 
@@ -311,7 +304,6 @@ export default function Orders() {
   
   return (
     <div className="p-4 sm:p-8 max-w-full mx-auto bg-gray-50 min-h-screen">
-      {/* Header and Filters */}
       <div className="flex flex-wrap justify-between items-center mb-6 sm:mb-8 gap-4"> 
         <h2 className="text-2xl sm:text-3xl font-bold text-gray-800">Order Management</h2>
         <div className="flex flex-wrap items-center gap-2 sm:gap-4">
@@ -324,7 +316,7 @@ export default function Orders() {
           </div>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
-            <input type="text" placeholder="Search by Title, Customer, ID, Quote Ref..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10 pr-4 py-2 w-full sm:w-64 border border-gray-300 rounded-lg shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"/>
+            <input type="text" placeholder="Search by Title, Customer, Ref..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10 pr-4 py-2 w-full sm:w-64 border border-gray-300 rounded-lg shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"/>
           </div>
           <button onClick={() => setFilterOpen(!filterOpen)} className="flex items-center space-x-2 px-3 py-2 text-sm border border-gray-300 rounded-lg shadow-sm bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-indigo-500">
             <Filter className="h-4 w-4 text-gray-500" /> <span>Filter</span>
@@ -349,7 +341,7 @@ export default function Orders() {
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Min. Value (£)</label>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Min. Value</label>
               <input type="number" className="w-full border-gray-300 rounded-lg p-2 text-sm shadow-sm focus:ring-indigo-500 focus:border-indigo-500" value={minValue} onChange={(e) => setMinValue(e.target.value)} placeholder="e.g., 1000"/>
             </div>
             <div className="flex items-end"><button onClick={() => setFilterOpen(false)} className="px-3 py-2 text-xs border rounded-lg hover:bg-gray-100 w-full sm:w-auto bg-gray-50">Close Filters</button></div>
@@ -365,7 +357,6 @@ export default function Orders() {
         </div>
       )}
 
-      {/* Main Content Area */}
       {viewMode === 'table' ? (
         <OrdersTableView
           orders={paginatedOrders}
@@ -379,7 +370,7 @@ export default function Orders() {
           statusColors={statusColors}
           formatDate={formatDate}
         />
-      ) : ( // Grid View
+      ) : (
         <>
           {(isLoading && paginatedOrders.length === 0) ? (
              <div className="text-center py-10 text-gray-500">Loading orders...</div>
@@ -393,13 +384,21 @@ export default function Orders() {
               {paginatedOrders.map((order) => (
                 <div key={order.id} className="bg-white rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300 p-5 flex flex-col justify-between border border-gray-200">
                   <div>
+                    {/* NEW: Show customer reference prominently if exists */}
+                    {order.customerReference && (
+                      <div className="mb-2">
+                        <span className="inline-block text-sm font-bold text-indigo-900 bg-indigo-50 px-3 py-1 rounded-md border border-indigo-200">
+                          {order.customerReference}
+                        </span>
+                      </div>
+                    )}
+                    
                     <div className="flex justify-between items-start mb-2">
                       <h3 className="text-md font-semibold text-indigo-700 truncate mr-2" title={order.projectTitle}>{order.projectTitle || `Order ${order.id}`}</h3>
                       <div className="flex flex-col items-end gap-1">
                         <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap ${statusColors[order.status] || statusColors.IN_PRODUCTION}`}>
                           {order.status?.replace(/_/g, ' ') || 'Unknown'}
                         </span>
-                        {/* ✅ NEW: Show job indicator when order has linked job */}
                         {order.jobId && (
                           <div className="flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full text-xs">
                             <Briefcase className="h-3 w-3" />
@@ -417,7 +416,6 @@ export default function Orders() {
                       <div className="flex items-center"><strong>Priority:</strong> <span className="ml-2 flex items-center">{priorityIconsMap[order.priority?.toUpperCase() as keyof typeof priorityIconsMap] || order.priority || 'N/A'}</span></div>
                       <p><strong>Created:</strong> {formatDate(order.createdAt)}</p>
                       <p><strong>Deadline:</strong> {formatDate(order.deadline)}</p>
-                      {/* ✅ NEW: Show job status if linked */}
                       {order.job && (
                         <p><strong>Job Status:</strong> <span className="text-blue-600 font-medium">{order.job.status.replace(/_/g, ' ')}</span></p>
                       )}
@@ -426,7 +424,6 @@ export default function Orders() {
                   <div className="mt-5 pt-4 border-t border-gray-200 flex flex-wrap gap-2 justify-end items-center">
                     <button onClick={() => handleEdit(order)} className="text-xs px-3 py-1.5 border border-gray-300 rounded-md hover:bg-gray-100 shadow-sm flex items-center"><Edit size={14} className="mr-1"/>Edit</button>
                     <button onClick={() => openStatusUpdateModal(order)} className="text-xs px-3 py-1.5 bg-blue-500 text-white rounded-md hover:bg-blue-600 shadow-sm flex items-center"><MoreVertical size={14} className="mr-1"/>Status</button>
-                    {/* ✅ REMOVED: Convert to Job button - now happens automatically */}
                   </div>
                 </div>
               ))}
@@ -444,7 +441,6 @@ export default function Orders() {
         </>
       )}
 
-      {/* ✅ FIXED: Status Update Modal with correct enum values */}
       {isStatusModalOpen && selectedOrderForStatusUpdate && ( 
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[60] p-4">
           <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full">
@@ -469,7 +465,6 @@ export default function Orders() {
         </div>
       )}
 
-      {/* Order Create/Edit Modal - ✅ FIXED: Line 419 - Convert Order to OrderData */}
       {isOrderModalOpen && (
         <OrderModal
           isOpen={isOrderModalOpen}
