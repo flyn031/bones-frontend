@@ -1468,24 +1468,7 @@ export default function NewQuoteModal({
                 />
               </div>
 
-              {/* Payment Terms */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Payment Terms
-                </label>
-                <select
-                  value={quoteData.terms || "Net 30"}
-                  onChange={(e) =>
-                    setQuoteData({ ...quoteData, terms: e.target.value })
-                  }
-                  className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="Net 30">Net 30</option>
-                  <option value="Net 60">Net 60</option>
-                  <option value="50% Deposit">50% Deposit</option>
-                  <option value="100% Advance">100% Advance</option>
-                </select>
-              </div>
+            
             </div>
 
             {/* Right Column - Replaced with 4 new fields */}

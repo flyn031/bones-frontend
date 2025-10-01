@@ -27,6 +27,7 @@ interface SafeUserProfile {
   companyLogo?: string;
   useCompanyDetailsOnQuotes?: boolean;
   // Company defaults for quotes
+  standardPaymentTerms?: string;  // FIXED: Added
   standardWarranty?: string;
   standardDeliveryTerms?: string;
   defaultLeadTimeWeeks?: number;
@@ -43,6 +44,7 @@ interface CompanyDetailsState {
   companyLogo: string;
   useCompanyDetailsOnQuotes: boolean;
   // Company defaults for quotes
+  standardPaymentTerms: string;  // FIXED: Added
   standardWarranty: string;
   standardDeliveryTerms: string;
   defaultLeadTimeWeeks: number;
@@ -79,6 +81,7 @@ const UserProfile = () => {
     companyVatNumber: (user as any).companyVatNumber || undefined,
     companyLogo: (user as any).companyLogo || undefined,
     useCompanyDetailsOnQuotes: Boolean((user as any).useCompanyDetailsOnQuotes),
+    standardPaymentTerms: (user as any).standardPaymentTerms || undefined,  // FIXED: Added
     standardWarranty: (user as any).standardWarranty || undefined,
     standardDeliveryTerms: (user as any).standardDeliveryTerms || undefined,
     defaultLeadTimeWeeks: (user as any).defaultLeadTimeWeeks || undefined,
@@ -96,6 +99,7 @@ const UserProfile = () => {
     companyVatNumber: safeUser.companyVatNumber || '',
     companyLogo: safeUser.companyLogo || '',
     useCompanyDetailsOnQuotes: Boolean(safeUser.useCompanyDetailsOnQuotes),
+    standardPaymentTerms: safeUser.standardPaymentTerms || '',  // FIXED: Added
     standardWarranty: safeUser.standardWarranty || '',
     standardDeliveryTerms: safeUser.standardDeliveryTerms || '',
     defaultLeadTimeWeeks: safeUser.defaultLeadTimeWeeks || 4,
@@ -118,6 +122,7 @@ const UserProfile = () => {
         companyVatNumber: (user as any).companyVatNumber || undefined,
         companyLogo: (user as any).companyLogo || undefined,
         useCompanyDetailsOnQuotes: Boolean((user as any).useCompanyDetailsOnQuotes),
+        standardPaymentTerms: (user as any).standardPaymentTerms || undefined,  // FIXED: Added
         standardWarranty: (user as any).standardWarranty || undefined,
         standardDeliveryTerms: (user as any).standardDeliveryTerms || undefined,
         defaultLeadTimeWeeks: (user as any).defaultLeadTimeWeeks || undefined,
@@ -133,6 +138,7 @@ const UserProfile = () => {
         companyVatNumber: updatedSafeUser.companyVatNumber || '',
         companyLogo: updatedSafeUser.companyLogo || '',
         useCompanyDetailsOnQuotes: Boolean(updatedSafeUser.useCompanyDetailsOnQuotes),
+        standardPaymentTerms: updatedSafeUser.standardPaymentTerms || '',  // FIXED: Added
         standardWarranty: updatedSafeUser.standardWarranty || '',
         standardDeliveryTerms: updatedSafeUser.standardDeliveryTerms || '',
         defaultLeadTimeWeeks: updatedSafeUser.defaultLeadTimeWeeks || 4,
@@ -279,6 +285,7 @@ const UserProfile = () => {
         companyVatNumber?: string;
         companyLogo?: string;
         useCompanyDetailsOnQuotes?: boolean;
+        standardPaymentTerms?: string;  // FIXED: Added
         standardWarranty?: string;
         standardDeliveryTerms?: string;
         defaultLeadTimeWeeks?: number;
@@ -302,6 +309,7 @@ const UserProfile = () => {
         updatedUser.companyVatNumber = (user as any).companyVatNumber;
         updatedUser.companyLogo = (user as any).companyLogo;
         updatedUser.useCompanyDetailsOnQuotes = (user as any).useCompanyDetailsOnQuotes;
+        updatedUser.standardPaymentTerms = (user as any).standardPaymentTerms;  // FIXED: Added
         updatedUser.standardWarranty = (user as any).standardWarranty;
         updatedUser.standardDeliveryTerms = (user as any).standardDeliveryTerms;
         updatedUser.defaultLeadTimeWeeks = (user as any).defaultLeadTimeWeeks;
@@ -324,12 +332,13 @@ const UserProfile = () => {
         if (rd.companyVatNumber !== undefined) updatedUser.companyVatNumber = rd.companyVatNumber;
         if (rd.companyLogo !== undefined) updatedUser.companyLogo = rd.companyLogo;
         if (rd.useCompanyDetailsOnQuotes !== undefined) updatedUser.useCompanyDetailsOnQuotes = rd.useCompanyDetailsOnQuotes;
+        if (rd.standardPaymentTerms !== undefined) updatedUser.standardPaymentTerms = rd.standardPaymentTerms;  // FIXED: Added
         if (rd.standardWarranty !== undefined) updatedUser.standardWarranty = rd.standardWarranty;
         if (rd.standardDeliveryTerms !== undefined) updatedUser.standardDeliveryTerms = rd.standardDeliveryTerms;
         if (rd.defaultLeadTimeWeeks !== undefined) updatedUser.defaultLeadTimeWeeks = rd.defaultLeadTimeWeeks;
         if (rd.standardExclusions !== undefined) updatedUser.standardExclusions = rd.standardExclusions;
         
-        const knownProps = ['id', 'name', 'email', 'role', 'createdAt', 'companyName', 'companyAddress', 'companyPhone', 'companyEmail', 'companyWebsite', 'companyVatNumber', 'companyLogo', 'useCompanyDetailsOnQuotes', 'standardWarranty', 'standardDeliveryTerms', 'defaultLeadTimeWeeks', 'standardExclusions'];
+        const knownProps = ['id', 'name', 'email', 'role', 'createdAt', 'companyName', 'companyAddress', 'companyPhone', 'companyEmail', 'companyWebsite', 'companyVatNumber', 'companyLogo', 'useCompanyDetailsOnQuotes', 'standardPaymentTerms', 'standardWarranty', 'standardDeliveryTerms', 'defaultLeadTimeWeeks', 'standardExclusions'];
         Object.keys(rd).forEach(key => {
           if (!knownProps.includes(key)) {
             updatedUser[key] = rd[key];
@@ -338,6 +347,7 @@ const UserProfile = () => {
       }
       
       updatedUser.useCompanyDetailsOnQuotes = companyDetails.useCompanyDetailsOnQuotes;
+      updatedUser.standardPaymentTerms = companyDetails.standardPaymentTerms;  // FIXED: Added
       updatedUser.standardWarranty = companyDetails.standardWarranty;
       updatedUser.standardDeliveryTerms = companyDetails.standardDeliveryTerms;
       updatedUser.defaultLeadTimeWeeks = companyDetails.defaultLeadTimeWeeks;
@@ -559,7 +569,7 @@ const UserProfile = () => {
                          </div>
                     </div>
 
-                   {/* Company Tab - NEW: With Default Quote Terms */}
+                   {/* Company Tab */}
                     <div id="tab-panel-company" role="tabpanel" tabIndex={0} hidden={activeTab !== 'company'}>
                         <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Company Details</h2>
                         {profileMessage.text && profileMessage.type && (
@@ -607,7 +617,7 @@ const UserProfile = () => {
                               <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">VAT Number</label><Input type="text" name="companyVatNumber" value={companyDetails.companyVatNumber} onChange={handleCompanyDetailsChange} placeholder="e.g., GB123456789"/></div>
                             </div>
                            
-                           {/* NEW: Default Quote Terms Section */}
+                           {/* Default Quote Terms Section */}
                            <div className="pt-6 border-t border-gray-200 dark:border-gray-700">
                              <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">Default Quote Terms</h3>
                              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
@@ -618,8 +628,8 @@ const UserProfile = () => {
                                <div>
                                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Payment Terms</label>
                                  <textarea
-                                   name="standardWarranty"
-                                   value={companyDetails.standardWarranty}
+                                   name="standardPaymentTerms"
+                                   value={companyDetails.standardPaymentTerms}
                                    onChange={handleCompanyDetailsChange}
                                    rows={2}
                                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white text-sm"
