@@ -20,6 +20,7 @@ export interface BaseJob {
     name: string;
   };
   // Optional fields for enhanced functionality
+  customerReference?: string;  // ADDED: Customer's own reference number
   isFromOrder?: boolean;
   originalOrderId?: string;
   quoteRef?: string;
@@ -39,6 +40,7 @@ export interface ExtendedJob {
     name: string;
   };
   // Optional fields for enhanced functionality
+  customerReference?: string;  // ADDED: Customer's own reference number
   isFromOrder?: boolean;
   originalOrderId?: string;
   quoteRef?: string;
