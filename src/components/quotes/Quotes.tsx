@@ -596,20 +596,26 @@ const apiMethod = isUpdatingDraft ? apiClient.put : apiClient.post;
  };
 
  // FIXED PDF GENERATION - CORRECT FIELD MAPPING
- const handleGeneratePDF = async (quoteId: string) => {
-   const quote = quotes.find(q => q.id === quoteId);
-   if (!quote) { 
-     alert("Quote not found to generate PDF."); 
-     return; 
-   }
+const handleGeneratePDF = async (quoteId: string) => {
+  const quote = quotes.find(q => q.id === quoteId);
+  if (!quote) { 
+    alert("Quote not found to generate PDF."); 
+    return; 
+  }
 
-   try {
-     const token = localStorage.getItem('token');
-     if (!token) throw new Error("Auth token not found.");
-     
-     // Fetch full quote details from API
-     const response = await apiClient.get(`/quotes/${quoteId}`);
-     const quoteData = response.data as any;
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) throw new Error("Auth token not found.");
+    
+    // Fetch full quote details from API
+    const response = await apiClient.get(`/quotes/${quoteId}`);
+    const quoteData = response.data as any;
+    
+    console.log('🔍 RAW API RESPONSE:', quoteData);
+    console.log('🔍 API paymentTerms:', quoteData.paymentTerms);
+    console.log('🔍 API deliveryTerms:', quoteData.deliveryTerms);
+    console.log('🔍 API warranty:', quoteData.warranty);
+    console.log('🔍 API exclusions:', quoteData.exclusions);
      
      // FIXED: Interface matches EnhancedQuotePDF UserProfile interface exactly
      interface CleanUserProfile {
@@ -661,35 +667,41 @@ const apiMethod = isUpdatingDraft ? apiClient.put : apiClient.post;
      }
      
      // CLEAN: All null converted to undefined for type safety
-     const quoteForPDF = {
-       id: quoteData.id,
-       title: quoteData.title || '',
-       customer: quoteData.customerName || quoteData.customer?.name || 'Unknown Customer',
-       customerId: quoteData.customerId || '',
-       contactPerson: quoteData.contactPerson || undefined,
-       contactEmail: quoteData.contactEmail || undefined,
-       contactPhone: quoteData.contactPhone || undefined,
-       date: quoteData.createdAt || new Date().toISOString(),
-       validUntil: quoteData.validUntil || undefined,
-       validityDays: 30,
-       terms: quoteData.terms || 'Net 30',
-       termsAndConditions: quoteData.termsAndConditions || undefined, // FIXED: Include terms and conditions for PDF
-       notes: quoteData.notes || undefined,
-       items: (quoteData.lineItems || []).map((item: any) => ({
-         id: item.id,
-         description: item.description || '',
-         quantity: Number(item.quantity) || 0,
-         unitPrice: Number(item.unitPrice) || 0,
-         total: (Number(item.quantity) || 0) * (Number(item.unitPrice) || 0),
-         materialId: item.materialId || undefined
-       })),
-       totalAmount: Number(quoteData.totalAmount) || Number(quoteData.value) || 0,
-       status: quoteData.status || 'draft',
-       quoteNumber: quoteData.quoteNumber || undefined,
-       quoteReference: quoteData.quoteReference || undefined,
-       versionNumber: quoteData.versionNumber || undefined,
-       customerReference: quoteData.customerReference || undefined
-     };
+    const quoteForPDF = {
+      id: quoteData.id,
+      title: quoteData.title || '',
+      customer: quoteData.customerName || quoteData.customer?.name || 'Unknown Customer',
+      customerId: quoteData.customerId || '',
+      contactPerson: quoteData.contactPerson || undefined,
+      contactEmail: quoteData.contactEmail || undefined,
+      contactPhone: quoteData.contactPhone || undefined,
+      date: quoteData.createdAt || new Date().toISOString(),
+      validUntil: quoteData.validUntil || undefined,
+      validityDays: 30,
+      terms: quoteData.terms || 'Net 30',
+      // FIXED: Add all 4 structured term fields
+      paymentTerms: quoteData.paymentTerms || undefined,
+      deliveryTerms: quoteData.deliveryTerms || undefined,
+      warranty: quoteData.warranty || undefined,
+      exclusions: quoteData.exclusions || undefined,
+      notes: quoteData.notes || undefined,
+      items: (quoteData.lineItems || []).map((item: any) => ({
+        id: item.id,
+        description: item.description || '',
+        quantity: Number(item.quantity) || 0,
+        unitPrice: Number(item.unitPrice) || 0,
+        total: (Number(item.quantity) || 0) * (Number(item.unitPrice) || 0),
+        materialId: item.materialId || undefined
+      })),
+      totalAmount: Number(quoteData.totalAmount) || Number(quoteData.value) || 0,
+      status: quoteData.status || 'draft',
+      quoteNumber: quoteData.quoteNumber || undefined,
+      quoteReference: quoteData.quoteReference || undefined,
+      versionNumber: quoteData.versionNumber || undefined,
+      customerReference: quoteData.customerReference || undefined
+    };
+    
+    console.log('📤 SENDING TO PDF GENERATOR:', quoteForPDF);
      
      // Generate professional PDF
      console.log('Generating professional PDF for quote:', quoteForPDF);

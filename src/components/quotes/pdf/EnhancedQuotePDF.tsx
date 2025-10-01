@@ -1,4 +1,4 @@
-// src/components/quotes/pdf/EnhancedQuotePDF.tsx - Professional quote PDF with quote-specific terms
+// src/components/quotes/pdf/EnhancedQuotePDF.tsx - Professional quote PDF with structured terms
 
 import pdfMake from "pdfmake/build/pdfmake";
 import pdfFonts from "pdfmake/build/vfs_fonts";
@@ -10,7 +10,6 @@ if (pdfMake.vfs === undefined) {
     pdfMake.vfs = (pdfFonts as any).pdfMake ? (pdfFonts as any).pdfMake.vfs : pdfFonts;
 }
 
-// Simplified company profile - REMOVED profile-level terms
 interface UserProfile {
   companyName?: string;
   companyAddress?: string;
@@ -20,40 +19,9 @@ interface UserProfile {
   companyVatNumber?: string;
   companyLogo?: string;
   useCompanyDetailsOnQuotes: boolean;
-  // REMOVED: All the standard terms fields - these should be quote-specific now
 }
 
-// Helper function to parse quote-specific terms
-const parseQuoteTerms = (termsAndConditions?: string) => {
-  if (!termsAndConditions) {
-    return {
-      hasCustomTerms: false,
-      sections: {}
-    };
-  }
-
-  // Try to parse structured terms or use as general terms
-  const sections: any = {};
-  
-  // If it looks like structured content, try to parse it
-  if (termsAndConditions.includes('•') || termsAndConditions.includes('-')) {
-    // Parse bullet points as exclusions or terms
-    const bullets = termsAndConditions.match(/[•-]\s*(.+)/g);
-    if (bullets) {
-      sections.exclusions = bullets.map(bullet => bullet.replace(/[•-]\s*/, '').trim());
-    }
-  }
-  
-  // For now, use the entire content as general terms
-  sections.generalTerms = termsAndConditions;
-  
-  return {
-    hasCustomTerms: true,
-    sections
-  };
-};
-
-// Generate professional quote PDF with quote-specific terms
+// Generate professional quote PDF with structured terms
 export const generateEnhancedQuotePDF = (
   quote: QuoteData | EnhancedQuoteData, 
   userProfile?: UserProfile,
@@ -61,29 +29,37 @@ export const generateEnhancedQuotePDF = (
 ) => {
   console.log('=== PDF GENERATOR DEBUG ===');
   console.log('PDF Generator received quote:', quote);
-  console.log('PDF Generator quote.termsAndConditions:', (quote as QuoteData).termsAndConditions);
-  console.log('PDF Generator received userProfile:', userProfile);
+  console.log('🔍 ALL QUOTE KEYS:', Object.keys(quote));
+  console.log('🔍 RAW QUOTE OBJECT:', JSON.stringify(quote, null, 2));
   
-  // NEW: Extract termsAndConditions BEFORE conversion to avoid losing it
-  const originalTermsAndConditions = (quote as QuoteData).termsAndConditions;
-  console.log('PDF Generator originalTermsAndConditions:', originalTermsAndConditions);
+  // Extract the 4 structured term fields from the quote
+  const paymentTerms = (quote as any).paymentTerms || '';
+  const deliveryTerms = (quote as any).deliveryTerms || '';
+  const warranty = (quote as any).warranty || '';
+  const exclusions = (quote as any).exclusions || '';
+  
+  console.log('📋 PDF Generator structured terms:', {
+    paymentTerms,
+    deliveryTerms,
+    warranty,
+    exclusions
+  });
+  console.log('🚨 Are they empty?', {
+    paymentTermsEmpty: !paymentTerms,
+    deliveryTermsEmpty: !deliveryTerms,
+    warrantyEmpty: !warranty,
+    exclusionsEmpty: !exclusions
+  });
   
   // Convert to enhanced format if needed
   const enhancedQuote: EnhancedQuoteData = 'businessTerms' in quote 
     ? quote as EnhancedQuoteData 
     : enhanceQuoteData(quote as QuoteData);
 
-  // NEW: Parse quote-specific terms using the original value
-  const quoteTerms = parseQuoteTerms(originalTermsAndConditions);
-  console.log('PDF Generator parsed quote terms:', quoteTerms);
-  console.log('🐛 FORCE DEBUG - originalTermsAndConditions:', originalTermsAndConditions);
-  console.log('🐛 FORCE DEBUG - quoteTerms.hasCustomTerms:', quoteTerms.hasCustomTerms);
-
-
   // Use company details from profile
   const useCompanyDetails = userProfile?.useCompanyDetailsOnQuotes || false;
   
-  // Build company profile from user profile + overrides - REMOVED custom terms
+  // Build company profile from user profile + overrides
   const company: QuoteCompanyProfile = {
     companyName: userProfile?.companyName || 'Your Company Name',
     companyAddress: userProfile?.companyAddress || '',
@@ -92,18 +68,12 @@ export const generateEnhancedQuotePDF = (
     companyWebsite: userProfile?.companyWebsite || '',
     companyVatNumber: userProfile?.companyVatNumber || '',
     companyLogo: userProfile?.companyLogo || '',
-    
-    // REMOVED: All standard terms - these are now quote-specific
-    standardExclusions: [], // Will be overridden by quote terms
-    standardWarranty: '', // Will be overridden by quote terms
-    standardDeliveryTerms: '', // Will be overridden by quote terms
-    defaultLeadTimeWeeks: 4, // Keep as basic default
-    
-    // Override with any provided company profile settings
+    standardExclusions: [],
+    standardWarranty: '',
+    standardDeliveryTerms: '',
+    defaultLeadTimeWeeks: 4,
     ...companyProfile
   };
-
-  console.log('PDF Generator final company profile:', company);
 
   // Format dates
   const formatDate = (dateString?: string) => {
@@ -151,63 +121,180 @@ export const generateEnhancedQuotePDF = (
     }
   }
 
-  // NEW: Build terms and conditions content
-  let termsContent = [];
+  // Build structured terms sections
+  const termsContent = [];
+  const hasAnyTerms = paymentTerms || deliveryTerms || warranty || exclusions;
 
-  if (quoteTerms.hasCustomTerms) {
-    // Use the quote-specific terms
-    console.log('Using quote-specific terms');
-    
-    if (quoteTerms.sections.generalTerms) {
-      termsContent.push({
-        text: 'Terms & Conditions',
-        style: 'sectionHeader',
-        pageBreak: 'before',
-        margin: [0, 0, 0, 15]
-      });
-      
-      // Split by paragraphs and format nicely
-      const paragraphs = quoteTerms.sections.generalTerms.split('\n\n').filter((p: string) => p.trim());
-      
-      paragraphs.forEach((paragraph: string, index: number) => {
-        const trimmedParagraph = paragraph.trim();
-        
-        // Check if it looks like a heading (short line, ends with colon, etc.)
-        if (trimmedParagraph.length < 50 && (trimmedParagraph.endsWith(':') || trimmedParagraph.toLowerCase().includes('terms'))) {
-          termsContent.push({
-            text: trimmedParagraph.replace(':', ''),
-            style: 'subsectionHeader',
-            margin: [0, index > 0 ? 10 : 0, 0, 5]
-          });
-        } else if (trimmedParagraph.includes('•') || trimmedParagraph.includes('-')) {
-          // Handle bullet points
-          const bullets = trimmedParagraph.split(/[•-]/).filter(item => item.trim()).map(item => item.trim());
-          if (bullets.length > 1) {
-            termsContent.push({
-              ul: bullets,
-              style: 'customTermsList',
-              margin: [0, 0, 0, 10]
-            });
-          } else {
-            termsContent.push({
-              text: trimmedParagraph,
-              style: 'customTermsText',
-              margin: [0, 0, 0, 10]
-            });
-          }
-        } else {
-          // Regular paragraph
-          termsContent.push({
-            text: trimmedParagraph,
-            style: 'customTermsText',
-            margin: [0, 0, 0, 10]
-          });
+  if (hasAnyTerms) {
+    // Add main "Terms & Conditions" header
+    termsContent.push({
+      text: 'Terms & Conditions',
+      style: 'sectionHeader',
+      pageBreak: 'before',
+      margin: [0, 0, 0, 20]
+    });
+
+    // PAYMENT TERMS section
+    if (paymentTerms) {
+      termsContent.push(
+        {
+          canvas: [
+            {
+              type: 'line',
+              x1: 0, y1: 0,
+              x2: 515, y2: 0,
+              lineWidth: 1,
+              lineColor: '#e5e7eb'
+            }
+          ],
+          margin: [0, 0, 0, 8]
+        },
+        {
+          text: 'PAYMENT TERMS',
+          style: 'termsSectionHeader',
+          margin: [0, 0, 0, 8]
+        },
+        {
+          canvas: [
+            {
+              type: 'line',
+              x1: 0, y1: 0,
+              x2: 515, y2: 0,
+              lineWidth: 1,
+              lineColor: '#e5e7eb'
+            }
+          ],
+          margin: [0, 0, 0, 10]
+        },
+        {
+          text: paymentTerms,
+          style: 'termsContent',
+          margin: [0, 0, 0, 15]
         }
-      });
+      );
+    }
+
+    // DELIVERY section
+    if (deliveryTerms) {
+      termsContent.push(
+        {
+          canvas: [
+            {
+              type: 'line',
+              x1: 0, y1: 0,
+              x2: 515, y2: 0,
+              lineWidth: 1,
+              lineColor: '#e5e7eb'
+            }
+          ],
+          margin: [0, 0, 0, 8]
+        },
+        {
+          text: 'DELIVERY',
+          style: 'termsSectionHeader',
+          margin: [0, 0, 0, 8]
+        },
+        {
+          canvas: [
+            {
+              type: 'line',
+              x1: 0, y1: 0,
+              x2: 515, y2: 0,
+              lineWidth: 1,
+              lineColor: '#e5e7eb'
+            }
+          ],
+          margin: [0, 0, 0, 10]
+        },
+        {
+          text: deliveryTerms,
+          style: 'termsContent',
+          margin: [0, 0, 0, 15]
+        }
+      );
+    }
+
+    // WARRANTY section
+    if (warranty) {
+      termsContent.push(
+        {
+          canvas: [
+            {
+              type: 'line',
+              x1: 0, y1: 0,
+              x2: 515, y2: 0,
+              lineWidth: 1,
+              lineColor: '#e5e7eb'
+            }
+          ],
+          margin: [0, 0, 0, 8]
+        },
+        {
+          text: 'WARRANTY',
+          style: 'termsSectionHeader',
+          margin: [0, 0, 0, 8]
+        },
+        {
+          canvas: [
+            {
+              type: 'line',
+              x1: 0, y1: 0,
+              x2: 515, y2: 0,
+              lineWidth: 1,
+              lineColor: '#e5e7eb'
+            }
+          ],
+          margin: [0, 0, 0, 10]
+        },
+        {
+          text: warranty,
+          style: 'termsContent',
+          margin: [0, 0, 0, 15]
+        }
+      );
+    }
+
+    // EXCLUSIONS section
+    if (exclusions) {
+      termsContent.push(
+        {
+          canvas: [
+            {
+              type: 'line',
+              x1: 0, y1: 0,
+              x2: 515, y2: 0,
+              lineWidth: 1,
+              lineColor: '#e5e7eb'
+            }
+          ],
+          margin: [0, 0, 0, 8]
+        },
+        {
+          text: 'EXCLUSIONS',
+          style: 'termsSectionHeader',
+          margin: [0, 0, 0, 8]
+        },
+        {
+          canvas: [
+            {
+              type: 'line',
+              x1: 0, y1: 0,
+              x2: 515, y2: 0,
+              lineWidth: 1,
+              lineColor: '#e5e7eb'
+            }
+          ],
+          margin: [0, 0, 0, 10]
+        },
+        {
+          text: exclusions,
+          style: 'termsContent',
+          margin: [0, 0, 0, 15]
+        }
+      );
     }
   } else {
-    // Fallback to minimal default terms if no quote-specific terms
-    console.log('No quote-specific terms, using minimal defaults');
+    // Fallback to minimal default terms if no structured terms provided
     termsContent.push(
       {
         text: 'Terms & Conditions',
@@ -220,7 +307,7 @@ export const generateEnhancedQuotePDF = (
         style: 'subsectionHeader'
       },
       {
-        text: `Payment terms: ${originalTermsAndConditions || 'Net 30'}`,
+        text: 'Payment terms: Net 30 days',
         style: 'customTermsText',
         margin: [0, 0, 0, 10]
       },
@@ -230,15 +317,6 @@ export const generateEnhancedQuotePDF = (
       },
       {
         text: `This quotation is valid for ${enhancedQuote.validityDays || 30} days from the date of issue.`,
-        style: 'customTermsText',
-        margin: [0, 0, 0, 10]
-      },
-      {
-        text: 'General',
-        style: 'subsectionHeader'
-      },
-      {
-        text: `${originalTermsAndConditions || 'All work is subject to our standard terms and conditions.'}`,
         style: 'customTermsText',
         margin: [0, 0, 0, 10]
       }
@@ -345,7 +423,6 @@ export const generateEnhancedQuotePDF = (
               { text: 'Unit\nPrice', style: 'tableHeader', alignment: 'right' },
               { text: 'Total', style: 'tableHeader', alignment: 'right' }
             ],
-            // Items rows
             ...enhancedQuote.items.map((item, index) => [
               { text: (index + 1).toString(), style: 'tableCell', alignment: 'center' },
               {
@@ -388,21 +465,7 @@ export const generateEnhancedQuotePDF = (
         margin: [0, 0, 0, 30]
       },
 
-      // Payment Terms (if not included in custom terms)
-      ...(enhancedQuote.terms && !quoteTerms.hasCustomTerms ? [
-        {
-          text: 'Payment Terms:',
-          style: 'sectionHeader',
-          margin: [0, 0, 0, 5]
-        },
-        {
-          text: enhancedQuote.terms,
-          style: 'paymentTerms',
-          margin: [0, 0, 0, 20]
-        }
-      ] : []),
-
-      // NEW: Quote-specific terms content
+      // Structured terms content
       ...termsContent,
 
       // Closing
@@ -455,6 +518,19 @@ export const generateEnhancedQuotePDF = (
         color: '#1f2937',
         margin: [0, 5, 0, 3]
       },
+      // NEW: Style for structured term section headers
+      termsSectionHeader: {
+        fontSize: 12,
+        bold: true,
+        color: '#1f2937',
+        letterSpacing: 0.5
+      },
+      // NEW: Style for term content
+      termsContent: {
+        fontSize: 10,
+        lineHeight: 1.5,
+        alignment: 'justify'
+      },
       tableHeader: {
         fontSize: 10,
         bold: true,
@@ -481,10 +557,6 @@ export const generateEnhancedQuotePDF = (
         fontSize: 10,
         italics: true
       },
-      paymentTerms: {
-        fontSize: 11
-      },
-      // NEW: Styles for custom terms
       customTermsText: {
         fontSize: 10,
         lineHeight: 1.4,
