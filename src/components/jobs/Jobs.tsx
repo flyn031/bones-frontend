@@ -1,4 +1,4 @@
-// src/components/jobs/Jobs.tsx (amended with audit trail + orders as jobs + status fixes)
+// src/components/jobs/Jobs.tsx (amended with audit trail + orders as jobs + status fixes + customerReference)
 import React, { useState, useEffect } from 'react';
 import {
   Briefcase,
@@ -18,16 +18,16 @@ import {
   ExternalLink,
   RefreshCw
 } from 'lucide-react';
-import { jobApi } from '../../utils/api'; // Verify path
-import { API_URL } from '../../config/constants'; // ✅ FIXED: Added API_URL import
-import CreateJobModal from './CreateJobModal'; // Verify path
-import JobDetails from './JobDetails';       // Verify path
-import { format } from 'date-fns';         // Or your date library
-import { AuditButton } from '../audit';    // Import audit button
+import { jobApi } from '../../utils/api';
+import { API_URL } from '../../config/constants';
+import CreateJobModal from './CreateJobModal';
+import JobDetails from './JobDetails';
+import { format } from 'date-fns';
+import { AuditButton } from '../audit';
 import { JobsResponse } from '../../types/api';
 import { ExtendedJob, AtRiskJob, DisplayJob, toBaseJob } from '../../types/job';
 
-// --- Utility Functions (Keep formatDate, formatCurrency) ---
+// --- Utility Functions ---
 const formatCurrency = (amount: number | null | undefined): string => {
   if (amount === null || amount === undefined) return 'N/A';
   return new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(amount);
@@ -44,22 +44,20 @@ const formatDate = (dateString: string | null | undefined): string => {
 
 // --- Component ---
 export default function Jobs() {
-  // State - Updated to use new types
+  // State
   const [jobs, setJobs] = useState<ExtendedJob[]>([]);
   const [atRiskJobs, setAtRiskJobs] = useState<AtRiskJob[]>([]);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [selectedJobId, setSelectedJobId] = useState<string | null>(null); // Store ID to fetch full details
-  const [selectedJobData, setSelectedJobData] = useState<ExtendedJob | null>(null); // For JobDetails modal
+  const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
+  const [selectedJobData, setSelectedJobData] = useState<ExtendedJob | null>(null);
   const [isDetailsLoading, setIsDetailsLoading] = useState(false);
   const [filter, setFilter] = useState<string>('ALL');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeView, setActiveView] = useState<'list' | 'atRisk'>('list'); // State for view toggle
+  const [activeView, setActiveView] = useState<'list' | 'atRisk'>('list');
   const [pagination, setPagination] = useState({ currentPage: 1, totalPages: 1, totalJobs: 0, pageSize: 10 });
   const [sortConfig, setSortConfig] = useState<{ key: keyof ExtendedJob | 'customer.name'; direction: 'asc' | 'desc' }>({ key: 'expectedEndDate', direction: 'asc' });
   const [refreshing, setRefreshing] = useState(false);
-  
-  // Add dropdown state
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
 
   // --- Enhanced Data Fetching Logic ---
@@ -72,7 +70,6 @@ export default function Jobs() {
       setError(null);
       
       try {
-          // Fetch regular job list with filters/sorting/pagination
           const params: any = {
               page: pagination.currentPage,
               limit: pagination.pageSize,
@@ -83,10 +80,9 @@ export default function Jobs() {
               params.status = filter;
           }
           
-          // Fetch both jobs and orders in parallel
           const [jobsResponse, ordersResponse] = await Promise.all([
               jobApi.getJobs(params),
-              fetch(`${API_URL}/orders`, { // ✅ FIXED: Use API_URL instead of relative path
+              fetch(`${API_URL}/orders`, {
                   headers: {
                       'Authorization': `Bearer ${localStorage.getItem('token')}`,
                       'Content-Type': 'application/json',
@@ -94,11 +90,9 @@ export default function Jobs() {
               })
           ]);
 
-          // Type assertion for jobs response
           const jobsData = jobsResponse.data as JobsResponse;
           const jobs = jobsData.jobs || jobsData.data || [];
           
-          // Get orders with IN_PRODUCTION status
           let ordersData = [];
           if (ordersResponse.ok) {
               const allOrders = await ordersResponse.json();
@@ -111,28 +105,26 @@ export default function Jobs() {
                       createdAt: order.createdAt,
                       expectedEndDate: order.expectedEndDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
                       estimatedCost: order.totalAmount || 0,
-                      status: 'IN_PRODUCTION' as const, // Keep original status
+                      status: 'IN_PRODUCTION' as const,
                       customer: {
                           id: order.customerId || 'unknown',
                           name: order.customerName || order.customer?.name || 'Unknown Customer'
                       },
-                      isFromOrder: true, // Flag to identify this came from an order
+                      customerReference: order.customerReference, // ADDED: Customer reference
+                      isFromOrder: true,
                       originalOrderId: order.id,
                       quoteRef: order.quoteRef
                   }));
           }
 
-          // Combine jobs and orders, with jobs first
           const combinedData = [...jobs, ...ordersData];
           
           console.log(`✅ Loaded ${jobs.length} jobs + ${ordersData.length} orders = ${combinedData.length} total items`);
           
           setJobs(combinedData);
           
-          // Fixed: Map API pagination response to match state structure
           const apiPagination = jobsData.pagination;
           if (apiPagination && 'page' in apiPagination) {
-            // API returns { page, total, pages } format
             setPagination({
               currentPage: apiPagination.page,
               totalPages: apiPagination.pages,
@@ -140,7 +132,6 @@ export default function Jobs() {
               pageSize: pagination.pageSize
             });
           } else {
-            // Use existing format or fallback
             setPagination(apiPagination || { currentPage: 1, totalPages: 1, totalJobs: combinedData.length, pageSize: pagination.pageSize });
           }
           
@@ -159,13 +150,9 @@ export default function Jobs() {
       setIsLoading(true);
       setError(null);
       try {
-          // Fetch at-risk jobs (no filters/sorting/pagination assumed for this endpoint)
-          const response = await jobApi.getAtRiskJobs(); // Add threshold if needed: (10)
-          
-          // Type assertion for at-risk jobs response
+          const response = await jobApi.getAtRiskJobs();
           const atRiskData = response.data as AtRiskJob[] | { data: AtRiskJob[] };
           const atRiskJobs = Array.isArray(atRiskData) ? atRiskData : (atRiskData.data || []);
-          
           setAtRiskJobs(atRiskJobs);
       } catch (err: any) {
           console.error('Error fetching at-risk jobs:', err);
@@ -176,41 +163,35 @@ export default function Jobs() {
       }
   };
 
-  // Manual refresh function
   const handleRefresh = () => {
     console.log('🔄 Manual refresh triggered');
     if (activeView === 'list') {
-      fetchListData(true); // true = show refreshing state
+      fetchListData(true);
     } else {
       fetchAtRiskData();
     }
   };
 
-  // Fetch data based on the active view
   useEffect(() => {
     if (activeView === 'list') {
       fetchListData();
-    } else { // activeView === 'atRisk'
+    } else {
       fetchAtRiskData();
     }
-    // Reset selection when view changes
     setSelectedJobId(null);
     setSelectedJobData(null);
-  }, [activeView, filter, sortConfig, pagination.currentPage]); // Dependencies that trigger refetch
+  }, [activeView, filter, sortConfig, pagination.currentPage]);
 
-  // Auto-refresh every 15 seconds when in list view
   useEffect(() => {
     if (activeView === 'list') {
       const interval = setInterval(() => {
         console.log('🔄 Auto-refresh triggered');
-        fetchListData(true); // true = show refreshing state
-      }, 15000); // 15 seconds
-
+        fetchListData(true);
+      }, 15000);
       return () => clearInterval(interval);
     }
   }, [activeView]);
 
-  // Fetch full job details when an ID is selected
   useEffect(() => {
     const fetchJobDetails = async () => {
       if (!selectedJobId) {
@@ -219,16 +200,12 @@ export default function Jobs() {
       }
       setIsDetailsLoading(true);
       try {
-        // Use getJobById which returns the full Job structure
         const response = await jobApi.getJobById(selectedJobId);
-        
-        // Type assertion for job details response
         const jobData = response.data as ExtendedJob;
         setSelectedJobData(jobData);
       } catch (err) {
         console.error("Failed to fetch job details:", err);
-        setSelectedJobData(null); // Clear on error
-        // Optionally show an error message to the user
+        setSelectedJobData(null);
       } finally {
         setIsDetailsLoading(false);
       }
@@ -236,7 +213,6 @@ export default function Jobs() {
     fetchJobDetails();
   }, [selectedJobId]);
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = () => {
       setOpenDropdown(null);
@@ -248,10 +224,9 @@ export default function Jobs() {
     }
   }, [openDropdown]);
 
-
   // --- Handlers ---
   const handleSelectJob = (job: DisplayJob | null) => {
-    setSelectedJobId(job?.id || null); // Store only the ID
+    setSelectedJobId(job?.id || null);
   };
 
   const handleCloseDetails = () => {
@@ -261,17 +236,14 @@ export default function Jobs() {
 
   const handleJobCreated = () => {
       setIsCreateModalOpen(false);
-      setActiveView('list'); // Switch to list view to see the new job
-      // Reset to page 1 of list view
+      setActiveView('list');
       setPagination(prev => ({ ...prev, currentPage: 1 }));
-      setFilter('ALL'); // Reset filter?
-      setSortConfig({ key: 'expectedEndDate', direction: 'asc' }); // Reset sort?
-      // fetchListData will be triggered by state changes via useEffect
+      setFilter('ALL');
+      setSortConfig({ key: 'expectedEndDate', direction: 'asc' });
   };
 
   const handleJobUpdated = () => {
-      handleCloseDetails(); // Close details modal
-      // Refetch data for the current view
+      handleCloseDetails();
       handleRefresh();
   }
 
@@ -282,25 +254,21 @@ export default function Jobs() {
   };
 
   const handleSort = (key: keyof ExtendedJob | 'customer.name') => {
-       if (activeView !== 'list') return; // Sorting only applies to list view
-
+       if (activeView !== 'list') return;
        let direction: 'asc' | 'desc' = 'asc';
        if (sortConfig.key === key && sortConfig.direction === 'asc') {
            direction = 'desc';
        }
-       // Reset to page 1 when sorting changes
        setPagination(prev => ({ ...prev, currentPage: 1 }));
        setSortConfig({ key, direction });
    };
 
    const handleFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        if (activeView !== 'list') return; // Filtering only applies to list view
+        if (activeView !== 'list') return;
         setFilter(e.target.value);
-        // Reset to page 1 when filter changes
         setPagination(prev => ({ ...prev, currentPage: 1 }));
    }
 
-   // Add dropdown handlers
    const toggleDropdown = (jobId: string, event: React.MouseEvent) => {
      event.preventDefault();
      event.stopPropagation();
@@ -314,12 +282,9 @@ export default function Jobs() {
 
    const handleDeleteJob = async (_jobId: string) => {
      if (!confirm('Are you sure you want to delete this job?')) return;
-     
      try {
-       // await jobApi.deleteJob(jobId);
        alert('Delete functionality to be implemented');
        setOpenDropdown(null);
-       // Refresh the list after delete
        handleRefresh();
      } catch (error) {
        console.error('Error deleting job:', error);
@@ -329,10 +294,8 @@ export default function Jobs() {
 
    const handleStatusChange = async (_jobId: string, newStatus: string) => {
      try {
-       // await jobApi.updateJob(jobId, { status: newStatus });
        alert(`Status change to ${newStatus} to be implemented`);
        setOpenDropdown(null);
-       // Refresh the list after status change
        handleRefresh();
      } catch (error) {
        console.error('Error updating job status:', error);
@@ -342,7 +305,6 @@ export default function Jobs() {
 
   // --- Enhanced Status Badge Rendering ---
   const renderStatusBadge = (status: ExtendedJob['status'] | AtRiskJob['status'] | undefined) => {
-    // Handle undefined/null status
     if (!status) {
       return (
         <span className="px-2 py-0.5 rounded-full text-xs font-medium inline-block bg-gray-200 text-gray-700">
@@ -352,14 +314,12 @@ export default function Jobs() {
     }
 
     const statusStyles: Record<string, string> = {
-      // Job statuses
       'DRAFT': 'bg-gray-100 text-gray-800',
       'PENDING': 'bg-yellow-100 text-yellow-800',
       'IN_PROGRESS': 'bg-blue-100 text-blue-800',
       'ACTIVE': 'bg-purple-100 text-purple-800',
       'COMPLETED': 'bg-green-100 text-green-800',
       'CANCELED': 'bg-red-100 text-red-800',
-      // Order statuses (for orders shown as jobs)
       'PENDING_APPROVAL': 'bg-yellow-100 text-yellow-800',
       'APPROVED': 'bg-green-100 text-green-800',
       'DECLINED': 'bg-red-200 text-red-800',
@@ -411,17 +371,14 @@ export default function Jobs() {
       );
     }
 
-    // --- Table Structure ---
-    // Define headers - note that not all columns apply equally to both views
     const headers = [
         { key: 'title', label: 'Reference', sortable: activeView === 'list' },
-        { key: 'customer.name', label: 'Customer', sortable: activeView === 'list'}, // Need special handling for AtRiskJob
+        { key: 'customer.name', label: 'Customer', sortable: activeView === 'list'},
         { key: 'expectedEndDate', label: 'Due Date', sortable: activeView === 'list' },
-        { key: 'estimatedCost', label: 'Value', sortable: activeView === 'list' }, // Not in AtRiskJob
+        { key: 'estimatedCost', label: 'Value', sortable: activeView === 'list' },
         { key: 'status', label: 'Status', sortable: activeView === 'list' },
         { key: null, label: 'Actions', sortable: false}
     ];
-
 
     return (
       <div className="overflow-x-auto shadow-md rounded-lg">
@@ -447,15 +404,22 @@ export default function Jobs() {
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {displayData.map((job) => {
-               // Adapt data access based on view/type
                const isAtRiskView = activeView === 'atRisk';
                const customerName = isAtRiskView ? (job as AtRiskJob).customer : (job as ExtendedJob).customer?.name;
-               // Value only exists in Job type
                const value = isAtRiskView ? 'N/A' : formatCurrency((job as ExtendedJob).estimatedCost);
 
                return (
                   <tr key={job.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                      {/* ADDED: Show customer reference prominently if exists */}
+                      {(job as ExtendedJob).customerReference && (
+                        <div className="mb-1">
+                          <span className="inline-block text-xs font-bold text-indigo-900 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">
+                            {(job as ExtendedJob).customerReference}
+                          </span>
+                        </div>
+                      )}
+                      
                       <div className="flex items-center">
                         {job.title}
                         {(job as ExtendedJob).isFromOrder && (
@@ -484,11 +448,9 @@ export default function Jobs() {
                           <Eye className="h-4 w-4" />
                         </button>
                         
-                        {/* Show different actions for orders vs real jobs */}
                         {(job as ExtendedJob).isFromOrder ? (
                           <button
                             onClick={() => {
-                              // Navigate to the original order
                               window.location.href = `/orders`;
                             }}
                             className="text-green-600 hover:text-green-800"
@@ -497,7 +459,6 @@ export default function Jobs() {
                             <ExternalLink className="h-4 w-4" />
                           </button>
                         ) : (
-                          /* Regular dropdown menu for real jobs */
                           <div className="relative">
                             <button
                               onClick={(e) => toggleDropdown(job.id, e)}
@@ -507,7 +468,6 @@ export default function Jobs() {
                               <MoreHorizontal className="h-4 w-4" />
                             </button>
                             
-                            {/* Dropdown Content - only show for real jobs */}
                             {openDropdown === job.id && (
                               <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-md shadow-lg border border-gray-200 z-10">
                                 <div className="py-1">
@@ -530,7 +490,6 @@ export default function Jobs() {
                                     View Details
                                   </button>
                                   
-                                  {/* Audit History Button */}
                                   <div
                                     className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                                     onClick={() => setOpenDropdown(null)}
@@ -549,7 +508,6 @@ export default function Jobs() {
                                   
                                   <hr className="my-1" />
                                   
-                                  {/* Quick status updates */}
                                   {job.status !== 'IN_PROGRESS' && (
                                     <button
                                       onClick={() => handleStatusChange(job.id, 'IN_PROGRESS')}
@@ -613,7 +571,6 @@ export default function Jobs() {
             })}
           </tbody>
         </table>
-        {/* Pagination Controls (Only show for list view) */}
         {activeView === 'list' && pagination.totalJobs > 0 && (
              <div className="flex items-center justify-between px-4 py-3 bg-white border-t border-gray-200 sm:px-6 rounded-b-lg">
                  <div className="text-sm text-gray-700">
@@ -629,11 +586,9 @@ export default function Jobs() {
     );
   };
 
-
   // --- Main Component Return ---
   return (
     <div className="p-6 md:p-8 max-w-full mx-auto">
-      {/* Page Header */}
       <div className="flex flex-wrap justify-between items-center mb-6 gap-4">
         <h1 className="text-2xl md:text-3xl font-bold flex items-center text-gray-800">
           <Briefcase className="mr-2 h-6 w-6 md:h-7 md:w-7 text-blue-600" />
@@ -641,7 +596,6 @@ export default function Jobs() {
         </h1>
 
         <div className="flex flex-wrap items-center space-x-2 md:space-x-4">
-          {/* View Toggle */}
            <div className="flex border border-gray-300 rounded-md">
              <button
                  onClick={() => setActiveView('list')}
@@ -658,17 +612,15 @@ export default function Jobs() {
              </button>
            </div>
 
-          {/* Status Filter (Disabled for At Risk view) */}
           <div className="flex items-center space-x-2">
              <Filter className={`h-4 w-4 ${activeView === 'list' ? 'text-gray-500' : 'text-gray-300'}`} />
               <select
                 value={filter}
                 onChange={handleFilterChange}
-                disabled={activeView === 'atRisk'} // Disable filter when viewing 'At Risk'
+                disabled={activeView === 'atRisk'}
                 className="border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
               >
                 <option value="ALL">All Statuses</option>
-                {/* Status options */}
                 <option value="DRAFT">Draft</option>
                 <option value="PENDING">Pending</option>
                 <option value="ACTIVE">Active</option>
@@ -679,7 +631,6 @@ export default function Jobs() {
               </select>
           </div>
 
-          {/* Refresh Button */}
           <button
             onClick={handleRefresh}
             disabled={refreshing}
@@ -690,7 +641,6 @@ export default function Jobs() {
             {refreshing ? 'Refreshing...' : 'Refresh'}
           </button>
 
-          {/* Create Job Button */}
           <button
             onClick={() => setIsCreateModalOpen(true)}
             className="flex items-center bg-blue-600 text-white px-3 py-1.5 rounded-md hover:bg-blue-700 text-sm font-medium"
@@ -700,17 +650,14 @@ export default function Jobs() {
         </div>
       </div>
 
-       {/* Loading/Refreshing Indicator */}
        {(isLoading || refreshing) && (
            <div className="text-center py-2 text-sm text-gray-500">
              {refreshing ? '🔄 Refreshing...' : 'Loading...'}
            </div>
        )}
 
-      {/* Jobs Content Area */}
       {renderContent()}
 
-      {/* Create Job Modal */}
       {isCreateModalOpen && (
         <CreateJobModal
           isOpen={isCreateModalOpen}
@@ -719,15 +666,13 @@ export default function Jobs() {
         />
       )}
 
-      {/* Job Details Modal - Fixed: Convert ExtendedJob to BaseJob using helper function */}
       {selectedJobData && !isDetailsLoading && (
         <JobDetails
-          job={toBaseJob(selectedJobData)} // Fixed: Convert to BaseJob type
+          job={toBaseJob(selectedJobData)}
           onClose={handleCloseDetails}
           onUpdate={handleJobUpdated}
         />
       )}
-       {/* Optional: Show loading indicator while fetching details */}
        {isDetailsLoading && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
               <div className="bg-white p-4 rounded shadow-lg">Loading details...</div>
